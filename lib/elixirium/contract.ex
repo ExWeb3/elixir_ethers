@@ -139,7 +139,7 @@ defmodule Elixirium.Contract do
 
     quote do
       @doc """
-      #{unquote(name)}
+      Calls `#{unquote(human_signature(selector))}` 
 
       ## Parameters
       #{unquote(document_types(selector.types, selector.input_names))}
@@ -207,5 +207,28 @@ defmodule Elixirium.Contract do
         " - `#{inspect(type)}`"
     end)
     |> Enum.join("\n")
+  end
+
+  defp human_signature(%ABI.FunctionSelector{
+         input_names: names,
+         types: types,
+         function: function
+       }) do
+    args =
+      if length(types) == length(names) do
+        Enum.zip(types, names)
+      else
+        types
+      end
+      |> Enum.map(fn
+        {type, name} when is_binary(name) ->
+          "#{ABI.FunctionSelector.encode_type(type)} #{name}"
+
+        type ->
+          "#{ABI.FunctionSelector.encode_type(type)}"
+      end)
+      |> Enum.join(", ")
+
+    "#{function}(#{args})"
   end
 end

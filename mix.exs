@@ -2,6 +2,7 @@ defmodule Elixirium.MixProject do
   use Mix.Project
 
   @version "0.0.1-dev"
+  @source_url "https://github.com/alisinabh/elixirium"
 
   def project do
     [
@@ -9,9 +10,12 @@ defmodule Elixirium.MixProject do
       version: @version,
       elixir: "~> 1.11",
       start_permanent: Mix.env() == :prod,
+      name: "Elixirium",
+      source_url: @source_url,
       deps: deps(),
       description: "Ethereum/Web3 contract client",
-      package: package()
+      package: package(),
+      docs: docs()
     ]
   end
 
@@ -25,9 +29,24 @@ defmodule Elixirium.MixProject do
   defp package do
     [
       licenses: ["GPL-3.0-or-later"],
-      source_url: "https://github.com/alisinabh/elixirium",
+      links: %{"GitHub" => @source_url},
       maintainers: ["Alisina Bahadori"],
       files: ["lib", "mix.exs", "README*", "LICENSE*"]
+    ]
+  end
+
+  defp docs do
+    source_ref =
+      if String.ends_with?(@version, "-dev") do
+        "main"
+      else
+        "v#{@version}"
+      end
+
+    [
+      extras: ["README.md"],
+      source_url: @source_url,
+      source_ref: source_ref
     ]
   end
 

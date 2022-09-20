@@ -20,7 +20,7 @@ defmodule Elixirium.Contract do
   {:ok, [...]}
   ```
 
-  ## Valid parameters
+  ## Valid `use` options
   - abi: Used to pass in the encoded/decoded json ABI of contract.
   - abi_file: Used to pass in the file path to the json ABI of contract.
   """

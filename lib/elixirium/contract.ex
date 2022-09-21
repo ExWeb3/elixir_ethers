@@ -25,16 +25,49 @@ defmodule Elixirium.Contract do
   - abi_file: Used to pass in the file path to the json ABI of contract.
   """
 
-  @type t_function_output :: %{data: binary, selector: ABI.FunctionSelector.t()}
+  @type t_function_output :: %{
+          data: binary,
+          to: Elixirium.Types.t_address(),
+          selector: ABI.FunctionSelector.t()
+        }
+  @type t_event_output :: %{
+          topics: [binary],
+          address: Elixirium.Types.t_address(),
+          selector: ABI.FunctionSelector.t()
+        }
 
   defmacro __using__(opts) do
+    module = __CALLER__.module
     {opts, _} = Code.eval_quoted(opts, [], __CALLER__)
     {:ok, abi} = read_abi(opts)
 
-    abi
-    |> ABI.parse_specification()
-    |> Enum.reject(&is_nil(&1.function))
-    |> Enum.map(&generate_method(&1, __CALLER__.module))
+    functions_selectors =
+      abi
+      |> ABI.parse_specification(include_events?: true)
+      |> Enum.reject(&is_nil(&1.function))
+
+    events_mod_name = String.to_atom("#{module}.Events")
+
+    events =
+      functions_selectors
+      |> Enum.filter(&(&1.type == :event))
+      |> Enum.map(&generate_event_filter(&1, __CALLER__.module))
+
+    events_module_ast =
+      quote do
+        defmodule unquote(events_mod_name) do
+          @moduledoc "Events for #{unquote(module)}"
+
+          unquote(events)
+        end
+      end
+
+    functions_ast =
+      functions_selectors
+      |> Enum.filter(&(&1.type == :function))
+      |> Enum.map(&generate_method(&1, __CALLER__.module))
+
+    [events_module_ast | functions_ast]
   end
 
   defguardp valid_result(bin) when bin != "0x"
@@ -135,7 +168,7 @@ defmodule Elixirium.Contract do
   ## Helpers
 
   @spec generate_method(ABI.FunctionSelector.t(), atom()) :: any()
-  defp generate_method(selector, mod) do
+  defp generate_method(%ABI.FunctionSelector{type: :function} = selector, mod) do
     name =
       selector.function
       |> Macro.underscore()
@@ -179,12 +212,12 @@ defmodule Elixirium.Contract do
 
       ## Parameters
       #{unquote(document_types(selector.types, selector.input_names))}
-      - overrides: Overrides and optsions for the call. (**Required**)
-        - `:to`: The address of the recepient contract.
+      - overrides: Overrides and optsions for the call.
+        - `:to`: The address of the recepient contract. (**Required**)
         - `:action`: Type of action for this function (`:call`, `:send` or `:prepare`) Default: `:call`.
         - `:rpc_opts`: Options to pass to the RCP client e.g. `:url`.
 
-      ## Returns
+      ## Return Types
       #{unquote(document_types(selector.returns))}
       """
       @spec unquote(name)(unquote_splicing(func_input_types), Keyword.t()) ::
@@ -210,6 +243,84 @@ defmodule Elixirium.Contract do
           {:prepare, overrides} ->
             {:ok, Enum.into(overrides, params)}
         end
+      end
+    end
+  end
+
+  defp generate_event_filter(%ABI.FunctionSelector{type: :event} = selector, mod) do
+    name =
+      selector.function
+      |> Macro.underscore()
+      |> String.to_atom()
+
+    func_args =
+      selector.inputs_indexed
+      |> Enum.count(& &1)
+      |> Macro.generate_arguments(mod)
+      |> then(fn args ->
+        if length(selector.input_names) >= length(args) do
+          args
+          |> Enum.zip(selector.input_names)
+          |> Enum.map(fn {{_, ctx, md}, name} ->
+            if String.starts_with?(name, "_") do
+              name
+              |> String.slice(1..-1)
+            else
+              name
+            end
+            |> Macro.underscore()
+            |> String.to_atom()
+            |> then(&{&1, ctx, md})
+          end)
+        else
+          args
+        end
+      end)
+
+    indexed_types =
+      selector.types
+      |> Enum.zip(selector.inputs_indexed)
+      |> Enum.filter(fn {_, indexed?} -> indexed? end)
+      |> Enum.map(fn {type, _} -> type end)
+
+    func_input_types =
+      indexed_types
+      |> Enum.map(&Elixirium.Types.to_elixir_type/1)
+
+    quote location: :keep do
+      @doc """
+      Create event filter for `#{unquote(human_signature(selector))}` 
+
+      For each indexed parameter you can either pass in the value you want to 
+      filter or `nil` if you don't want to filter.
+
+      ## Parameters
+      #{unquote(document_types(indexed_types, selector.input_names))}
+      - overrides: Overrides and optsions for the call.
+        - `:address`: The address of the recepient contract. (**Required**)
+
+      ## Event Data Types
+      #{unquote(document_types(selector.types, selector.input_names))}
+      """
+      @spec unquote(name)(unquote_splicing(func_input_types), Keyword.t()) ::
+              {:ok, Elixirium.Contract.t_event_output()}
+      def unquote(name)(unquote_splicing(func_args), overrides) do
+        address = Keyword.fetch!(overrides, :address)
+
+        topic_0 =
+          unquote(Macro.escape(selector))
+          |> ABI.FunctionSelector.encode()
+          |> ExKeccak.hash_256()
+          |> Elixirium.Utils.hex_encode()
+
+        topics =
+          [
+            topic_0,
+            unquote_splicing(func_args)
+          ]
+          |> Enum.reject(&is_nil(&1))
+
+        %{topics: topics, address: address, selector: unquote(Macro.escape(selector))}
       end
     end
   end
@@ -245,7 +356,7 @@ defmodule Elixirium.Contract do
   end
 
   defp document_types(types, names \\ []) do
-    if length(types) == length(names) do
+    if length(types) <= length(names) do
       Enum.zip(types, names)
     else
       types

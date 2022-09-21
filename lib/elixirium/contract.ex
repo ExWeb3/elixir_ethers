@@ -192,6 +192,12 @@ defmodule Elixirium.Contract do
       indexed_types
       |> Enum.map(&Elixirium.Types.to_elixir_type/1)
 
+    topic_0 =
+      selector
+      |> ABI.FunctionSelector.encode()
+      |> ExKeccak.hash_256()
+      |> Elixirium.Utils.hex_encode()
+
     quote location: :keep do
       @doc """
       Create event filter for `#{unquote(human_signature(selector))}` 
@@ -212,18 +218,7 @@ defmodule Elixirium.Contract do
       def unquote(name)(unquote_splicing(func_args), overrides) do
         address = Keyword.fetch!(overrides, :address)
 
-        topic_0 =
-          unquote(Macro.escape(selector))
-          |> ABI.FunctionSelector.encode()
-          |> ExKeccak.hash_256()
-          |> Elixirium.Utils.hex_encode()
-
-        topics =
-          [
-            topic_0,
-            unquote_splicing(func_args)
-          ]
-          |> Enum.reject(&is_nil(&1))
+        topics = [unquote(topic_0) | unquote(func_args)]
 
         %{topics: topics, address: address, selector: unquote(Macro.escape(selector))}
       end

@@ -9,6 +9,12 @@ defmodule Elixirium.Types do
   Example: 0xdAC17F958D2ee523a2206206994597C13D831ec7
   """
   @type t_address :: <<_::336>>
+  @typedoc """
+  Ethereum transaction has in it's hex format with 0x
+
+  Example: 0xd4288c8e733eb71a39fe2e8dd4912ce54d8d26d9874f30309b26b4b071260422
+  """
+  @type t_transaction_hash :: <<_::528>>
 
   @doc """
   Converts EVM data types to typespecs for documentation

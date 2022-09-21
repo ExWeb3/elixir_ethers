@@ -169,31 +169,47 @@ defmodule Elixirium.Contract do
       selector.types
       |> Enum.map(&Elixirium.Types.to_elixir_type/1)
 
-    quote do
+    func_return_types =
+      selector.returns
+      |> Enum.map(&Elixirium.Types.to_elixir_type/1)
+
+    quote location: :keep do
       @doc """
       Calls `#{unquote(human_signature(selector))}` 
 
-      Use output of this function as an input for `Elixirium.Contract.call/3`
-      or `Elixirium.Contract.send/3` to interact with the contract on blockchain.
-
       ## Parameters
       #{unquote(document_types(selector.types, selector.input_names))}
+      - overrides: Overrides and optsions for the call. (**Required**)
+        - `:to`: The address of the recepient contract.
+        - `:action`: Type of action for this function (`:call`, `:send` or `:prepare`) Default: `:call`.
+        - `:rpc_opts`: Options to pass to the RCP client e.g. `:url`.
 
       ## Returns
       #{unquote(document_types(selector.returns))}
       """
-      @spec unquote(name)(unquote_splicing(func_input_types)) ::
-              Elixirium.Contract.t_function_output()
-      def unquote(name)(unquote_splicing(func_args)) do
+      @spec unquote(name)(unquote_splicing(func_input_types), Keyword.t()) ::
+              {:ok, unquote(func_return_types)}
+              | {:ok, Elixirium.Types.t_transaction_hash()}
+              | {:ok, Elixirium.Contract.t_function_output()}
+      def unquote(name)(unquote_splicing(func_args), overrides) do
         data =
           unquote(Macro.escape(selector))
           |> ABI.encode([unquote_splicing(func_args)])
           |> Elixirium.Utils.hex_encode()
 
-        %{
-          data: data,
-          selector: unquote(Macro.escape(selector))
-        }
+        params = %{data: data, selector: unquote(Macro.escape(selector))}
+        {rpc_opts, overrides} = Keyword.pop(overrides, :rpc_opts, [])
+
+        case Keyword.pop(overrides, :action, :call) do
+          {:call, overrides} ->
+            Elixirium.Contract.call(params, overrides, rpc_opts)
+
+          {:send, overrides} ->
+            Elixirium.Contract.send(params, overrides, rpc_opts)
+
+          {:prepare, overrides} ->
+            {:ok, Enum.into(overrides, params)}
+        end
       end
     end
   end

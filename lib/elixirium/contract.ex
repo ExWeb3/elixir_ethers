@@ -56,7 +56,7 @@ defmodule Elixirium.Contract do
     events_module_ast =
       quote do
         defmodule unquote(events_mod_name) do
-          @moduledoc "Events for #{unquote(module)}"
+          @moduledoc "Events for `#{Macro.to_string(unquote(module))}`"
 
           unquote(events)
         end

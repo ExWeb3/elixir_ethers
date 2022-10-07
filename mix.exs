@@ -46,7 +46,15 @@ defmodule Elixirium.MixProject do
     [
       extras: ["README.md"],
       source_url: @source_url,
-      source_ref: source_ref
+      source_ref: source_ref,
+      groups_for_modules: [
+        "Builtin Contracts": [
+          ~r/Contract\.\w+$/
+        ],
+        "Builtin Events": [
+          ~r/Contract\.\w+\.Events/
+        ]
+      ]
     ]
   end
 

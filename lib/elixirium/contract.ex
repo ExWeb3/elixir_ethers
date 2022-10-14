@@ -25,6 +25,7 @@ defmodule Elixirium.Contract do
   - abi_file: Used to pass in the file path to the json ABI of contract.
   """
 
+  @type action :: :call | :send | :prepare
   @type t_function_output :: %{
           data: binary,
           to: Elixirium.Types.t_address(),
@@ -62,13 +63,26 @@ defmodule Elixirium.Contract do
         end
       end
 
-    functions_ast =
-      functions_selectors
-      |> Enum.filter(&(&1.type == :function))
-      |> Enum.map(&generate_method(&1, __CALLER__.module))
-
-    [events_module_ast | functions_ast]
+    functions_ast ++ [events_module_ast]
   end
+
+  @spec perform_action(action(), map, Keyword.t(), Keyword.t()) ::
+          {:ok, [term]}
+          | {:ok, Elixirium.Types.t_transaction_hash()}
+          | {:ok, Elixirium.Contract.t_function_output()}
+  def perform_action(action, params, overrides \\ [], rpc_opts \\ [])
+
+  def perform_action(:call, params, overrides, rpc_opts),
+    do: Elixirium.RPC.call(params, overrides, rpc_opts)
+
+  def perform_action(:send, params, overrides, rpc_opts),
+    do: Elixirium.RPC.send(params, overrides, rpc_opts)
+
+  def perform_action(:prepare, params, overrides, _rpc_opts),
+    do: {:ok, Enum.into(overrides, params)}
+
+  def perform_action(action, _params, _overrides, _rpc_opts),
+    do: raise("#{__MODULE__} Invalid action: #{inspect(action)}")
 
   ## Helpers
 
@@ -111,6 +125,8 @@ defmodule Elixirium.Contract do
       selector.returns
       |> Enum.map(&Elixirium.Types.to_elixir_type/1)
 
+    default_action = get_default_action(selector)
+
     quote location: :keep do
       @doc """
       Calls `#{unquote(human_signature(selector))}` 
@@ -119,7 +135,7 @@ defmodule Elixirium.Contract do
       #{unquote(document_types(selector.types, selector.input_names))}
       - overrides: Overrides and optsions for the call.
         - `:to`: The address of the recepient contract. (**Required**)
-        - `:action`: Type of action for this function (`:call`, `:send` or `:prepare`) Default: `:call`.
+        - `:action`: Type of action for this function (`:call`, `:send` or `:prepare`) Default: `#{inspect(unquote(default_action))}`.
         - `:rpc_opts`: Options to pass to the RCP client e.g. `:url`.
 
       ## Return Types
@@ -138,16 +154,8 @@ defmodule Elixirium.Contract do
         params = %{data: data, selector: unquote(Macro.escape(selector))}
         {rpc_opts, overrides} = Keyword.pop(overrides, :rpc_opts, [])
 
-        case Keyword.pop(overrides, :action, :call) do
-          {:call, overrides} ->
-            Elixirium.RPC.call(params, overrides, rpc_opts)
-
-          {:send, overrides} ->
-            Elixirium.RPC.send(params, overrides, rpc_opts)
-
-          {:prepare, overrides} ->
-            {:ok, Enum.into(overrides, params)}
-        end
+        {action, overrides} = Keyword.pop(overrides, :action, unquote(default_action))
+        Elixirium.Contract.perform_action(action, params, overrides, rpc_opts)
       end
     end
   end
@@ -282,5 +290,15 @@ defmodule Elixirium.Contract do
       |> Enum.join(", ")
 
     "#{function}(#{args})"
+  end
+
+  defp get_default_action(%ABI.FunctionSelector{state_mutability: state_mutability}) do
+    case state_mutability do
+      :view -> :call
+      :pure -> :call
+      :payable -> :send
+      :non_payable -> :send
+      _ -> :call
+    end
   end
 end

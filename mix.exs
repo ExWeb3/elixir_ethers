@@ -13,7 +13,7 @@ defmodule Elixirium.MixProject do
       name: "Elixirium",
       source_url: @source_url,
       deps: deps(),
-      description: "Ethereum/Web3 contract client",
+      description: "Ethereum/Web3 client based on ethers.js",
       package: package(),
       docs: docs()
     ]

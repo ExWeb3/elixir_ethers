@@ -1,6 +1,6 @@
-defmodule Elixirium do
+defmodule Ethers do
   @moduledoc """
-  Documentation for `Elixirium`.
+  Documentation for `Ethers`.
   """
 
   @doc """
@@ -8,7 +8,7 @@ defmodule Elixirium do
 
   ## Examples
 
-      iex> Elixirium.hello()
+      iex> Ethers.hello()
       :world
 
   """

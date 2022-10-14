@@ -1,4 +1,4 @@
-defmodule Elixirium.RPC do
+defmodule Ethers.RPC do
   @moduledoc """
   RPC Methods for interacting with the Ethereum blockchain
   """
@@ -21,7 +21,7 @@ defmodule Elixirium.RPC do
 
   ## Examples
 
-      iex> Elixirium.Contract.ERC20.total_supply() |> Elixirium.Contract.call(to: "0xa0b...ef6")
+      iex> Ethers.Contract.ERC20.total_supply() |> Ethers.Contract.call(to: "0xa0b...ef6")
       {:ok, [100000000000000]}
   """
   @spec call(map, Keyword.t()) :: {:ok, [...]} | {:error, term()}
@@ -38,7 +38,7 @@ defmodule Elixirium.RPC do
 
     with {:has_to, true} <- {:has_to, Map.has_key?(params, :to)},
          {:ok, resp} when valid_result(resp) <- rpc_client.eth_call(params, block, rpc_opts),
-         {:ok, resp_bin} <- Elixirium.Utils.hex_decode(resp) do
+         {:ok, resp_bin} <- Ethers.Utils.hex_decode(resp) do
       {:ok, ABI.decode(selector, resp_bin, :output)}
     else
       {:ok, "0x"} ->
@@ -68,7 +68,7 @@ defmodule Elixirium.RPC do
 
   ## Examples
 
-      iex> Elixirium.Contract.ERC20.transfer("0xff0...ea2", 1000) |> Elixirium.Contract.send(to: "0xa0b...ef6")
+      iex> Ethers.Contract.ERC20.transfer("0xff0...ea2", 1000) |> Ethers.Contract.send(to: "0xa0b...ef6")
       {:ok, transaction_bin}
   """
   @spec send(map, Keyword.t()) :: {:ok, String.t()} | {:error, term()}

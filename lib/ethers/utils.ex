@@ -1,4 +1,4 @@
-defmodule Elixirium.Utils do
+defmodule Ethers.Utils do
   @moduledoc """
   Utilities for interacting with ethereum blockchain
   """

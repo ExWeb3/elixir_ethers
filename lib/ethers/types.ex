@@ -1,4 +1,4 @@
-defmodule Elixirium.Types do
+defmodule Ethers.Types do
   @moduledoc "EVM types and compound type definitions"
 
   require Logger
@@ -22,7 +22,7 @@ defmodule Elixirium.Types do
   def to_elixir_type(type) do
     case type do
       :address ->
-        quote do: Elixirium.Types.t_address()
+        quote do: Ethers.Types.t_address()
 
       {:array, sub_type, _element_count} ->
         to_elixir_type({:array, sub_type})

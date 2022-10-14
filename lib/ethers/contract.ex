@@ -1,13 +1,13 @@
-defmodule Elixirium.Contract do
+defmodule Ethers.Contract do
   @moduledoc """
   Dynamically creates modules for ABIs at compile time.
 
   ## How to use
-  You can simply create a new module and call `use Elixirium.Contract` in it with the desired parameters.
+  You can simply create a new module and call `use Ethers.Contract` in it with the desired parameters.
 
   ```elixir
   defmodule MyProject.Contract do
-    use Elixirium.Contract, abi_file: "path/to/abi.json"
+    use Ethers.Contract, abi_file: "path/to/abi.json"
   end
   ```
 
@@ -16,7 +16,7 @@ defmodule Elixirium.Contract do
   data = MyProject.Contract.example_function(...)
 
   # Use data to handle eth_call
-  Elixirium.Contract.call(data, to: "0xADDRESS", from: "0xADDRESS")
+  Ethers.Contract.call(data, to: "0xADDRESS", from: "0xADDRESS")
   {:ok, [...]}
   ```
 
@@ -28,12 +28,12 @@ defmodule Elixirium.Contract do
   @type action :: :call | :send | :prepare
   @type t_function_output :: %{
           data: binary,
-          to: Elixirium.Types.t_address(),
+          to: Ethers.Types.t_address(),
           selector: ABI.FunctionSelector.t()
         }
   @type t_event_output :: %{
           topics: [binary],
-          address: Elixirium.Types.t_address(),
+          address: Ethers.Types.t_address(),
           selector: ABI.FunctionSelector.t()
         }
 
@@ -73,15 +73,15 @@ defmodule Elixirium.Contract do
 
   @spec perform_action(action(), map, Keyword.t(), Keyword.t()) ::
           {:ok, [term]}
-          | {:ok, Elixirium.Types.t_transaction_hash()}
-          | {:ok, Elixirium.Contract.t_function_output()}
+          | {:ok, Ethers.Types.t_transaction_hash()}
+          | {:ok, Ethers.Contract.t_function_output()}
   def perform_action(action, params, overrides \\ [], rpc_opts \\ [])
 
   def perform_action(:call, params, overrides, rpc_opts),
-    do: Elixirium.RPC.call(params, overrides, rpc_opts)
+    do: Ethers.RPC.call(params, overrides, rpc_opts)
 
   def perform_action(:send, params, overrides, rpc_opts),
-    do: Elixirium.RPC.send(params, overrides, rpc_opts)
+    do: Ethers.RPC.send(params, overrides, rpc_opts)
 
   def perform_action(:prepare, params, overrides, _rpc_opts),
     do: {:ok, Enum.into(overrides, params)}
@@ -124,11 +124,11 @@ defmodule Elixirium.Contract do
 
     func_input_types =
       selector.types
-      |> Enum.map(&Elixirium.Types.to_elixir_type/1)
+      |> Enum.map(&Ethers.Types.to_elixir_type/1)
 
     func_return_types =
       selector.returns
-      |> Enum.map(&Elixirium.Types.to_elixir_type/1)
+      |> Enum.map(&Ethers.Types.to_elixir_type/1)
 
     default_action = get_default_action(selector)
 
@@ -148,19 +148,19 @@ defmodule Elixirium.Contract do
       """
       @spec unquote(name)(unquote_splicing(func_input_types), Keyword.t()) ::
               {:ok, unquote(func_return_types)}
-              | {:ok, Elixirium.Types.t_transaction_hash()}
-              | {:ok, Elixirium.Contract.t_function_output()}
+              | {:ok, Ethers.Types.t_transaction_hash()}
+              | {:ok, Ethers.Contract.t_function_output()}
       def unquote(name)(unquote_splicing(func_args), overrides) do
         data =
           unquote(Macro.escape(selector))
           |> ABI.encode([unquote_splicing(func_args)])
-          |> Elixirium.Utils.hex_encode()
+          |> Ethers.Utils.hex_encode()
 
         params = %{data: data, selector: unquote(Macro.escape(selector))}
         {rpc_opts, overrides} = Keyword.pop(overrides, :rpc_opts, [])
 
         {action, overrides} = Keyword.pop(overrides, :action, unquote(default_action))
-        Elixirium.Contract.perform_action(action, params, overrides, rpc_opts)
+        Ethers.Contract.perform_action(action, params, overrides, rpc_opts)
       end
     end
   end
@@ -203,13 +203,13 @@ defmodule Elixirium.Contract do
 
     func_input_types =
       indexed_types
-      |> Enum.map(&Elixirium.Types.to_elixir_type/1)
+      |> Enum.map(&Ethers.Types.to_elixir_type/1)
 
     topic_0 =
       selector
       |> ABI.FunctionSelector.encode()
       |> ExKeccak.hash_256()
-      |> Elixirium.Utils.hex_encode()
+      |> Ethers.Utils.hex_encode()
 
     quote location: :keep do
       @doc """
@@ -227,7 +227,7 @@ defmodule Elixirium.Contract do
       #{unquote(document_types(selector.types, selector.input_names))}
       """
       @spec unquote(name)(unquote_splicing(func_input_types), Keyword.t()) ::
-              {:ok, Elixirium.Contract.t_event_output()}
+              {:ok, Ethers.Contract.t_event_output()}
       def unquote(name)(unquote_splicing(func_args), overrides) do
         address = Keyword.get(overrides, :address)
 
@@ -243,7 +243,7 @@ defmodule Elixirium.Contract do
   defp read_abi(abi: %{"abi" => abi}), do: {:ok, abi}
 
   defp read_abi(abi: abi) when is_atom(abi) do
-    read_abi(abi_file: Path.join(:code.priv_dir(:elixirium), "abi/#{abi}.json"))
+    read_abi(abi_file: Path.join(:code.priv_dir(:ethers), "abi/#{abi}.json"))
   end
 
   defp read_abi(abi: abi) when is_binary(abi) do

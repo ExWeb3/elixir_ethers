@@ -1,16 +1,16 @@
-defmodule Elixirium.MixProject do
+defmodule Ethers.MixProject do
   use Mix.Project
 
   @version "0.0.1-dev"
-  @source_url "https://github.com/alisinabh/elixirium"
+  @source_url "https://github.com/alisinabh/ethers"
 
   def project do
     [
-      app: :elixirium,
+      app: :ethers,
       version: @version,
       elixir: "~> 1.11",
       start_permanent: Mix.env() == :prod,
-      name: "Elixirium",
+      name: "Ethers",
       source_url: @source_url,
       deps: deps(),
       description: "Ethereum/Web3 client based on ethers.js",

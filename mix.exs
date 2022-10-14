@@ -63,7 +63,7 @@ defmodule Elixirium.MixProject do
     [
       {:ethereumex, "~> 0.10.3", optional: true},
       {:ex_abi, "~> 0.5.15"},
-      {:ex_doc, "~> 0.28.5"},
+      {:ex_doc, "~> 0.28.5", only: :dev, runtime: false},
       {:jason, "~> 1.4"}
     ]
   end

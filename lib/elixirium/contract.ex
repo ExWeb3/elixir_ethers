@@ -42,15 +42,20 @@ defmodule Elixirium.Contract do
     {opts, _} = Code.eval_quoted(opts, [], __CALLER__)
     {:ok, abi} = read_abi(opts)
 
-    functions_selectors =
+    function_selectors =
       abi
       |> ABI.parse_specification(include_events?: true)
       |> Enum.reject(&is_nil(&1.function))
 
-    events_mod_name = String.to_atom("#{module}.Events")
+    functions_ast =
+      function_selectors
+      |> Enum.filter(&(&1.type == :function))
+      |> Enum.map(&generate_method(&1, __CALLER__.module))
+
+    events_mod_name = Module.concat(module, "Events")
 
     events =
-      functions_selectors
+      function_selectors
       |> Enum.filter(&(&1.type == :event))
       |> Enum.map(&generate_event_filter(&1, __CALLER__.module))
 
@@ -215,8 +220,8 @@ defmodule Elixirium.Contract do
 
       ## Parameters
       #{unquote(document_types(indexed_types, selector.input_names))}
-      - overrides: Overrides and optsions for the call.
-        - `:address`: The address of the recepient contract. (**Required**)
+      - overrides: Overrides and optsions for the call. (**Required**)
+        - `:address`: The address or list of addresses of the originating contract(s). (**Optional**)
 
       ## Event Data Types
       #{unquote(document_types(selector.types, selector.input_names))}
@@ -224,7 +229,7 @@ defmodule Elixirium.Contract do
       @spec unquote(name)(unquote_splicing(func_input_types), Keyword.t()) ::
               {:ok, Elixirium.Contract.t_event_output()}
       def unquote(name)(unquote_splicing(func_args), overrides) do
-        address = Keyword.fetch!(overrides, :address)
+        address = Keyword.get(overrides, :address)
 
         topics = [unquote(topic_0) | unquote(func_args)]
 

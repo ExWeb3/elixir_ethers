@@ -1,8 +1,4 @@
-defmodule Web3ElixirTest do
+defmodule EthersTest do
   use ExUnit.Case
-  doctest Web3Elixir
-
-  test "greets the world" do
-    assert Web3Elixir.hello() == :world
-  end
+  doctest Ethers
 end

@@ -51,8 +51,8 @@ defmodule Ethers.MixProject do
         "Builtin Contracts": [
           ~r/Contract\.\w+$/
         ],
-        "Builtin Events": [
-          ~r/Contract\.\w+\.Events/
+        "Builtin EventFilters": [
+          ~r/Contract\.\w+\.EventFilters/
         ]
       ]
     ]

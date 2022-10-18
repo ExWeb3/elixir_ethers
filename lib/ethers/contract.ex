@@ -41,22 +41,32 @@ defmodule Ethers.Contract do
     module = __CALLER__.module
     {opts, _} = Code.eval_quoted(opts, [], __CALLER__)
     {:ok, abi} = read_abi(opts)
+    default_address = Keyword.get(opts, :default_address)
 
     function_selectors =
       abi
       |> ABI.parse_specification(include_events?: true)
       |> Enum.reject(&is_nil(&1.function))
 
+    function_selectors_with_meta =
+      Enum.map(function_selectors, fn %{function: function} = selector ->
+        %{
+          selector: selector,
+          has_other_arities: Enum.count(function_selectors, &(&1.function == function)) > 1,
+          default_address: default_address
+        }
+      end)
+
     functions_ast =
-      function_selectors
-      |> Enum.filter(&(&1.type == :function))
+      function_selectors_with_meta
+      |> Enum.filter(&(&1.selector.type == :function))
       |> Enum.map(&generate_method(&1, __CALLER__.module))
 
-    events_mod_name = Module.concat(module, "Events")
+    events_mod_name = Module.concat(module, EventFilters)
 
     events =
-      function_selectors
-      |> Enum.filter(&(&1.type == :event))
+      function_selectors_with_meta
+      |> Enum.filter(&(&1.selector.type == :event))
       |> Enum.map(&generate_event_filter(&1, __CALLER__.module))
 
     events_module_ast =
@@ -91,8 +101,15 @@ defmodule Ethers.Contract do
 
   ## Helpers
 
-  @spec generate_method(ABI.FunctionSelector.t(), atom()) :: any()
-  defp generate_method(%ABI.FunctionSelector{type: :function} = selector, mod) do
+  @spec generate_method(map(), atom()) :: any()
+  defp generate_method(
+         %{
+           selector: %ABI.FunctionSelector{type: :function} = selector,
+           has_other_arities: has_other_arities,
+           default_address: default_address
+         } = _function_data,
+         mod
+       ) do
     name =
       selector.function
       |> Macro.underscore()
@@ -132,14 +149,21 @@ defmodule Ethers.Contract do
 
     default_action = get_default_action(selector)
 
+    overrides = get_overrides(has_other_arities)
+
+    defaults =
+      %{to: default_address}
+      |> Map.reject(fn {_, v} -> is_nil(v) end)
+      |> Macro.escape()
+
     quote location: :keep do
       @doc """
       Calls `#{unquote(human_signature(selector))}` 
 
       ## Parameters
       #{unquote(document_types(selector.types, selector.input_names))}
-      - overrides: Overrides and optsions for the call.
-        - `:to`: The address of the recepient contract. (**Required**)
+      - overrides: Overrides and options for the call.
+        - `:to`: The address of the recipient contract. (**Required**)
         - `:action`: Type of action for this function (`:call`, `:send` or `:prepare`) Default: `#{inspect(unquote(default_action))}`.
         - `:rpc_opts`: Options to pass to the RCP client e.g. `:url`.
 
@@ -150,13 +174,16 @@ defmodule Ethers.Contract do
               {:ok, unquote(func_return_types)}
               | {:ok, Ethers.Types.t_transaction_hash()}
               | {:ok, Ethers.Contract.t_function_output()}
-      def unquote(name)(unquote_splicing(func_args), overrides) do
+      def unquote(name)(unquote_splicing(func_args), unquote(overrides)) do
         data =
           unquote(Macro.escape(selector))
           |> ABI.encode([unquote_splicing(func_args)])
           |> Ethers.Utils.hex_encode()
 
-        params = %{data: data, selector: unquote(Macro.escape(selector))}
+        params =
+          %{data: data, selector: unquote(Macro.escape(selector))}
+          |> Map.merge(unquote(defaults))
+
         {rpc_opts, overrides} = Keyword.pop(overrides, :rpc_opts, [])
 
         {action, overrides} = Keyword.pop(overrides, :action, unquote(default_action))
@@ -165,7 +192,14 @@ defmodule Ethers.Contract do
     end
   end
 
-  defp generate_event_filter(%ABI.FunctionSelector{type: :event} = selector, mod) do
+  defp generate_event_filter(
+         %{
+           selector: %ABI.FunctionSelector{type: :event} = selector,
+           has_other_arities: has_other_arities,
+           default_address: default_address
+         } = _function_data,
+         mod
+       ) do
     name =
       selector.function
       |> Macro.underscore()
@@ -195,21 +229,30 @@ defmodule Ethers.Contract do
         end
       end)
 
-    indexed_types =
+    {indexed_types, non_indexed_types} =
       selector.types
       |> Enum.zip(selector.inputs_indexed)
-      |> Enum.filter(fn {_, indexed?} -> indexed? end)
-      |> Enum.map(fn {type, _} -> type end)
+      |> Enum.reduce({[], []}, fn
+        {type, true}, {indexed, non_indexed} ->
+          {indexed ++ [type], non_indexed}
+
+        {type, false}, {indexed, non_indexed} ->
+          {indexed, non_indexed ++ [type]}
+      end)
 
     func_input_types =
       indexed_types
       |> Enum.map(&Ethers.Types.to_elixir_type/1)
+
+    selector = %{selector | returns: non_indexed_types}
 
     topic_0 =
       selector
       |> ABI.FunctionSelector.encode()
       |> ExKeccak.hash_256()
       |> Ethers.Utils.hex_encode()
+
+    overrides = get_overrides(has_other_arities)
 
     quote location: :keep do
       @doc """
@@ -220,7 +263,7 @@ defmodule Ethers.Contract do
 
       ## Parameters
       #{unquote(document_types(indexed_types, selector.input_names))}
-      - overrides: Overrides and optsions for the call. (**Required**)
+      - overrides: Overrides and options for the call. (**Required**)
         - `:address`: The address or list of addresses of the originating contract(s). (**Optional**)
 
       ## Event Data Types
@@ -228,8 +271,8 @@ defmodule Ethers.Contract do
       """
       @spec unquote(name)(unquote_splicing(func_input_types), Keyword.t()) ::
               {:ok, Ethers.Contract.t_event_output()}
-      def unquote(name)(unquote_splicing(func_args), overrides) do
-        address = Keyword.get(overrides, :address)
+      def unquote(name)(unquote_splicing(func_args), unquote(overrides)) do
+        address = Keyword.get(overrides, :address, unquote(default_address))
 
         topics = [unquote(topic_0) | unquote(func_args)]
 
@@ -239,23 +282,30 @@ defmodule Ethers.Contract do
   end
 
   @spec read_abi(Keyword.t()) :: {:ok, [...]} | {:error, atom()}
-  defp read_abi(abi: abi) when is_list(abi), do: {:ok, abi}
-  defp read_abi(abi: %{"abi" => abi}), do: {:ok, abi}
+  defp read_abi(:abi, abi) when is_list(abi), do: {:ok, abi}
 
-  defp read_abi(abi: abi) when is_atom(abi) do
-    read_abi(abi_file: Path.join(:code.priv_dir(:ethers), "abi/#{abi}.json"))
+  defp read_abi(:abi, %{"abi" => abi}), do: read_abi(:abi, abi)
+
+  defp read_abi(:abi, abi) when is_atom(abi) do
+    read_abi(:abi_file, Path.join(:code.priv_dir(:ethers), "abi/#{abi}.json"))
   end
 
-  defp read_abi(abi: abi) when is_binary(abi) do
-    with {:ok, abi} <- Jason.decode(abi) do
-      read_abi(abi: abi)
-    end
+  defp read_abi(:abi, abi) when is_binary(abi) do
+    abi = Jason.decode!(abi)
+    read_abi(:abi, abi)
   end
 
-  defp read_abi(abi_file: file) do
-    with {:ok, abi} <- File.read(file) do
-      read_abi(abi: abi)
-    end
+  defp read_abi(:abi_file, file) do
+    abi = File.read!(file)
+    read_abi(:abi, abi)
+  end
+
+  defp read_abi(opts) do
+    opts
+    |> Keyword.take([:abi, :abi_file])
+    |> Enum.sort()
+    |> List.first()
+    |> then(fn {type, data} -> read_abi(type, data) end)
   end
 
   defp document_types(types, names \\ []) do
@@ -304,6 +354,17 @@ defmodule Ethers.Contract do
       :payable -> :send
       :non_payable -> :send
       _ -> :call
+    end
+  end
+
+  defp get_overrides(has_other_arities) do
+    if has_other_arities do
+      # If the same function with different arities exists within the same contract,
+      # then we would need to disable defaulting the overrides as this will cause
+      # ambiguousness towards the compiler.
+      quote do: overrides
+    else
+      quote do: overrides \\ []
     end
   end
 end

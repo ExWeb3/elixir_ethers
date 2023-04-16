@@ -5,6 +5,8 @@ defmodule Ethers.RPC do
 
   defguardp valid_result(bin) when bin != "0x"
 
+  @internal_params [:selector]
+
   @doc """
   Makes an eth_call to with the given data and overrides, Than parses
   the response using the selector in the params
@@ -34,7 +36,7 @@ defmodule Ethers.RPC do
     params =
       overrides
       |> Enum.into(params)
-      |> Map.drop([:selector])
+      |> Map.drop(@internal_params)
 
     with {:has_to, true} <- {:has_to, Map.has_key?(params, :to)},
          {:ok, resp} when valid_result(resp) <- rpc_client.eth_call(params, block, rpc_opts),
@@ -80,7 +82,7 @@ defmodule Ethers.RPC do
     params =
       overrides
       |> Enum.into(params)
-      |> Map.drop([:selector])
+      |> Map.drop(@internal_params)
 
     with {:has_to, true} <- {:has_to, Map.has_key?(params, :to)},
          {:ok, resp} when valid_result(resp) <- rpc_client.eth_call(params, "latest", rpc_opts),
@@ -98,6 +100,30 @@ defmodule Ethers.RPC do
     end
   end
 
+  def get_logs(%{topics: _, selector: selector} = params, overrides \\ [], opts \\ []) do
+    {rpc_client, rpc_opts} = rpc_info(opts)
+
+    params =
+      overrides
+      |> Enum.into(params)
+      |> Map.drop([:selector])
+
+    with {:ok, resp} when is_list(resp) <- rpc_client.eth_get_logs(params, rpc_opts) do
+      logs =
+        Enum.map(resp, fn
+          %{"data" => "0x"} = log ->
+            Map.put(log, "data", [])
+
+          %{"data" => raw_data} = log ->
+            {:ok, data_bin} = Ethers.Utils.hex_decode(raw_data)
+            data = ABI.decode(selector, data_bin, :output)
+            Map.put(log, "data", data)
+        end)
+
+      {:ok, logs}
+    end
+  end
+
   ## Helpers
 
   defp rpc_info(overrides) do
@@ -107,6 +133,6 @@ defmodule Ethers.RPC do
         :error -> Application.get_env(:exw3, :rpc_client, Ethereumex.HttpClient)
       end
 
-    {module, overrides[:rpc_opts] || []}
+    {module, Keyword.get(overrides, :rpc_opts, [])}
   end
 end

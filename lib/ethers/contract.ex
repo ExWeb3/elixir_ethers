@@ -81,6 +81,7 @@ defmodule Ethers.Contract do
     functions_ast ++ [events_module_ast]
   end
 
+  @doc false
   @spec perform_action(action(), map, Keyword.t(), Keyword.t()) ::
           {:ok, [term]}
           | {:ok, Ethers.Types.t_transaction_hash()}
@@ -158,7 +159,7 @@ defmodule Ethers.Contract do
 
     quote location: :keep do
       @doc """
-      Calls `#{unquote(human_signature(selector))}` 
+      Executes `#{unquote(human_signature(selector))}` on the contract.
 
       ## Parameters
       #{unquote(document_types(selector.types, selector.input_names))}
@@ -249,7 +250,7 @@ defmodule Ethers.Contract do
     topic_0 =
       selector
       |> ABI.FunctionSelector.encode()
-      |> ExKeccak.hash_256()
+      |> keccak_module().hash_256()
       |> Ethers.Utils.hex_encode()
 
     overrides = get_overrides(has_other_arities)
@@ -276,7 +277,7 @@ defmodule Ethers.Contract do
 
         topics = [unquote(topic_0) | unquote(func_args)]
 
-        %{topics: topics, address: address, selector: unquote(Macro.escape(selector))}
+        {:ok, %{topics: topics, address: address, selector: unquote(Macro.escape(selector))}}
       end
     end
   end
@@ -291,7 +292,7 @@ defmodule Ethers.Contract do
   end
 
   defp read_abi(:abi, abi) when is_binary(abi) do
-    abi = Jason.decode!(abi)
+    abi = json_module().decode!(abi)
     read_abi(:abi, abi)
   end
 
@@ -367,4 +368,8 @@ defmodule Ethers.Contract do
       quote do: overrides \\ []
     end
   end
+
+  defp keccak_module, do: Application.get_env(:ethers, :keccak_module, ExKeccak)
+
+  defp json_module, do: Application.get_env(:ethers, :json_module, Jason)
 end

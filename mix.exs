@@ -62,8 +62,9 @@ defmodule Ethers.MixProject do
   defp deps do
     [
       {:ethereumex, "~> 0.10.3", optional: true},
-      {:ex_abi, "~> 0.5.15"},
-      {:ex_doc, "~> 0.28.5", only: :dev, runtime: false},
+      {:ex_abi, "~> 0.6.0"},
+      {:ex_doc, "~> 0.29.4", only: :dev, runtime: false},
+      {:dialyxir, "~> 1.3", only: [:dev], runtime: false},
       {:jason, "~> 1.4"}
     ]
   end

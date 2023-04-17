@@ -41,12 +41,10 @@ defmodule Ethers.Contract do
     module = __CALLER__.module
     {opts, _} = Code.eval_quoted(opts, [], __CALLER__)
     {:ok, abi} = read_abi(opts)
+    contract_binary = maybe_read_contract_binary(opts)
     default_address = Keyword.get(opts, :default_address)
 
-    function_selectors =
-      abi
-      |> ABI.parse_specification(include_events?: true)
-      |> Enum.reject(&is_nil(&1.function))
+    function_selectors = ABI.parse_specification(abi, include_events?: true)
 
     function_selectors_with_meta =
       Enum.map(function_selectors, fn %{function: function} = selector ->
@@ -57,9 +55,14 @@ defmodule Ethers.Contract do
         }
       end)
 
+    constructor_ast =
+      function_selectors_with_meta
+      |> Enum.filter(&(&1.selector.type == :constructor))
+      |> Enum.map(&generate_method(&1, __CALLER__.module))
+
     functions_ast =
       function_selectors_with_meta
-      |> Enum.filter(&(&1.selector.type == :function))
+      |> Enum.filter(&(&1.selector.type == :function and not is_nil(&1.selector.function)))
       |> Enum.map(&generate_method(&1, __CALLER__.module))
 
     events_mod_name = Module.concat(module, EventFilters)
@@ -78,7 +81,12 @@ defmodule Ethers.Contract do
         end
       end
 
-    functions_ast ++ [events_module_ast]
+    contract_binary_ast =
+      quote do
+        def __contract_binary__, do: unquote(contract_binary)
+      end
+
+    [contract_binary_ast | constructor_ast] ++ functions_ast ++ [events_module_ast]
   end
 
   @doc false
@@ -103,6 +111,51 @@ defmodule Ethers.Contract do
   ## Helpers
 
   @spec generate_method(map(), atom()) :: any()
+  defp generate_method(%{selector: %ABI.FunctionSelector{type: :constructor} = selector}, mod) do
+    func_args =
+      selector.types
+      |> Enum.count()
+      |> Macro.generate_arguments(mod)
+      |> then(fn args ->
+        if length(selector.input_names) == length(args) do
+          args
+          |> Enum.zip(selector.input_names)
+          |> Enum.map(fn {{_, ctx, md}, name} ->
+            if String.starts_with?(name, "_") do
+              name
+              |> String.slice(1..-1)
+            else
+              name
+            end
+            |> Macro.underscore()
+            |> String.to_atom()
+            |> then(&{&1, ctx, md})
+          end)
+        else
+          args
+        end
+      end)
+
+    func_input_types =
+      selector.types
+      |> Enum.map(&Ethers.Types.to_elixir_type/1)
+
+    quote location: :keep do
+      @doc """
+      Prepares contract constructor values. To deploy contracts use `Ethers.deploy/1`.
+
+      ## Parameters
+      #{unquote(document_types(selector.types, selector.input_names))}
+      """
+      @spec constructor(unquote_splicing(func_input_types)) :: binary()
+      def constructor(unquote_splicing(func_args)) do
+        unquote(Macro.escape(selector))
+        |> ABI.encode([unquote_splicing(func_args)])
+        |> Ethers.Utils.hex_encode(false)
+      end
+    end
+  end
+
   defp generate_method(
          %{
            selector: %ABI.FunctionSelector{type: :function} = selector,
@@ -275,16 +328,24 @@ defmodule Ethers.Contract do
       def unquote(name)(unquote_splicing(func_args), unquote(overrides)) do
         address = Keyword.get(overrides, :address, unquote(default_address))
 
-        topics = [unquote(topic_0) | unquote(func_args)]
+        sub_topics =
+          Enum.zip(unquote(Macro.escape(selector.types)), unquote(func_args))
+          |> Enum.map(fn
+            {_, nil} -> nil
+            {type, value} -> ABI.TypeEncoder.encode([value], [type]) |> Ethers.Utils.hex_encode()
+          end)
 
-        {:ok, %{topics: topics, address: address, selector: unquote(Macro.escape(selector))}}
+        {:ok,
+         %{
+           topics: [unquote(topic_0) | sub_topics],
+           address: address,
+           selector: unquote(Macro.escape(selector))
+         }}
       end
     end
   end
 
-  @spec read_abi(Keyword.t()) :: {:ok, [...]} | {:error, atom()}
   defp read_abi(:abi, abi) when is_list(abi), do: {:ok, abi}
-
   defp read_abi(:abi, %{"abi" => abi}), do: read_abi(:abi, abi)
 
   defp read_abi(:abi, abi) when is_atom(abi) do
@@ -301,12 +362,41 @@ defmodule Ethers.Contract do
     read_abi(:abi, abi)
   end
 
+  @spec read_abi(Keyword.t()) :: {:ok, [...]} | {:error, atom()}
   defp read_abi(opts) do
-    opts
-    |> Keyword.take([:abi, :abi_file])
-    |> Enum.sort()
-    |> List.first()
-    |> then(fn {type, data} -> read_abi(type, data) end)
+    case Keyword.take(opts, [:abi, :abi_file]) do
+      [{type, data}] ->
+        read_abi(type, data)
+
+      _ ->
+        {:error, :bad_argument}
+    end
+  end
+
+  defp maybe_read_contract_binary(:abi, abi) when is_list(abi), do: nil
+  defp maybe_read_contract_binary(:abi, %{"bin" => bin}) when is_binary(bin), do: bin
+  defp maybe_read_contract_binary(:abi, map) when is_map(map), do: nil
+  defp maybe_read_contract_binary(:abi, abi) when is_atom(abi), do: nil
+
+  defp maybe_read_contract_binary(:abi, abi) when is_binary(abi) do
+    abi = json_module().decode!(abi)
+    maybe_read_contract_binary(:abi, abi)
+  end
+
+  defp maybe_read_contract_binary(:abi_file, file) do
+    abi = File.read!(file)
+    maybe_read_contract_binary(:abi, abi)
+  end
+
+  @spec maybe_read_contract_binary(Keyword.t()) :: binary() | nil
+  defp maybe_read_contract_binary(opts) do
+    case Keyword.take(opts, [:abi, :abi_file]) do
+      [{type, data}] ->
+        maybe_read_contract_binary(type, data)
+
+      _ ->
+        {:error, :bad_argument}
+    end
   end
 
   defp document_types(types, names \\ []) do

@@ -12,7 +12,8 @@ defmodule Ethers.Utils do
       "0x6574686572735f6578"
   """
   @spec hex_encode(binary()) :: String.t()
-  def hex_encode(bin), do: "0x" <> Base.encode16(bin, case: :lower)
+  def hex_encode(bin, include_prefix \\ true),
+    do: if(include_prefix, do: "0x", else: "") <> Base.encode16(bin, case: :lower)
 
   @doc """
   Decode from hex with (or without) 0x prefix.
@@ -63,5 +64,20 @@ defmodule Ethers.Utils do
   @spec integer_to_hex(integer()) :: String.t()
   def integer_to_hex(integer) when is_integer(integer) do
     "0x" <> Integer.to_string(integer, 16)
+  end
+
+  @doc """
+  Adds gas limit estimation to the parameters if not already exists
+  """
+  def maybe_add_gas_limit(params, opts \\ [])
+
+  def maybe_add_gas_limit(%{gas: _} = params, opts) do
+    {:ok, params}
+  end
+
+  def maybe_add_gas_limit(params, opts) do
+    with {:ok, gas} <- Ethers.estimate_gas(params, opts) do
+      {:ok, Map.put(params, :gas, gas)}
+    end
   end
 end

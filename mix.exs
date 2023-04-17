@@ -9,6 +9,7 @@ defmodule Ethers.MixProject do
       app: :ethers,
       version: @version,
       elixir: "~> 1.11",
+      elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       name: "Ethers",
       source_url: @source_url,
@@ -57,6 +58,10 @@ defmodule Ethers.MixProject do
       ]
     ]
   end
+
+  # Specifies which paths to compile per environment.
+  defp elixirc_paths(:test), do: ["lib", "test/support"]
+  defp elixirc_paths(_), do: ["lib"]
 
   # Run "mix help deps" to learn about dependencies.
   defp deps do

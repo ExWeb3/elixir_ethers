@@ -18,6 +18,7 @@ defmodule Ethers.RPC do
   - `:to`: Indicates recepient address. (Contract address in this case)
 
   ## Options
+  - `:block`: The block number or block alias. Defaults to `latest`
   - `:rpc_client`: The RPC Client to use. It should implement ethereum jsonRPC API. default: Ethereumex.HttpClient
   - `:rpc_opts`: Extra options to pass to rpc_client. (Like timeout, Server URL, etc.)
 
@@ -31,23 +32,18 @@ defmodule Ethers.RPC do
 
   def call(%{data: _, selector: selector} = params, overrides, opts) do
     block = Keyword.get(opts, :block, "latest")
-    {rpc_client, rpc_opts} = rpc_info(opts)
 
     params =
       overrides
       |> Enum.into(params)
       |> Map.drop(@internal_params)
 
-    with {:has_to, true} <- {:has_to, Map.has_key?(params, :to)},
-         {:ok, resp} when valid_result(resp) <- rpc_client.eth_call(params, block, rpc_opts),
+    with {:ok, resp} when valid_result(resp) <- eth_call(params, block, opts),
          {:ok, resp_bin} <- Ethers.Utils.hex_decode(resp) do
       {:ok, ABI.decode(selector, resp_bin, :output)}
     else
       {:ok, "0x"} ->
         {:error, :unknown}
-
-      {:has_to, false} ->
-        {:error, :no_to_address}
 
       {:error, cause} ->
         {:error, cause}
@@ -77,51 +73,68 @@ defmodule Ethers.RPC do
   def send(params, overrides \\ [], opts \\ [])
 
   def send(%{data: _} = params, overrides, opts) do
-    {rpc_client, rpc_opts} = rpc_info(opts)
-
     params =
       overrides
       |> Enum.into(params)
       |> Map.drop(@internal_params)
 
-    with {:has_to, true} <- {:has_to, Map.has_key?(params, :to)},
-         {:ok, resp} when valid_result(resp) <- rpc_client.eth_call(params, "latest", rpc_opts),
-         {:ok, tx} when valid_result(tx) <- rpc_client.eth_send_transaction(params, rpc_opts) do
+    with {:ok, tx} when valid_result(tx) <- eth_send_transaction(params, opts) do
       {:ok, tx}
     else
       {:ok, "0x"} ->
         {:error, :unknown}
-
-      {:has_to, false} ->
-        {:error, :no_to_address}
 
       {:error, cause} ->
         {:error, cause}
     end
   end
 
-  def get_logs(%{topics: _, selector: selector} = params, overrides \\ [], opts \\ []) do
+  def eth_send_transaction(params, opts \\ []) when is_map(params) do
     {rpc_client, rpc_opts} = rpc_info(opts)
 
-    params =
-      overrides
-      |> Enum.into(params)
-      |> Map.drop([:selector])
+    case params do
+      %{to: _to_address} ->
+        rpc_client.eth_send_transaction(params, rpc_opts)
 
-    with {:ok, resp} when is_list(resp) <- rpc_client.eth_get_logs(params, rpc_opts) do
-      logs =
-        Enum.map(resp, fn
-          %{"data" => "0x"} = log ->
-            Map.put(log, "data", [])
-
-          %{"data" => raw_data} = log ->
-            {:ok, data_bin} = Ethers.Utils.hex_decode(raw_data)
-            data = ABI.decode(selector, data_bin, :output)
-            Map.put(log, "data", data)
-        end)
-
-      {:ok, logs}
+      _ ->
+        {:error, :no_to_address}
     end
+  end
+
+  def eth_call(params, block, opts \\ []) when is_map(params) do
+    {rpc_client, rpc_opts} = rpc_info(opts)
+
+    case params do
+      %{to: to_address} when not is_nil(to_address) ->
+        rpc_client.eth_call(params, block, rpc_opts)
+
+      _ ->
+        {:error, :no_to_address}
+    end
+  end
+
+  def eth_estimate_gas(params, opts \\ []) when is_map(params) do
+    {rpc_client, rpc_opts} = rpc_info(opts)
+
+    rpc_client.eth_estimate_gas(params, rpc_opts)
+  end
+
+  def eth_get_logs(params, opts \\ []) when is_map(params) do
+    {rpc_client, rpc_opts} = rpc_info(opts)
+
+    rpc_client.eth_get_logs(params, rpc_opts)
+  end
+
+  def eth_gas_price(opts \\ []) do
+    {rpc_client, rpc_opts} = rpc_info(opts)
+
+    rpc_client.eth_gas_price(rpc_opts)
+  end
+
+  def eth_get_transaction_receipt(tx_hash, opts \\ []) when is_binary(tx_hash) do
+    {rpc_client, rpc_opts} = rpc_info(opts)
+
+    rpc_client.eth_get_transaction_receipt(tx_hash, rpc_opts)
   end
 
   ## Helpers

@@ -34,7 +34,7 @@ import Config
 config :ethereumex, url: "[URL_HERE]"
 ```
 
-For more information, refer to [ethereumex](https://github.com/mana-ethereum/ethereumex).
+For more information, refer to [ethereumex](https://github.com/mana-ethereum/ethereumex#configuration).
 
 ## Usage
 

@@ -3,6 +3,8 @@ defmodule Ethers.Utils do
   Utilities for interacting with ethereum blockchain
   """
 
+  @wei_multiplier trunc(:math.pow(10, 18))
+
   @doc """
   Encode to hex with 0x prefix.
 
@@ -64,6 +66,38 @@ defmodule Ethers.Utils do
   @spec integer_to_hex(integer()) :: String.t()
   def integer_to_hex(integer) when is_integer(integer) do
     "0x" <> Integer.to_string(integer, 16)
+  end
+
+  @doc """
+  Converts ETH to WEI
+
+  ## Examples
+
+      iex> Ethers.Utils.to_wei(1)
+      1000000000000000000
+
+      iex> Ethers.Utils.to_wei(3.14)
+      3140000000000000000
+  """
+  @spec to_wei(number()) :: non_neg_integer()
+  def to_wei(number) when number > 0 do
+    trunc(number * @wei_multiplier)
+  end
+
+  @doc """
+  Convert WEI to ETH
+
+  ## Examples
+
+      iex> Ethers.Utils.from_wei(1000000000000000000)
+      1.0
+
+      iex> Ethers.Utils.from_wei(3140000000000000000)
+      3.14
+  """
+  @spec from_wei(non_neg_integer()) :: float()
+  def from_wei(number) when is_integer(number) and number > 0 do
+    number / @wei_multiplier
   end
 
   @doc """

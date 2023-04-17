@@ -142,6 +142,12 @@ iex> Ethers.get_logs(filter)
 }
 ```
 
+## Props
+
+This project was not possible if it was not for the great [:ex_abi](https://github.com/poanetwork/ex_abi) library and its contributors.
+
+Also a special thanks to the authors and contributors of [:ethereumex](https://github.com/mana-ethereum/ethereumex) library.
+
 ## License
 
 [Apache License 2.0](https://github.com/alisinabh/elixir_ethers/blob/main/LICENSE)

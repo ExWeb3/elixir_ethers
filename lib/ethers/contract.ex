@@ -25,6 +25,8 @@ defmodule Ethers.Contract do
   - abi_file: Used to pass in the file path to the json ABI of contract.
   """
 
+  alias Ethers.Utils
+
   @type action :: :call | :send | :prepare
   @type t_function_output :: %{
           data: binary,
@@ -107,6 +109,20 @@ defmodule Ethers.Contract do
 
   def perform_action(action, _params, _overrides, _rpc_opts),
     do: raise("#{__MODULE__} Invalid action: #{inspect(action)}")
+
+  @doc false
+  @spec prepare_arg(any) :: any
+  def prepare_arg("0x" <> bin) do
+    case Utils.hex_decode(bin) do
+      {:ok, decoded_bin} ->
+        decoded_bin
+
+      {:error, cause} ->
+        raise ArgumentError, "Invalid HEX argument #{inspect(cause)} 0x#{inspect(bin)}"
+    end
+  end
+
+  def prepare_arg(any), do: any
 
   ## Helpers
 
@@ -229,9 +245,11 @@ defmodule Ethers.Contract do
               | {:ok, Ethers.Types.t_transaction_hash()}
               | {:ok, Ethers.Contract.t_function_output()}
       def unquote(name)(unquote_splicing(func_args), unquote(overrides)) do
+        args = Enum.map(unquote(func_args), &Ethers.Contract.prepare_arg/1)
+
         data =
           unquote(Macro.escape(selector))
-          |> ABI.encode([unquote_splicing(func_args)])
+          |> ABI.encode(args)
           |> Ethers.Utils.hex_encode()
 
         params =

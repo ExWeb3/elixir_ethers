@@ -55,10 +55,10 @@ defmodule Ethers.Types do
       :string ->
         quote do: String.t()
 
-      {:typle, sub_types} ->
+      {:tuple, sub_types} ->
         sub_types = Enum.map(sub_types, &to_elixir_type/1)
 
-        quote do: unquote(sub_types)
+        quote do: {unquote_splicing(sub_types)}
 
       {:ufixed, _element_count, _precision} ->
         quote do: float()

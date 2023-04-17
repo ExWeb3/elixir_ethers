@@ -1,4 +1,4 @@
-defmodule Ethers.ContractTest do
+defmodule Ethers.CounterContractTest do
   use ExUnit.Case
   doctest Ethers.Contract
 

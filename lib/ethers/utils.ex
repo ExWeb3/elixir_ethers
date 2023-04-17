@@ -28,7 +28,7 @@ defmodule Ethers.Utils do
       iex> Ethers.Utils.hex_decode("6574686572735f6578")
       {:ok, "ethers_ex"}
   """
-  @spec hex_decode(String.t()) :: {:ok, binary}
+  @spec hex_decode(String.t()) :: {:ok, binary} | :error
   def hex_decode(<<"0x", encoded::binary>>), do: hex_decode(encoded)
   def hex_decode(encoded) when rem(byte_size(encoded), 2) == 1, do: hex_decode("0" <> encoded)
   def hex_decode(encoded), do: Base.decode16(encoded, case: :mixed)

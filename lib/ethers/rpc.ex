@@ -45,6 +45,9 @@ defmodule Ethers.RPC do
       {:ok, "0x"} ->
         {:error, :unknown}
 
+      :error ->
+        {:error, :hex_decode_error}
+
       {:error, cause} ->
         {:error, cause}
     end

@@ -40,6 +40,19 @@ defmodule Ethers.Contract do
           selector: ABI.FunctionSelector.t()
         }
 
+  @default_constructor %{
+    selector: %ABI.FunctionSelector{
+      function: nil,
+      method_id: nil,
+      type: :constructor,
+      inputs_indexed: nil,
+      state_mutability: nil,
+      input_names: [],
+      types: [],
+      returns: []
+    }
+  }
+
   defmacro __using__(opts) do
     module = __CALLER__.module
     {opts, _} = Code.eval_quoted(opts, [])
@@ -60,8 +73,9 @@ defmodule Ethers.Contract do
 
     constructor_ast =
       function_selectors_with_meta
-      |> Enum.filter(&(&1.selector.type == :constructor))
-      |> Enum.map(&generate_method(&1, __CALLER__.module))
+      |> Enum.find(&(&1.selector.type == :constructor))
+      |> then(&(&1 || @default_constructor))
+      |> generate_method(__CALLER__.module)
 
     functions_ast =
       function_selectors_with_meta
@@ -89,7 +103,7 @@ defmodule Ethers.Contract do
         def __contract_binary__, do: unquote(contract_binary)
       end
 
-    [contract_binary_ast | constructor_ast] ++ functions_ast ++ [events_module_ast]
+    [contract_binary_ast, constructor_ast | functions_ast] ++ [events_module_ast]
   end
 
   @doc false
@@ -118,8 +132,8 @@ defmodule Ethers.Contract do
       {:ok, decoded_bin} ->
         decoded_bin
 
-      {:error, cause} ->
-        raise ArgumentError, "Invalid HEX argument #{inspect(cause)} 0x#{inspect(bin)}"
+      :error ->
+        raise ArgumentError, "Invalid HEX argument 0x#{inspect(bin)}"
     end
   end
 
@@ -214,9 +228,13 @@ defmodule Ethers.Contract do
       selector.types
       |> Enum.map(&Ethers.Types.to_elixir_type/1)
 
-    func_return_types =
+    func_return_typespec =
       selector.returns
       |> Enum.map(&Ethers.Types.to_elixir_type/1)
+      |> then(fn
+        [] -> []
+        list -> Enum.reduce(list, &{:|, [], [&1, &2]})
+      end)
 
     default_action = get_default_action(selector)
 
@@ -242,7 +260,7 @@ defmodule Ethers.Contract do
       #{unquote(document_types(selector.returns))}
       """
       @spec unquote(name)(unquote_splicing(func_input_types), Keyword.t()) ::
-              {:ok, unquote(func_return_types)}
+              {:ok, [unquote(func_return_typespec)]}
               | {:ok, Ethers.Types.t_transaction_hash()}
               | {:ok, Ethers.Contract.t_function_output()}
       def unquote(name)(unquote_splicing(func_args), unquote(overrides)) do
@@ -313,7 +331,7 @@ defmodule Ethers.Contract do
           {indexed, non_indexed ++ [type]}
       end)
 
-    func_input_types =
+    func_input_typespec =
       indexed_types
       |> Enum.map(&Ethers.Types.to_elixir_type/1)
 
@@ -342,7 +360,7 @@ defmodule Ethers.Contract do
       ## Event Data Types
       #{unquote(document_types(selector.types, selector.input_names))}
       """
-      @spec unquote(name)(unquote_splicing(func_input_types), Keyword.t()) ::
+      @spec unquote(name)(unquote_splicing(func_input_typespec), Keyword.t()) ::
               {:ok, Ethers.Contract.t_event_output()}
       def unquote(name)(unquote_splicing(func_args), unquote(overrides)) do
         address = Keyword.get(overrides, :address, unquote(default_address))

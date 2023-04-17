@@ -144,4 +144,4 @@ iex> Ethers.get_logs(filter)
 
 ## License
 
-[Apache License 2.0](/LICENSE)
+[Apache License 2.0](https://github.com/alisinabh/elixir_ethers/blob/main/LICENSE)

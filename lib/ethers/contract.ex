@@ -142,7 +142,7 @@ defmodule Ethers.Contract do
 
     quote location: :keep do
       @doc """
-      Prepares contract constructor values. To deploy contracts use `Ethers.deploy/1`.
+      Prepares contract constructor values. To deploy contracts use `Ethers.deploy/3`.
 
       ## Parameters
       #{unquote(document_types(selector.types, selector.input_names))}

@@ -1,5 +1,12 @@
 # Elixir Ethers
 
+![example workflow](https://github.com/alisinabh/elixir_ethers/actions/workflows/elixir.yml/badge.svg)
+[![Module Version](https://img.shields.io/hexpm/v/ethers.svg)](https://hex.pm/packages/ethers)
+[![Hex Docs](https://img.shields.io/badge/hex-docs-lightgreen.svg)](https://hexdocs.pm/ethers/)
+[![License](https://img.shields.io/hexpm/l/ethers.svg)](https://github.com/alisinabh/elixir_ethers/blob/master/LICENSE.md)
+[![Last Updated](https://img.shields.io/github/last-commit/alisinabh/elixir_ethers.svg)](https://github.com/alisinabh/elixir_ethers/commits/master)
+
+
 Elixir Ethers is a comprehensive library for interacting with the Ethereum blockchain and its ecosystem. 
 Heavily inspired by the [ethers.js](https://github.com/ethers-io/ethers.js/) library, Elixir Ethers leverages macros to convert
 Ethereum contract ABIs into first-class Elixir modules during compile time, complete with documentation and type-specs.

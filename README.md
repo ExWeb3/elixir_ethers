@@ -1,6 +1,6 @@
 # Elixir Ethers
 
-![example workflow](https://github.com/alisinabh/elixir_ethers/actions/workflows/elixir.yml/badge.svg)
+[![example workflow](https://github.com/alisinabh/elixir_ethers/actions/workflows/elixir.yml/badge.svg)](https://github.com/alisinabh/elixir_ethers)
 [![Module Version](https://img.shields.io/hexpm/v/ethers.svg)](https://hex.pm/packages/ethers)
 [![Hex Docs](https://img.shields.io/badge/hex-docs-lightgreen.svg)](https://hexdocs.pm/ethers/)
 [![License](https://img.shields.io/hexpm/l/ethers.svg)](https://github.com/alisinabh/elixir_ethers/blob/master/LICENSE.md)
@@ -18,7 +18,7 @@ You can install the package by adding `ethers` to the list of dependencies in yo
 ```elixir
 def deps do
   [
-    {:ethers, "~> 0.1.0-dev", github: "alisinabh/elixir-ethers"}
+    {:ethers, "~> 0.1.0-dev", github: "alisinabh/elixir_ethers"}
   ]
 end
 ```

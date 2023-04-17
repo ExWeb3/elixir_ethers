@@ -46,6 +46,7 @@ defmodule Ethers.MixProject do
       end
 
     [
+      main: "readme",
       extras: ["README.md"],
       source_url: @source_url,
       source_ref: source_ref,

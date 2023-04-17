@@ -16,7 +16,8 @@ defmodule Ethers.MixProject do
       deps: deps(),
       description: "Ethereum/Web3 client based on ethers.js",
       package: package(),
-      docs: docs()
+      docs: docs(),
+      aliases: aliases()
     ]
   end
 
@@ -71,6 +72,13 @@ defmodule Ethers.MixProject do
       {:ex_doc, "~> 0.29.4", only: :dev, runtime: false},
       {:dialyxir, "~> 1.3", only: [:dev], runtime: false},
       {:jason, "~> 1.4"}
+    ]
+  end
+
+  def aliases do
+    [
+      test_prepare: ["run test/test_prepare.exs"],
+      test: ["test_prepare", "test"]
     ]
   end
 end

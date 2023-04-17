@@ -42,5 +42,7 @@ jobs:
       run: mix deps.get
     - name: Run Ganache
       run: ganache --wallet.deterministic &
+    - name: Prepare for tests
+      run: mix test_prepare
     - name: Run tests
       run: mix test

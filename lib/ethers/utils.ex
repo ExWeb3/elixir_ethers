@@ -71,7 +71,7 @@ defmodule Ethers.Utils do
   """
   def maybe_add_gas_limit(params, opts \\ [])
 
-  def maybe_add_gas_limit(%{gas: _} = params, opts) do
+  def maybe_add_gas_limit(%{gas: _} = params, _opts) do
     {:ok, params}
   end
 

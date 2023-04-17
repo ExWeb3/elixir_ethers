@@ -54,7 +54,7 @@ end
 After defining the module, all the functions can be called like any other Elixir module.
 The documentation is also available giving the developer a first-class experience.
 
-```
+```elixir
 iex> MyERC20Token.name()
 {:ok, ["Token Name"]}
 
@@ -91,7 +91,7 @@ You can override this behavior with the `:action` override.
 Ensure that you specify a `from` option to inform your client which account to use:
 
 
-```
+```elixir
 iex> MyERC20Token.transfer("0x[Recipient Address Here]", Ethers.Utils.to_wei(1), from: "0x[Your address here]")
 {:ok, "0xf313ff7ff54c6db80ad44c3ad58f72ff0fea7ce88e5e9304991ebd35a6e76000"}
 ```
@@ -104,7 +104,7 @@ Each contract in Ethers generates an `EventFilters` module (e.g. `MyERC20Token.E
 
 To create an event filter and use the `Ethers.get_logs` function, follow this example:
 
-```
+```elixir
 iex> {:ok, filter} = MyERC20Token.EventFilters.transfer("0x[From Address Here]", nil)
 ```
 
@@ -112,7 +112,7 @@ Also `nil` can be used for a parameter in EventFilters functions to show that it
 
 Then you can simply list the logs.
 
-```
+```elixir
 iex> Ethers.get_logs(filter)
 {:ok,
   [

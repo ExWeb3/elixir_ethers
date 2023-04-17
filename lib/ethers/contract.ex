@@ -39,7 +39,7 @@ defmodule Ethers.Contract do
 
   defmacro __using__(opts) do
     module = __CALLER__.module
-    {opts, _} = Code.eval_quoted(opts, [], __CALLER__)
+    {opts, _} = Code.eval_quoted(opts, [])
     {:ok, abi} = read_abi(opts)
     contract_binary = maybe_read_contract_binary(opts)
     default_address = Keyword.get(opts, :default_address)

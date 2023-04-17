@@ -30,7 +30,7 @@ defmodule Ethers.MixProject do
 
   defp package do
     [
-      licenses: ["GPL-3.0-or-later"],
+      licenses: ["Apache-2.0"],
       links: %{"GitHub" => @source_url},
       maintainers: ["Alisina Bahadori"],
       files: ["lib", "mix.exs", "README*", "LICENSE*"]

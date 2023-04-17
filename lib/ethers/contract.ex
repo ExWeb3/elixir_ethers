@@ -23,6 +23,7 @@ defmodule Ethers.Contract do
   ## Valid `use` options
   - abi: Used to pass in the encoded/decoded json ABI of contract.
   - abi_file: Used to pass in the file path to the json ABI of contract.
+  - default_address: Default contract deployed address. Can be overridden with `:to` option in every function.
   """
 
   alias Ethers.Utils

@@ -55,21 +55,22 @@ After defining the module, all the functions can be called like any other Elixir
 The documentation is also available giving the developer a first-class experience.
 
 ```elixir
-iex> MyERC20Token.name()
-{:ok, ["Token Name"]}
+iex> MyERC20Token.balance_of("0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2")
+{:ok, [654294510138460920346]}
 
-iex> h MyERC20Token.name
-                           def name(overrides \\ [])
+iex> h MyERC20Token.balance_of
+                     def balance_of(owner, overrides \\ [])
 
-  @spec name(Keyword.t()) ::
-          {:ok, [String.t()]}
+  @spec balance_of(Ethers.Types.t_address(), Keyword.t()) ::
+          {:ok, [non_neg_integer()]}
           | {:ok, Ethers.Types.t_transaction_hash()}
           | {:ok, Ethers.Contract.t_function_output()}
 
-Executes name() on the contract.
+Executes balanceOf(address _owner) on the contract.
 
 ## Parameters
 
+  • _owner: `:address`
   • overrides: Overrides and options for the call.
     • :to: The address of the recipient contract. (Required)
     • :action: Type of action for this function (:call, :send or
@@ -79,7 +80,7 @@ Executes name() on the contract.
 
 ## Return Types
 
-  • :string
+  • {:uint, 256}
 ```
 
 ### Sending transaction

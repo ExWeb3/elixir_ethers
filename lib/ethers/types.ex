@@ -4,17 +4,21 @@ defmodule Ethers.Types do
   require Logger
 
   @typedoc """
-  Ethereum address in its hex format with 0x
+  Ethereum address in its hex format with 0x or in its binary format
 
-  Example: 0xdAC17F958D2ee523a2206206994597C13D831ec7
+  ## Examples
+  - `"0xdAC17F958D2ee523a2206206994597C13D831ec7"`
+  - `<<218, 193, 127, 149, 141, 46, 229, 35, 162, 32, 98, 6, 153, 69, 151, 193, 61, 131, 30, 199>>`
   """
-  @type t_address :: <<_::336>>
+  @type t_address :: <<_::336>> | <<_::160>>
+
   @typedoc """
-  Ethereum transaction has in it's hex format with 0x
+  keccak hash in its hex format with 0x
 
-  Example: 0xd4288c8e733eb71a39fe2e8dd4912ce54d8d26d9874f30309b26b4b071260422
+  ## Examples
+  - `"0xd4288c8e733eb71a39fe2e8dd4912ce54d8d26d9874f30309b26b4b071260422"`
   """
-  @type t_transaction_hash :: <<_::528>>
+  @type t_hash :: <<_::528>>
 
   @doc """
   Converts EVM data types to typespecs for documentation
@@ -46,6 +50,9 @@ defmodule Ethers.Types do
       :function ->
         raise "Not implemented"
 
+      {:ufixed, _element_count, _precision} ->
+        quote do: float()
+
       {:fixed, _element_count, _precision} ->
         quote do: float()
 
@@ -59,9 +66,6 @@ defmodule Ethers.Types do
         sub_types = Enum.map(sub_types, &to_elixir_type/1)
 
         quote do: {unquote_splicing(sub_types)}
-
-      {:ufixed, _element_count, _precision} ->
-        quote do: float()
 
       {:uint, _} ->
         quote do: non_neg_integer

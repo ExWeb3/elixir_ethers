@@ -18,5 +18,5 @@ contract Registry {
         return registry[owner];
     }
 
-    event Registered(address, RegisterParams);
+    event Registered(address indexed, RegisterParams);
 }

@@ -26,7 +26,8 @@ defmodule Ethers.Contract do
   - default_address: Default contract deployed address. Can be overridden with `:to` option in every function.
   """
 
-  alias Ethers.Utils
+  require Ethers.ContractHelpers
+  import Ethers.ContractHelpers
 
   @type action :: :call | :send | :prepare
   @type t_function_output :: %{
@@ -90,7 +91,7 @@ defmodule Ethers.Contract do
       |> Enum.map(&generate_event_filter(&1, __CALLER__.module))
 
     events_module_ast =
-      quote do
+      quote context: module do
         defmodule unquote(events_mod_name) do
           @moduledoc "Events for `#{Macro.to_string(unquote(module))}`"
 
@@ -99,7 +100,7 @@ defmodule Ethers.Contract do
       end
 
     contract_binary_ast =
-      quote do
+      quote context: module do
         def __contract_binary__, do: unquote(contract_binary)
       end
 
@@ -109,7 +110,7 @@ defmodule Ethers.Contract do
   @doc false
   @spec perform_action(action(), map, Keyword.t(), Keyword.t()) ::
           {:ok, [term]}
-          | {:ok, Ethers.Types.t_transaction_hash()}
+          | {:ok, Ethers.Types.t_hash()}
           | {:ok, Ethers.Contract.t_function_output()}
   def perform_action(action, params, overrides \\ [], rpc_opts \\ [])
 
@@ -124,20 +125,6 @@ defmodule Ethers.Contract do
 
   def perform_action(action, _params, _overrides, _rpc_opts),
     do: raise("#{__MODULE__} Invalid action: #{inspect(action)}")
-
-  @doc false
-  @spec prepare_arg(any) :: any
-  def prepare_arg("0x" <> bin) do
-    case Utils.hex_decode(bin) do
-      {:ok, decoded_bin} ->
-        decoded_bin
-
-      :error ->
-        raise ArgumentError, "Invalid HEX argument 0x#{inspect(bin)}"
-    end
-  end
-
-  def prepare_arg(any), do: any
 
   ## Helpers
 
@@ -171,17 +158,24 @@ defmodule Ethers.Contract do
       selector.types
       |> Enum.map(&Ethers.Types.to_elixir_type/1)
 
-    quote location: :keep do
+    quote context: mod, location: :keep do
       @doc """
-      Prepares contract constructor values. To deploy contracts use `Ethers.deploy/3`.
+      Prepares contract constructor values.
+
+      To deploy a contracts see `Ethers.deploy/3`.
 
       ## Parameters
       #{unquote(document_types(selector.types, selector.input_names))}
       """
       @spec constructor(unquote_splicing(func_input_types)) :: binary()
       def constructor(unquote_splicing(func_args)) do
+        args =
+          unquote(func_args)
+          |> Enum.zip(unquote(Macro.escape(selector.types)))
+          |> Enum.map(fn {arg, type} -> Ethers.Utils.prepare_arg(arg, type) end)
+
         unquote(Macro.escape(selector))
-        |> ABI.encode([unquote_splicing(func_args)])
+        |> ABI.encode(args)
         |> Ethers.Utils.hex_encode(false)
       end
     end
@@ -238,14 +232,14 @@ defmodule Ethers.Contract do
 
     default_action = get_default_action(selector)
 
-    overrides = get_overrides(has_other_arities)
+    overrides = get_overrides(mod, has_other_arities)
 
     defaults =
       %{to: default_address}
       |> Map.reject(fn {_, v} -> is_nil(v) end)
       |> Macro.escape()
 
-    quote location: :keep do
+    quote context: mod, location: :keep do
       @doc """
       Executes `#{unquote(human_signature(selector))}` on the contract.
 
@@ -261,10 +255,13 @@ defmodule Ethers.Contract do
       """
       @spec unquote(name)(unquote_splicing(func_input_types), Keyword.t()) ::
               {:ok, [unquote(func_return_typespec)]}
-              | {:ok, Ethers.Types.t_transaction_hash()}
+              | {:ok, Ethers.Types.t_hash()}
               | {:ok, Ethers.Contract.t_function_output()}
       def unquote(name)(unquote_splicing(func_args), unquote(overrides)) do
-        args = Enum.map(unquote(func_args), &Ethers.Contract.prepare_arg/1)
+        args =
+          unquote(func_args)
+          |> Enum.zip(unquote(Macro.escape(selector.types)))
+          |> Enum.map(fn {arg, type} -> Ethers.Utils.prepare_arg(arg, type) end)
 
         data =
           unquote(Macro.escape(selector))
@@ -343,9 +340,9 @@ defmodule Ethers.Contract do
       |> keccak_module().hash_256()
       |> Ethers.Utils.hex_encode()
 
-    overrides = get_overrides(has_other_arities)
+    overrides = get_overrides(mod, has_other_arities)
 
-    quote location: :keep do
+    quote context: mod, location: :keep do
       @doc """
       Create event filter for `#{unquote(human_signature(selector))}` 
 
@@ -368,8 +365,15 @@ defmodule Ethers.Contract do
         sub_topics =
           Enum.zip(unquote(Macro.escape(selector.types)), unquote(func_args))
           |> Enum.map(fn
-            {_, nil} -> nil
-            {type, value} -> ABI.TypeEncoder.encode([value], [type]) |> Ethers.Utils.hex_encode()
+            {_, nil} ->
+              nil
+
+            {type, value} ->
+              value
+              |> Ethers.Utils.prepare_arg(type)
+              |> List.wrap()
+              |> ABI.TypeEncoder.encode([type])
+              |> Ethers.Utils.hex_encode()
           end)
 
         {:ok,
@@ -381,122 +385,4 @@ defmodule Ethers.Contract do
       end
     end
   end
-
-  defp read_abi(:abi, abi) when is_list(abi), do: {:ok, abi}
-  defp read_abi(:abi, %{"abi" => abi}), do: read_abi(:abi, abi)
-
-  defp read_abi(:abi, abi) when is_atom(abi) do
-    read_abi(:abi_file, Path.join(:code.priv_dir(:ethers), "abi/#{abi}.json"))
-  end
-
-  defp read_abi(:abi, abi) when is_binary(abi) do
-    abi = json_module().decode!(abi)
-    read_abi(:abi, abi)
-  end
-
-  defp read_abi(:abi_file, file) do
-    abi = File.read!(file)
-    read_abi(:abi, abi)
-  end
-
-  @spec read_abi(Keyword.t()) :: {:ok, [...]} | {:error, atom()}
-  defp read_abi(opts) do
-    case Keyword.take(opts, [:abi, :abi_file]) do
-      [{type, data}] ->
-        read_abi(type, data)
-
-      _ ->
-        {:error, :bad_argument}
-    end
-  end
-
-  defp maybe_read_contract_binary(:abi, abi) when is_list(abi), do: nil
-  defp maybe_read_contract_binary(:abi, %{"bin" => bin}) when is_binary(bin), do: bin
-  defp maybe_read_contract_binary(:abi, map) when is_map(map), do: nil
-  defp maybe_read_contract_binary(:abi, abi) when is_atom(abi), do: nil
-
-  defp maybe_read_contract_binary(:abi, abi) when is_binary(abi) do
-    abi = json_module().decode!(abi)
-    maybe_read_contract_binary(:abi, abi)
-  end
-
-  defp maybe_read_contract_binary(:abi_file, file) do
-    abi = File.read!(file)
-    maybe_read_contract_binary(:abi, abi)
-  end
-
-  @spec maybe_read_contract_binary(Keyword.t()) :: binary() | nil
-  defp maybe_read_contract_binary(opts) do
-    case Keyword.take(opts, [:abi, :abi_file]) do
-      [{type, data}] ->
-        maybe_read_contract_binary(type, data)
-
-      _ ->
-        {:error, :bad_argument}
-    end
-  end
-
-  defp document_types(types, names \\ []) do
-    if length(types) <= length(names) do
-      Enum.zip(types, names)
-    else
-      types
-    end
-    |> Enum.map(fn
-      {type, name} when is_binary(name) ->
-        " - #{name}: `#{inspect(type)}`"
-
-      type ->
-        " - `#{inspect(type)}`"
-    end)
-    |> Enum.join("\n")
-  end
-
-  defp human_signature(%ABI.FunctionSelector{
-         input_names: names,
-         types: types,
-         function: function
-       }) do
-    args =
-      if length(types) == length(names) do
-        Enum.zip(types, names)
-      else
-        types
-      end
-      |> Enum.map(fn
-        {type, name} when is_binary(name) ->
-          "#{ABI.FunctionSelector.encode_type(type)} #{name}"
-
-        type ->
-          "#{ABI.FunctionSelector.encode_type(type)}"
-      end)
-      |> Enum.join(", ")
-
-    "#{function}(#{args})"
-  end
-
-  defp get_default_action(%ABI.FunctionSelector{state_mutability: state_mutability}) do
-    case state_mutability do
-      :view -> :call
-      :pure -> :call
-      :payable -> :send
-      :non_payable -> :send
-      _ -> :call
-    end
-  end
-
-  defp get_overrides(has_other_arities) do
-    if has_other_arities do
-      # If the same function with different arities exists within the same contract,
-      # then we would need to disable defaulting the overrides as this will cause
-      # ambiguousness towards the compiler.
-      quote do: overrides
-    else
-      quote do: overrides \\ []
-    end
-  end
-
-  defp keccak_module, do: Application.get_env(:ethers, :keccak_module, ExKeccak)
-
-  defp json_module, do: Application.get_env(:ethers, :json_module, Jason)
 end

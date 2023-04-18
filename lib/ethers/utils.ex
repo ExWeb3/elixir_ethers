@@ -34,6 +34,25 @@ defmodule Ethers.Utils do
   def hex_decode(encoded), do: Base.decode16(encoded, case: :mixed)
 
   @doc """
+  Same as `hex_decode/1` but raises on error 
+
+  ## Examples
+
+      iex> Ethers.Utils.hex_decode!("0x6574686572735f6578")
+      "ethers_ex"
+
+      iex> Ethers.Utils.hex_decode!("6574686572735f6578")
+      "ethers_ex"
+  """
+  @spec hex_decode!(String.t()) :: binary() | no_return()
+  def hex_decode!(encoded) do
+    case hex_decode(encoded) do
+      {:ok, decoded} -> decoded
+      :error -> raise ArgumentError, "Invalid HEX input #{inspect(encoded)}"
+    end
+  end
+
+  @doc """
   Converts a hexadecimal integer to integer form
 
   ## Examples
@@ -52,6 +71,26 @@ defmodule Ethers.Utils do
 
       _ ->
         {:error, :invalid_hex}
+    end
+  end
+
+  @doc """
+  Same as `hex_to_integer/1` but raises on error
+
+  ## Examples
+
+      iex> Ethers.Utils.hex_to_integer!("0x11111")
+      69905
+  """
+  @spec hex_to_integer!(String.t()) :: integer() | no_return()
+  def hex_to_integer!(encoded) do
+    case hex_to_integer(encoded) do
+      {:ok, integer} ->
+        integer
+
+      {:error, reason} ->
+        raise ArgumentError,
+              "Invalid integer HEX input #{inspect(encoded)} reason #{inspect(reason)}"
     end
   end
 
@@ -114,4 +153,54 @@ defmodule Ethers.Utils do
       {:ok, Map.put(params, :gas, gas)}
     end
   end
+
+  @doc """
+  Converts human readable argument to the form required for ABI encoding.
+
+  For example the addresses in Ethereum are represented by hex strings in human readable format
+  but are in 160-bit binaries in ABI form.
+
+  ## Examples
+      iex> Ethers.Utils.prepare_arg("0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2", :address)
+      <<192, 42, 170, 57, 178, 35, 254, 141, 10, 14, 92, 79, 39, 234, 217, 8, 60, 117, 108, 194>> 
+  """
+  @spec prepare_arg(term(), ABI.FunctionSelector.type()) :: term()
+  def prepare_arg("0x" <> _ = argument, :address), do: hex_decode!(argument)
+  def prepare_arg(arguments, {:array, type}), do: Enum.map(arguments, &prepare_arg(&1, type))
+  def prepare_arg(arguments, {:array, type, _}), do: Enum.map(arguments, &prepare_arg(&1, type))
+
+  def prepare_arg(arguments, {:tuple, types}) do
+    arguments
+    |> Tuple.to_list()
+    |> Enum.zip(types)
+    |> Enum.map(fn {arg, type} -> prepare_arg(arg, type) end)
+    |> List.to_tuple()
+  end
+
+  def prepare_arg(argument, _type), do: argument
+
+  @doc """
+  Reverse of `prepare_arg/2`
+
+  ## Examples
+      iex> Ethers.Utils.human_arg(<<192, 42, 170, 57, 178, 35, 254, 141, 10, 14, 92, 79, 39, 
+      ...> 234, 217, 8, 60, 117, 108, 194>>, :address)
+      "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2" 
+  """
+  @spec human_arg(term(), ABI.FunctionSelector.type()) :: term()
+  def human_arg("0x" <> _ = argument, :address), do: argument
+  def human_arg(argument, :address), do: hex_encode(argument)
+
+  def human_arg(arguments, {:array, type}), do: Enum.map(arguments, &human_arg(&1, type))
+  def human_arg(arguments, {:array, type, _}), do: Enum.map(arguments, &human_arg(&1, type))
+
+  def human_arg(arguments, {:tuple, types}) do
+    arguments
+    |> Tuple.to_list()
+    |> Enum.zip(types)
+    |> Enum.map(fn {arg, type} -> human_arg(arg, type) end)
+    |> List.to_tuple()
+  end
+
+  def human_arg(argument, _type), do: argument
 end

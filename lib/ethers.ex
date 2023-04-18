@@ -1,10 +1,14 @@
 defmodule Ethers do
   @moduledoc """
-  Documentation for `Ethers`.
+  high-level module providing a convenient and efficient interface for interacting
+  with the Ethereum blockchain using Elixir.
+
+  This module offers a simple API for common Ethereum operations such as deploying contracts,
+  estimating gas, fetching current gas prices, and querying event logs.
   """
 
   alias Ethers.Types
-  alias Ethers.{RPC, Utils}
+  alias Ethers.{RPC, Utils, Event}
 
   @doc """
   Returns the current gas price from the RPC API
@@ -22,13 +26,17 @@ defmodule Ethers do
   This will return the transaction hash for the deployment transaction.
   To get the address of your deployed contract, use `Ethers.deployed_address/2`.
 
+  To deploy a cotract you must have the binary related to it. It can either be a part of the ABI
+  File you have or as a separate file.
+
   ## Parameters
   - contract_module_or_binary: Either the contract module which was already loaded or the compiled binary of the contract.
-  - contract_init: Constructor value for contract deployment. Use `CONTRACT_MODULE.constructor` function's output.
+  - contract_init: Constructor value for contract deployment. Use `CONTRACT_MODULE.constructor` function's output. If your contract does not have a constructor, you can pass an empty binary here.
+  - params: Parameters for the transaction creating the contract.
   - opts: RPC and account options.
   """
-  @spec deploy(atom() | binary(), Keyword.t(), Keyword.t()) ::
-          {:ok, Types.t_transaction_hash()} | {:error, atom()}
+  @spec deploy(atom() | binary(), binary(), Keyword.t(), Keyword.t()) ::
+          {:ok, Types.t_hash()} | {:error, atom()}
   def deploy(contract_module_or_binary, contract_init, params, opts \\ [])
 
   def deploy(contract_module, contract_init, params, opts) when is_atom(contract_module) do
@@ -46,8 +54,7 @@ defmodule Ethers do
 
   def deploy(contract_binary, contract_init, params, opts) when is_binary(contract_binary) do
     params =
-      params
-      |> Enum.into(%{
+      Enum.into(params, %{
         data: "0x#{contract_binary}#{contract_init}",
         to: nil
       })
@@ -105,7 +112,7 @@ defmodule Ethers do
   @doc """
   Returns the event logs with the given filter
   """
-  @spec get_logs(map(), Keyword.t(), Keyword.t()) :: {:ok, [map]} | {:error, atom()}
+  @spec get_logs(map(), Keyword.t(), Keyword.t()) :: {:ok, [Event.t()]} | {:error, atom()}
   def get_logs(%{topics: _, selector: selector} = params, overrides \\ [], opts \\ []) do
     params =
       overrides
@@ -113,16 +120,7 @@ defmodule Ethers do
       |> Map.drop([:selector])
 
     with {:ok, resp} when is_list(resp) <- RPC.eth_get_logs(params, opts) do
-      logs =
-        Enum.map(resp, fn
-          %{"data" => "0x"} = log ->
-            Map.put(log, "data", [])
-
-          %{"data" => raw_data} = log ->
-            {:ok, data_bin} = Ethers.Utils.hex_decode(raw_data)
-            data = ABI.decode(selector, data_bin, :output)
-            Map.put(log, "data", data)
-        end)
+      logs = Enum.map(resp, &Event.decode(&1, selector))
 
       {:ok, logs}
     end

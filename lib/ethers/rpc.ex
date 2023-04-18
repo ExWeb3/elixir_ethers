@@ -3,6 +3,8 @@ defmodule Ethers.RPC do
   RPC Methods for interacting with the Ethereum blockchain
   """
 
+  alias Ethers.Utils
+
   defguardp valid_result(bin) when bin != "0x"
 
   @internal_params [:selector]
@@ -38,9 +40,14 @@ defmodule Ethers.RPC do
       |> Enum.into(params)
       |> Map.drop(@internal_params)
 
-    with {:ok, resp} when valid_result(resp) <- eth_call(params, block, opts),
-         {:ok, resp_bin} <- Ethers.Utils.hex_decode(resp) do
-      {:ok, ABI.decode(selector, resp_bin, :output)}
+    with {:ok, resp} when valid_result(resp) <- eth_call(params, block, opts) do
+      returns =
+        selector
+        |> ABI.decode(Ethers.Utils.hex_decode!(resp), :output)
+        |> Enum.zip(selector.returns)
+        |> Enum.map(fn {return, type} -> Utils.human_arg(return, type) end)
+
+      {:ok, returns}
     else
       {:ok, "0x"} ->
         {:error, :unknown}

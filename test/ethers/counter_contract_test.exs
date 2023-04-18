@@ -2,6 +2,8 @@ defmodule Ethers.CounterContractTest do
   use ExUnit.Case
   doctest Ethers.Contract
 
+  alias Ethers.Event
+
   alias Ethers.Contract.Test.CounterContract
 
   @from "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1"
@@ -34,15 +36,21 @@ defmodule Ethers.CounterContractTest do
     test "can get the emitted event with the correct filter", %{address: address} do
       {:ok, _tx_hash} = CounterContract.set(101, from: @from, to: address)
 
-      {:ok, open_filter} = CounterContract.EventFilters.set_called(nil)
+      assert {:ok, open_filter} = CounterContract.EventFilters.set_called(nil)
+      assert {:ok, correct_filter} = CounterContract.EventFilters.set_called(100)
+      assert {:ok, incorrect_filter} = CounterContract.EventFilters.set_called(105)
 
-      {:ok, correct_filter} = CounterContract.EventFilters.set_called(100)
+      assert {:ok,
+              [
+                %Event{
+                  address: ^address,
+                  topics: ["SetCalled(uint256,uint256)", 100],
+                  data: [101]
+                }
+              ]} = Ethers.get_logs(open_filter)
 
-      {:ok, incorrect_filter} = CounterContract.EventFilters.set_called(105)
-
-      {:ok, [%{"address" => ^address, "data" => [101]}]} = Ethers.get_logs(open_filter)
-      {:ok, [%{"address" => ^address, "data" => [101]}]} = Ethers.get_logs(correct_filter)
-      {:ok, []} = Ethers.get_logs(incorrect_filter)
+      assert {:ok, [%Event{address: ^address, data: [101]}]} = Ethers.get_logs(correct_filter)
+      assert {:ok, []} = Ethers.get_logs(incorrect_filter)
     end
   end
 

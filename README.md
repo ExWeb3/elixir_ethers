@@ -70,7 +70,7 @@ iex> h MyERC20Token.balance_of
 
   @spec balance_of(Ethers.Types.t_address(), Keyword.t()) ::
           {:ok, [non_neg_integer()]}
-          | {:ok, Ethers.Types.t_transaction_hash()}
+          | {:ok, Ethers.Types.t_hash()}
           | {:ok, Ethers.Contract.t_function_output()}
 
 Executes balanceOf(address _owner) on the contract.

@@ -123,23 +123,26 @@ Then you can simply list the logs.
 ```elixir
 iex> Ethers.get_logs(filter)
 {:ok,
-  [
-    %{
-      "address" => "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
-      "blockHash" => "0xd04d7d39f0dd6913260f1682e1863eda9b5dc0a5d4cf2dca4ef6961147a77f39",
-      "blockNumber" => "0x1046dd0",
-      "data" => [1274604842999873536],
-      "logIndex" => "0x0",
-      "removed" => false,
-      "topics" => ["0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+ [
+   %Ethers.Event{
+     address: "0x5883c66ca442461d406f330775d42954bfcf7d92",
+     block_hash: "0x83de67fd285067b838790406ea68f21a3afbc0ade534047725b5ccfb904c9ed3",
+     block_number: 17077047,
+     topics: ["Transfer(address,address,uint256)",
+      "0x6b75d8af000000e20b7a7ddf000ba900b4009a80",
+      "0x230507f6a391ae5ac0ec124f1c5b8ce454fe3f3d"],
+     topics_raw: ["0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
       "0x0000000000000000000000006b75d8af000000e20b7a7ddf000ba900b4009a80",
-      "0x0000000000000000000000009b3df8eae6e1ed1b931086852860d3c6375d7ae6"],
-      "transactionHash" => "0xd00e58a817c42f46709bea153c44b7908d88d4763472836a85e7c740dd481d69",
-      "transactionIndex" => "0x3"
-    },
+      "0x000000000000000000000000230507f6a391ae5ac0ec124f1c5b8ce454fe3f3d"],
+     transaction_hash: "0xaa6fb2e1bbb27f667e76b03e8cde23db694207e06b9aa810d4c20c1f109a58e5",
+     transaction_index: 0,
+     data: [761112156078097834180608],
+     log_index: 0,
+     removed: false
+   },
+   %Ethers.Event{...},
     ...
-  ]
-}
+ ]}
 ```
 
 ## Props

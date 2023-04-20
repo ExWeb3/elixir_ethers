@@ -81,8 +81,7 @@ defmodule Ethers.Contract do
       Enum.map(function_selectors, fn %{function: function} = selector ->
         %{
           selector: selector,
-          has_other_arities: Enum.count(function_selectors, &(&1.function == function)) > 1,
-          default_address: default_address
+          has_other_arities: Enum.count(function_selectors, &(&1.function == function)) > 1
         }
       end)
 
@@ -109,16 +108,24 @@ defmodule Ethers.Contract do
         defmodule unquote(events_mod_name) do
           @moduledoc "Events for `#{Macro.to_string(unquote(module))}`"
 
+          defdelegate default_address, to: unquote(module)
           unquote(events)
         end
       end
 
-    contract_binary_ast =
+    extra_ast =
       quote context: module do
         def __contract_binary__, do: unquote(contract_binary)
+
+        @doc """
+        Default address of the contract. Returns `nil` if not specified.
+
+        To specify a default address see `Ethers.Contract.__using__/1`
+        """
+        def default_address, do: unquote(default_address)
       end
 
-    [contract_binary_ast, constructor_ast | functions_ast] ++ [events_module_ast]
+    [extra_ast, constructor_ast | functions_ast] ++ [events_module_ast]
   end
 
   @doc false
@@ -198,8 +205,7 @@ defmodule Ethers.Contract do
   defp generate_method(
          %{
            selector: %ABI.FunctionSelector{type: :function} = selector,
-           has_other_arities: has_other_arities,
-           default_address: default_address
+           has_other_arities: has_other_arities
          } = _function_data,
          mod
        ) do
@@ -239,11 +245,6 @@ defmodule Ethers.Contract do
 
     overrides = get_overrides(mod, has_other_arities)
 
-    defaults =
-      %{to: default_address}
-      |> Map.reject(fn {_, v} -> is_nil(v) end)
-      |> Macro.escape()
-
     quote context: mod, location: :keep do
       @doc """
       Executes `#{unquote(human_signature(selector))}` on the contract.
@@ -273,13 +274,15 @@ defmodule Ethers.Contract do
           |> ABI.encode(args)
           |> Ethers.Utils.hex_encode()
 
-        params =
-          %{data: data, selector: unquote(Macro.escape(selector))}
-          |> Map.merge(unquote(defaults))
+        params = %{
+          data: data,
+          selector: unquote(Macro.escape(selector)),
+          to: __MODULE__.default_address()
+        }
 
         {rpc_opts, overrides} = Keyword.pop(overrides, :rpc_opts, [])
-
         {action, overrides} = Keyword.pop(overrides, :action, unquote(default_action))
+
         Ethers.Contract.perform_action(action, params, overrides, rpc_opts)
       end
     end
@@ -288,8 +291,7 @@ defmodule Ethers.Contract do
   defp generate_event_filter(
          %{
            selector: %ABI.FunctionSelector{type: :event} = selector,
-           has_other_arities: has_other_arities,
-           default_address: default_address
+           has_other_arities: has_other_arities
          } = _function_data,
          mod
        ) do
@@ -365,7 +367,7 @@ defmodule Ethers.Contract do
       @spec unquote(name)(unquote_splicing(func_input_typespec), Keyword.t()) ::
               {:ok, Ethers.Contract.t_event_output()}
       def unquote(name)(unquote_splicing(func_args), unquote(overrides)) do
-        address = Keyword.get(overrides, :address, unquote(default_address))
+        address = Keyword.get(overrides, :address, __MODULE__.default_address())
 
         sub_topics =
           Enum.zip(unquote(Macro.escape(selector.types)), unquote(func_args))

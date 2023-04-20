@@ -1,4 +1,4 @@
-defmodule Ethers.Contract.ERC1155 do
+defmodule Ethers.Contracts.ERC1155 do
   @moduledoc """
   ERC1155 token interface
 

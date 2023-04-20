@@ -1,4 +1,4 @@
-defmodule Ethers.Contract.ERC721 do
+defmodule Ethers.Contracts.ERC721 do
   @moduledoc """
   ERC721 token interface
 

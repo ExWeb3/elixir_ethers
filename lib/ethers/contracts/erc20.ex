@@ -1,4 +1,4 @@
-defmodule Ethers.Contract.ERC20 do
+defmodule Ethers.Contracts.ERC20 do
   @moduledoc """
   ERC20 token interface
 

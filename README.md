@@ -52,7 +52,9 @@ Create a module for your contract as follows:
 
 ```elixir
 defmodule MyERC20Token do
-  use Ethers.Contract, abi_file: "path/to/abi.json", default_address: "[Token address here (optional)]"
+  use Ethers.Contract, 
+    abi_file: "path/to/abi.json", 
+    default_address: "[Token address here (optional)]"
 end
 ```
 
@@ -79,10 +81,10 @@ Executes balanceOf(address _owner) on the contract.
 
   • _owner: `:address`
   • overrides: Overrides and options for the call.
-    • :to: The address of the recipient contract. (Required)
-    • :action: Type of action for this function (:call, :send or
+    • to: The address of the recipient contract. (Required)
+    • action: Type of action for this function (:call, :send or
       :prepare) Default: :call.
-    • :rpc_opts: Options to pass to the RCP client e.g. :url.
+    • rpc_opts: Options to pass to the RCP client e.g. :url.
 
 
 ## Return Types

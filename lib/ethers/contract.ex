@@ -55,8 +55,22 @@ defmodule Ethers.Contract do
   }
 
   defmacro __using__(opts) do
-    module = __CALLER__.module
-    {opts, _} = Code.eval_quoted(opts, [])
+    compiler_module = __MODULE__
+
+    quote do
+      @before_compile unquote(compiler_module)
+      Module.put_attribute(__MODULE__, :_ethers_using_opts, unquote(opts))
+    end
+  end
+
+  defmacro __before_compile__(env) do
+    module = env.module
+
+    {opts, _} =
+      module
+      |> Module.get_attribute(:_ethers_using_opts)
+      |> Code.eval_quoted([], env)
+
     {:ok, abi} = read_abi(opts)
     contract_binary = maybe_read_contract_binary(opts)
     default_address = Keyword.get(opts, :default_address)
@@ -76,19 +90,19 @@ defmodule Ethers.Contract do
       function_selectors_with_meta
       |> Enum.find(&(&1.selector.type == :constructor))
       |> then(&(&1 || @default_constructor))
-      |> generate_method(__CALLER__.module)
+      |> generate_method(module)
 
     functions_ast =
       function_selectors_with_meta
       |> Enum.filter(&(&1.selector.type == :function and not is_nil(&1.selector.function)))
-      |> Enum.map(&generate_method(&1, __CALLER__.module))
+      |> Enum.map(&generate_method(&1, module))
 
     events_mod_name = Module.concat(module, EventFilters)
 
     events =
       function_selectors_with_meta
       |> Enum.filter(&(&1.selector.type == :event))
-      |> Enum.map(&generate_event_filter(&1, __CALLER__.module))
+      |> Enum.map(&generate_event_filter(&1, module))
 
     events_module_ast =
       quote context: module do

@@ -104,6 +104,18 @@ defmodule Ethers.ContractHelpers do
     end
   end
 
+  def get_argument_name_ast({ast, name}) do
+    do_get_argument_name_ast(ast, String.trim(name))
+  end
+
+  def do_get_argument_name_ast(ast, "_" <> name), do: do_get_argument_name_ast(ast, name)
+  def do_get_argument_name_ast(ast, ""), do: ast
+
+  def do_get_argument_name_ast({orig, ctx, md}, name) when is_atom(orig) do
+    name_atom = String.to_atom(Macro.underscore(name))
+    {name_atom, ctx, md}
+  end
+
   def keccak_module, do: Application.get_env(:ethers, :keccak_module, ExKeccak)
 
   def json_module, do: Application.get_env(:ethers, :json_module, Jason)

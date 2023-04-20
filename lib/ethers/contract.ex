@@ -202,18 +202,9 @@ defmodule Ethers.Contract do
         if length(selector.input_names) == length(args) do
           args
           |> Enum.zip(selector.input_names)
-          |> Enum.map(fn {{_, ctx, md}, name} ->
-            if String.starts_with?(name, "_") do
-              name
-              |> String.slice(1..-1)
-            else
-              name
-            end
-            |> Macro.underscore()
-            |> String.to_atom()
-            |> then(&{&1, ctx, md})
-          end)
+          |> Enum.map(&get_argument_name_ast/1)
         else
+          # Invalid input name length, fallback to generated argument names
           args
         end
       end)

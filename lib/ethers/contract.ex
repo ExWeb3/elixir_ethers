@@ -21,9 +21,9 @@ defmodule Ethers.Contract do
   ```
 
   ## Valid `use` options
-  - abi: Used to pass in the encoded/decoded json ABI of contract.
-  - abi_file: Used to pass in the file path to the json ABI of contract.
-  - default_address: Default contract deployed address. Can be overridden with `:to` option in every function.
+  - `abi`: Used to pass in the encoded/decoded json ABI of contract.
+  - `abi_file`: Used to pass in the file path to the json ABI of contract.
+  - `default_address`: Default contract deployed address. Can be overridden with `:to` option in every function.
   """
 
   require Ethers.ContractHelpers
@@ -120,8 +120,9 @@ defmodule Ethers.Contract do
         @doc """
         Default address of the contract. Returns `nil` if not specified.
 
-        To specify a default address see `Ethers.Contract.__using__/1`
+        To specify a default address see `Ethers.Contract`
         """
+        @spec default_address() :: Ethers.Types.t_address() | nil
         def default_address, do: unquote(default_address)
       end
 

@@ -47,7 +47,7 @@ defmodule Ethers.ContractHelpers do
       types
     end
     |> Enum.map(fn
-      {type, name} when is_binary(name) ->
+      {type, name} when is_binary(name) or is_atom(name) ->
         " - #{name}: `#{inspect(type)}`"
 
       type ->

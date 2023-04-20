@@ -237,9 +237,9 @@ defmodule Ethers.Contract do
       ## Parameters
       #{unquote(document_types(selector.types, selector.input_names))}
       - overrides: Overrides and options for the call.
-        - `:to`: The address of the recipient contract. (**Required**)
-        - `:action`: Type of action for this function (`:call`, `:send` or `:prepare`) Default: `#{inspect(unquote(default_action))}`.
-        - `:rpc_opts`: Options to pass to the RCP client e.g. `:url`.
+        - `to`: The address of the recipient contract. (**Required**)
+        - `action`: Type of action for this function (`:call`, `:send` or `:prepare`) Default: `#{inspect(unquote(default_action))}`.
+        - `rpc_opts`: Options to pass to the RCP client e.g. `:url`.
 
       ## Return Types
       #{unquote(document_types(selector.returns))}
@@ -343,7 +343,7 @@ defmodule Ethers.Contract do
       ## Parameters
       #{unquote(document_types(indexed_types, selector.input_names))}
       - overrides: Overrides and options for the call. (**Required**)
-        - `:address`: The address or list of addresses of the originating contract(s). (**Optional**)
+        - `address`: The address or list of addresses of the originating contract(s). (**Optional**)
 
       ## Event Data Types
       #{unquote(document_types(selector.types, selector.input_names))}

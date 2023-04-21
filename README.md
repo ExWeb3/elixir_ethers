@@ -29,19 +29,19 @@ The complete documentation is available on [hexdocs](https://hexdocs.pm/ethers).
 
 
 To use Elixir Ethers, ensure you have a configured JSON-RPC endpoint.
-By default, Ethers utilizes [Cloudflare's Ethereum Gateway](https://developers.cloudflare.com/web3/ethereum-gateway/reference/supported-networks/).
+Configure the endpoint using the following configuration parameter.
 
-To send transactions, you need a wallet client capable of signing transactions and exposing a JSON-RPC endpoint.
-Configure the endpoint using the following config parameter (you can also specify the endpoint per-call):
 
 ```elixir
 # config.exs
-import Config
-
 config :ethereumex, url: "[URL_HERE]"
 ```
 
-For more information, refer to [ethereumex](https://github.com/mana-ethereum/ethereumex#configuration).
+You can use [Cloudflare's Ethereum Gateway](https://developers.cloudflare.com/web3/ethereum-gateway/reference/supported-networks/) `https://cloudflare-eth.com/v1/mainnet` for the RPC URL.
+
+For more configuration options, refer to [ethereumex](https://github.com/mana-ethereum/ethereumex#configuration).
+
+To send transactions, you need a wallet client capable of signing transactions and exposing a JSON-RPC endpoint.
 
 ## Usage
 

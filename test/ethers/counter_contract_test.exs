@@ -21,12 +21,21 @@ defmodule Ethers.CounterContractTest do
 
     test "calling view functions", %{address: address} do
       {:ok, [100]} = CounterContract.get(to: address)
+      [100] = CounterContract.get!(to: address)
     end
 
     test "sending transaction with state mutating functions", %{address: address} do
       {:ok, _tx_hash} = CounterContract.set(101, from: @from, to: address)
 
       {:ok, [101]} = CounterContract.get(to: address)
+    end
+
+    test "sending transaction with state mutating functions using bang functions", %{
+      address: address
+    } do
+      _tx_hash = CounterContract.set!(101, from: @from, to: address)
+
+      [101] = CounterContract.get!(to: address)
     end
   end
 

@@ -215,6 +215,8 @@ defmodule Ethers.Contract do
       |> Macro.underscore()
       |> String.to_atom()
 
+    bang_fun_name = String.to_atom("#{name}!")
+
     func_args =
       selector.types
       |> Enum.count()
@@ -264,6 +266,7 @@ defmodule Ethers.Contract do
               {:ok, [unquote(func_return_typespec)]}
               | {:ok, Ethers.Types.t_hash()}
               | {:ok, Ethers.Contract.t_function_output()}
+              | {:error, term()}
       def unquote(name)(unquote_splicing(func_args), unquote(overrides)) do
         args =
           unquote(func_args)
@@ -285,6 +288,27 @@ defmodule Ethers.Contract do
         {action, overrides} = Keyword.pop(overrides, :action, unquote(default_action))
 
         Ethers.Contract.perform_action(action, params, overrides, rpc_opts)
+      end
+
+      @doc """
+      Same as `#{unquote(name)}/#{unquote(Enum.count(func_args) + 1)}` but raises on errors
+      """
+      @spec unquote(bang_fun_name)(unquote_splicing(func_input_types), Keyword.t()) ::
+              [unquote(func_return_typespec)]
+              | Ethers.Types.t_hash()
+              | Ethers.Contract.t_function_output()
+              | no_return
+      def unquote(bang_fun_name)(unquote_splicing(func_args), unquote(overrides)) do
+        case unquote(name)(unquote_splicing(func_args), overrides) do
+          {:ok, result} ->
+            result
+
+          {:error, reason} ->
+            raise Ethers.ExecutionError,
+              error: reason,
+              function: unquote(name),
+              args: unquote(func_args)
+        end
       end
     end
   end

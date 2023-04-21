@@ -52,10 +52,10 @@ defmodule Ethers.MixProject do
       source_ref: source_ref,
       groups_for_modules: [
         "Builtin Contracts": [
-          ~r/Contract\.\w+$/
+          ~r/Contracts\.\w+$/
         ],
         "Builtin EventFilters": [
-          ~r/Contract\.\w+\.EventFilters/
+          ~r/Contracts\.\w+\.EventFilters/
         ]
       ]
     ]

@@ -1,6 +1,13 @@
 defmodule Ethers.ExecutionError do
   @moduledoc """
-  Execution Error Exception
+  Execution Error Exception.
+
+  The Exception struct will have these values:
+
+  - `message`: A human readable message for the exception.
+  - `function`: The contract function which caused the exception.
+  - `args`: The arguments for the function causing exception.
+  - `error`: The error reason for the exception.
   """
 
   defexception [:message, :function, :args, :error]

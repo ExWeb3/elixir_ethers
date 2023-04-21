@@ -80,18 +80,18 @@ iex> h MyERC20Token.balance_of
           {:ok, [non_neg_integer()]}
           | {:ok, Ethers.Types.t_hash()}
           | {:ok, Ethers.Contract.t_function_output()}
+          | {:error, term()}
 
 Executes balanceOf(address _owner) on the contract.
+
+Default action for this function is `:call`. To override default action see
+Execution Options in Ethers.Contract.
 
 ## Parameters
 
   • _owner: `:address`
-  • overrides: Overrides and options for the call.
-    • to: The address of the recipient contract. (Required)
-    • action: Type of action for this function (:call, :send or
-      :prepare) Default: :call.
-    • rpc_opts: Options to pass to the RCP client e.g. :url.
-
+  • overrides: Overrides and options for the call. See Execution Options in
+    Ethers.Contract.
 
 ## Return Types
 

@@ -24,6 +24,19 @@ defmodule Ethers.Contract do
   - `abi`: Used to pass in the encoded/decoded json ABI of contract.
   - `abi_file`: Used to pass in the file path to the json ABI of contract.
   - `default_address`: Default contract deployed address. Can be overridden with `:to` option in every function.
+
+  ## Execution Options
+  These can be specified for all the actions by contracts.
+
+  - `action`: Type of action for this function. Here are available values.
+    - `:call` uses `eth_call` to call the function and get the result. Will not change blockchain state or cost gas.
+    - `:send` uses `eth_sendTransaction` to call
+    - `:prepare` only prepares the `data` needed to make a transaction. Useful for Multicall.
+  - `from`: The address of the wallet making this transaction. The private key should be loaded in the rpc server (For example: go-ethereum). Must be in `"0x..."` format.
+  - `gas`: The gas limit for your transaction.
+  - `rpc_client`: The RPC module implementing Ethereum JSON RPC functions. Defaults to `Ethereumex.HttpClient`
+  - `rpc_opts`: Options to pass to the RCP client e.g. `:url`.
+  - `to`: The address of the recipient contract. It will be defaulted to `default_address` if it was specified in Contract otherwise is required. Must be in `"0x..."` format.
   """
 
   require Ethers.ContractHelpers
@@ -252,12 +265,12 @@ defmodule Ethers.Contract do
       @doc """
       Executes `#{unquote(human_signature(selector))}` on the contract.
 
+      Default action for this function is `#{inspect(unquote(default_action))}`.
+      To override default action see Execution Options in `Ethers.Contract`.
+
       ## Parameters
       #{unquote(document_types(selector.types, selector.input_names))}
-      - overrides: Overrides and options for the call.
-        - `to`: The address of the recipient contract. (**Required**)
-        - `action`: Type of action for this function (`:call`, `:send` or `:prepare`) Default: `#{inspect(unquote(default_action))}`.
-        - `rpc_opts`: Options to pass to the RCP client e.g. `:url`.
+      - overrides: Overrides and options for the call. See Execution Options in `Ethers.Contract`.
 
       ## Return Types
       #{unquote(document_types(selector.returns))}
@@ -291,7 +304,7 @@ defmodule Ethers.Contract do
       end
 
       @doc """
-      Same as `#{unquote(name)}/#{unquote(Enum.count(func_args) + 1)}` but raises on errors
+      Same as `#{unquote(name)}/#{unquote(Enum.count(func_args) + 1)}` but raises `Ethers.ExecutionError` on errors.
       """
       @spec unquote(bang_fun_name)(unquote_splicing(func_input_types), Keyword.t()) ::
               [unquote(func_return_typespec)]
@@ -383,7 +396,7 @@ defmodule Ethers.Contract do
 
       ## Parameters
       #{unquote(document_types(indexed_types, selector.input_names))}
-      - overrides: Overrides and options for the call. (**Required**)
+      - overrides: Overrides and options for the call.
         - `address`: The address or list of addresses of the originating contract(s). (**Optional**)
 
       ## Event Data Types

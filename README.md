@@ -25,7 +25,7 @@ end
 
 The complete documentation is available on [hexdocs](https://hexdocs.pm/ethers).
 
-## Requirements
+## Configuration
 
 
 To use Elixir Ethers, ensure you have a configured JSON-RPC endpoint.
@@ -34,6 +34,12 @@ Configure the endpoint using the following configuration parameter.
 
 ```elixir
 # config.exs
+config :ethers,
+  rpc_client: Ethereumex.HttpClient, # Defaults to: Ethereumex.HttpClient
+  keccak_module: ExKeccak, # Defaults to: ExKeccak
+  json_module: Jason # Defaults to: Jason
+
+# If using Ethereumex, you need to specify a JSON-RPC server url here
 config :ethereumex, url: "[URL_HERE]"
 ```
 

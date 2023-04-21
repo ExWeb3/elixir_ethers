@@ -153,7 +153,7 @@ defmodule Ethers.RPC do
     module =
       case Keyword.fetch(overrides, :rpc_client) do
         {:ok, module} when is_atom(module) -> module
-        :error -> Application.get_env(:exw3, :rpc_client, Ethereumex.HttpClient)
+        :error -> Ethers.rpc_client()
       end
 
     {module, Keyword.get(overrides, :rpc_opts, [])}

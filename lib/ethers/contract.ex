@@ -345,7 +345,7 @@ defmodule Ethers.Contract do
     topic_0 =
       selector
       |> ABI.FunctionSelector.encode()
-      |> keccak_module().hash_256()
+      |> Ethers.keccak_module().hash_256()
       |> Ethers.Utils.hex_encode()
 
     overrides = get_overrides(mod, has_other_arities)

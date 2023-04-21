@@ -125,4 +125,11 @@ defmodule Ethers do
       {:ok, logs}
     end
   end
+
+  @doc false
+  def keccak_module, do: Application.get_env(:ethers, :keccak_module, ExKeccak)
+  @doc false
+  def json_module, do: Application.get_env(:ethers, :json_module, Jason)
+  @doc false
+  def rpc_client, do: Application.get_env(:ethers, :rpc_client, Ethereumex.HttpClient)
 end

@@ -9,7 +9,7 @@ defmodule Ethers.ContractHelpers do
   end
 
   def read_abi(:abi, abi) when is_binary(abi) do
-    abi = json_module().decode!(abi)
+    abi = Ethers.json_module().decode!(abi)
     read_abi(:abi, abi)
   end
 
@@ -116,17 +116,13 @@ defmodule Ethers.ContractHelpers do
     {name_atom, ctx, md}
   end
 
-  def keccak_module, do: Application.get_env(:ethers, :keccak_module, ExKeccak)
-
-  def json_module, do: Application.get_env(:ethers, :json_module, Jason)
-
   defp maybe_read_contract_binary(:abi, abi) when is_list(abi), do: nil
   defp maybe_read_contract_binary(:abi, %{"bin" => bin}) when is_binary(bin), do: bin
   defp maybe_read_contract_binary(:abi, map) when is_map(map), do: nil
   defp maybe_read_contract_binary(:abi, abi) when is_atom(abi), do: nil
 
   defp maybe_read_contract_binary(:abi, abi) when is_binary(abi) do
-    abi = json_module().decode!(abi)
+    abi = Ethers.json_module().decode!(abi)
     maybe_read_contract_binary(:abi, abi)
   end
 

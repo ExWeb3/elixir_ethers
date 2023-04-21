@@ -121,7 +121,7 @@ Each contract in Ethers generates an `EventFilters` module (e.g. `MyERC20Token.E
 To create an event filter and use the `Ethers.get_logs` function, follow this example:
 
 ```elixir
-iex> {:ok, filter} = MyERC20Token.EventFilters.transfer("0x[From Address Here]", nil)
+iex> filter = MyERC20Token.EventFilters.transfer("0x[From Address Here]", nil)
 ```
 
 Also `nil` can be used for a parameter in EventFilters functions to show that it should not be filtered.

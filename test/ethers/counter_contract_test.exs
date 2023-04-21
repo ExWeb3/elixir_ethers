@@ -45,9 +45,9 @@ defmodule Ethers.CounterContractTest do
     test "can get the emitted event with the correct filter", %{address: address} do
       {:ok, _tx_hash} = CounterContract.set(101, from: @from, to: address)
 
-      assert {:ok, open_filter} = CounterContract.EventFilters.set_called(nil)
-      assert {:ok, correct_filter} = CounterContract.EventFilters.set_called(100)
-      assert {:ok, incorrect_filter} = CounterContract.EventFilters.set_called(105)
+      assert open_filter = CounterContract.EventFilters.set_called(nil)
+      assert correct_filter = CounterContract.EventFilters.set_called(100)
+      assert incorrect_filter = CounterContract.EventFilters.set_called(105)
 
       assert {:ok,
               [

@@ -390,7 +390,7 @@ defmodule Ethers.Contract do
       #{unquote(document_types(selector.types, selector.input_names))}
       """
       @spec unquote(name)(unquote_splicing(func_input_typespec), Keyword.t()) ::
-              {:ok, Ethers.Contract.t_event_output()}
+              Ethers.Contract.t_event_output()
       def unquote(name)(unquote_splicing(func_args), unquote(overrides)) do
         address = Keyword.get(overrides, :address, __MODULE__.default_address())
 
@@ -408,12 +408,11 @@ defmodule Ethers.Contract do
               |> Ethers.Utils.hex_encode()
           end)
 
-        {:ok,
-         %{
-           topics: [unquote(topic_0) | sub_topics],
-           address: address,
-           selector: unquote(Macro.escape(selector))
-         }}
+        %{
+          topics: [unquote(topic_0) | sub_topics],
+          address: address,
+          selector: unquote(Macro.escape(selector))
+        }
       end
     end
   end

@@ -26,8 +26,8 @@ defmodule Ethers.RegistryContractTest do
     test "can create event filters and fetch register events", %{address: address} do
       {:ok, _tx_hash} = RegistryContract.register({"alisina", 27}, from: @from, to: address)
 
-      {:ok, empty_filter} = RegistryContract.EventFilters.registered(nil)
-      {:ok, search_filter} = RegistryContract.EventFilters.registered(@from)
+      empty_filter = RegistryContract.EventFilters.registered(nil)
+      search_filter = RegistryContract.EventFilters.registered(@from)
 
       assert {:ok, [%Ethers.Event{address: ^address}]} = Ethers.get_logs(empty_filter)
 

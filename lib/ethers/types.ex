@@ -20,6 +20,8 @@ defmodule Ethers.Types do
   """
   @type t_hash :: <<_::528>>
 
+  @valid_bitsizes [8, 16, 32, 64, 128, 256]
+
   @doc """
   Converts EVM data types to typespecs for documentation
   """
@@ -75,4 +77,93 @@ defmodule Ethers.Types do
         quote do: term
     end
   end
+
+  @doc """
+  Returns the maximum possible value in the given type if supported.
+
+  ## Examples
+
+      iex> Ethers.Types.max({:uint, 8})
+      255
+
+      iex> Ethers.Types.max({:int, 8})
+      127
+
+      iex> Ethers.Types.max({:uint, 16})
+      65535
+
+      iex> Ethers.Types.max({:int, 16})
+      32767
+  """
+  def max(type)
+
+  def max({:uint, bitsize}) when bitsize in @valid_bitsizes do
+    (:math.pow(2, bitsize) - 1)
+    |> trunc()
+  end
+
+  def max({:int, bitsize}) when bitsize in @valid_bitsizes do
+    (:math.pow(2, bitsize - 1) - 1)
+    |> trunc()
+  end
+
+  @doc """
+  Returns the minimum possible value in the given type if supported.
+
+  ## Examples
+
+      iex> Ethers.Types.min({:uint, 8})
+      0
+
+      iex> Ethers.Types.min({:int, 8})
+      -128
+
+      iex> Ethers.Types.min({:uint, 16})
+      0
+
+      iex> Ethers.Types.min({:int, 16})
+      -32768
+  """
+  def min(type)
+
+  def min({:uint, bitsize}) when bitsize in @valid_bitsizes, do: 0
+
+  def min({:int, bitsize}) when bitsize in @valid_bitsizes do
+    (-1 * :math.pow(2, bitsize - 1))
+    |> trunc()
+  end
+
+  @doc """
+  Returns the default value in the given type if supported.
+
+  ## Examples
+
+      iex> Ethers.Types.default(:address)
+      "0x0000000000000000000000000000000000000000"
+
+      iex> Ethers.Types.default({:int, 32})
+      0
+
+      iex> Ethers.Types.default({:uint, 8})
+      0
+
+      iex> Ethers.Types.default({:int, 128})
+      0
+
+      iex> Ethers.Types.default(:string)
+      ""
+
+      iex> Ethers.Types.default(:bytes)
+      ""
+
+      iex> Ethers.Types.default({:bytes, 8})
+      <<0, 0, 0, 0, 0, 0, 0, 0>>
+  """
+  def default({type, _}) when type in [:int, :uint], do: 0
+
+  def default(:address), do: "0x0000000000000000000000000000000000000000"
+
+  def default(type) when type in [:string, :bytes], do: ""
+
+  def default({:bytes, size}), do: <<0::size*8>>
 end

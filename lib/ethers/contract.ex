@@ -147,6 +147,7 @@ defmodule Ethers.Contract do
           {:ok, [term]}
           | {:ok, Ethers.Types.t_hash()}
           | {:ok, Ethers.Contract.t_function_output()}
+          | {:error, term()}
   def perform_action(action, params, overrides \\ [], rpc_opts \\ [])
 
   def perform_action(:call, params, overrides, rpc_opts),

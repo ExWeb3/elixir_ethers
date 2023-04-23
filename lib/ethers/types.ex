@@ -41,7 +41,7 @@ defmodule Ethers.Types do
         end
 
       {:bytes, size} ->
-        quote do: <<_::unquote(size * 8)>>
+        quote do: <<_::unquote(size * 8)>> | <<_::unquote(size * 8 * 2 + 2 * 8)>>
 
       :bytes ->
         quote do: binary()

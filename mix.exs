@@ -1,7 +1,7 @@
 defmodule Ethers.MixProject do
   use Mix.Project
 
-  @version "0.0.1"
+  @version "0.0.2"
   @source_url "https://github.com/alisinabh/elixir_ethers"
 
   def project do
@@ -33,7 +33,7 @@ defmodule Ethers.MixProject do
       licenses: ["Apache-2.0"],
       links: %{"GitHub" => @source_url},
       maintainers: ["Alisina Bahadori"],
-      files: ["lib", "mix.exs", "README*", "LICENSE*"]
+      files: ["lib", "priv", "mix.exs", "README*", "LICENSE*"]
     ]
   end
 

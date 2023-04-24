@@ -16,7 +16,14 @@ defmodule Ethers.NameService do
   - name: Domain name to resolve. (Example: `foo.eth`)
   - opts: Resolve options.
     - to: Resolver contract address. Defaults to ENS
-    - Accepts all other options from `Ethers.Contracts` Execution Options section.
+    - Accepts all other __Execution options__ from `Ethers.Contract`.
+
+  ## Examples
+
+  ```elixir
+  Ethers.NameService.resolve("vitalik.eth")
+  {:ok, "0xd8da6bf26964af9d7eed9e03e53415d37aa96045"}
+  ```
   """
   @spec resolve(String.t(), Keyword.t()) ::
           {:ok, Ethers.Types.t_address()} | {:error, :domain_not_found | term()}
@@ -34,6 +41,13 @@ defmodule Ethers.NameService do
 
   @doc """
   Same as `resolve/2` but raises on errors.
+
+  ## Examples
+
+  ```elixir
+  Ethers.NameService.resolve!("vitalik.eth")
+  "0xd8da6bf26964af9d7eed9e03e53415d37aa96045"
+  ```
   """
   @spec resolve!(String.t(), Keyword.t()) :: Ethers.Types.t_address() | no_return
   def resolve!(name, opts \\ []) do

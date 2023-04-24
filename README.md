@@ -18,7 +18,7 @@ You can install the package by adding `ethers` to the list of dependencies in yo
 ```elixir
 def deps do
   [
-    {:ethers, "~> 0.1.0-dev", github: "alisinabh/elixir_ethers"}
+    {:ethers, "~> 0.1.0"}
   ]
 end
 ```

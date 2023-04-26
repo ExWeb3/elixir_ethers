@@ -47,6 +47,9 @@ defmodule Ethers.ContractHelpers do
       types
     end
     |> Enum.map(fn
+      {type, ""} ->
+        " - `#{inspect(type)}`"
+
       {type, name} when is_binary(name) or is_atom(name) ->
         " - #{name}: `#{inspect(type)}`"
 
@@ -69,7 +72,7 @@ defmodule Ethers.ContractHelpers do
       end
       |> Enum.map(fn
         {type, name} when is_binary(name) ->
-          "#{ABI.FunctionSelector.encode_type(type)} #{name}"
+          String.trim("#{ABI.FunctionSelector.encode_type(type)} #{name}")
 
         type ->
           "#{ABI.FunctionSelector.encode_type(type)}"

@@ -20,7 +20,7 @@ defmodule Ethers.Types do
   """
   @type t_hash :: <<_::528>>
 
-  @valid_bitsizes [8, 16, 32, 64, 128, 256]
+  defguard valid_bitsize(bitsize) when bitsize >= 8 and bitsize <= 256 and rem(bitsize, 8) == 0
 
   @doc """
   Converts EVM data types to typespecs for documentation
@@ -97,12 +97,12 @@ defmodule Ethers.Types do
   """
   def max(type)
 
-  def max({:uint, bitsize}) when bitsize in @valid_bitsizes do
+  def max({:uint, bitsize}) when valid_bitsize(bitsize) do
     (:math.pow(2, bitsize) - 1)
     |> trunc()
   end
 
-  def max({:int, bitsize}) when bitsize in @valid_bitsizes do
+  def max({:int, bitsize}) when valid_bitsize(bitsize) do
     (:math.pow(2, bitsize - 1) - 1)
     |> trunc()
   end
@@ -123,12 +123,15 @@ defmodule Ethers.Types do
 
       iex> Ethers.Types.min({:int, 16})
       -32768
+
+      iex> Ethers.Types.min({:int, 24})
+      -8388608
   """
   def min(type)
 
-  def min({:uint, bitsize}) when bitsize in @valid_bitsizes, do: 0
+  def min({:uint, bitsize}) when valid_bitsize(bitsize), do: 0
 
-  def min({:int, bitsize}) when bitsize in @valid_bitsizes do
+  def min({:int, bitsize}) when valid_bitsize(bitsize) do
     (-1 * :math.pow(2, bitsize - 1))
     |> trunc()
   end

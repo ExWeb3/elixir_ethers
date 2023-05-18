@@ -25,57 +25,67 @@ defmodule Ethers.Types do
   @doc """
   Converts EVM data types to typespecs for documentation
   """
-  def to_elixir_type(type) do
-    case type do
-      :address ->
-        quote do: Ethers.Types.t_address()
+  def to_elixir_type(:address) do
+    quote do: Ethers.Types.t_address()
+  end
 
-      {:array, sub_type, _element_count} ->
-        to_elixir_type({:array, sub_type})
+  def to_elixir_type({:array, sub_type, _element_count}) do
+    to_elixir_type({:array, sub_type})
+  end
 
-      {:array, sub_type} ->
-        sub_type = to_elixir_type(sub_type)
+  def to_elixir_type({:array, sub_type}) do
+    sub_type = to_elixir_type(sub_type)
 
-        quote do
-          [unquote(sub_type)]
-        end
-
-      {:bytes, size} ->
-        quote do: <<_::unquote(size * 8)>> | <<_::unquote(size * 8 * 2 + 2 * 8)>>
-
-      :bytes ->
-        quote do: binary()
-
-      :bool ->
-        quote do: boolean()
-
-      :function ->
-        raise "Not implemented"
-
-      {:ufixed, _element_count, _precision} ->
-        quote do: float()
-
-      {:fixed, _element_count, _precision} ->
-        quote do: float()
-
-      {:int, _} ->
-        quote do: integer
-
-      :string ->
-        quote do: String.t()
-
-      {:tuple, sub_types} ->
-        sub_types = Enum.map(sub_types, &to_elixir_type/1)
-
-        quote do: {unquote_splicing(sub_types)}
-
-      {:uint, _} ->
-        quote do: non_neg_integer
-
-      unknown ->
-        Logger.warn("Unknown type #{inspect(unknown)}")
-        quote do: term
+    quote do
+      [unquote(sub_type)]
     end
+  end
+
+  def to_elixir_type({:bytes, size}) do
+    quote do: <<_::unquote(size * 8)>> | <<_::unquote(size * 8 * 2 + 2 * 8)>>
+  end
+
+  def to_elixir_type(:bytes) do
+    quote do: binary()
+  end
+
+  def to_elixir_type(:bool) do
+    quote do: boolean()
+  end
+
+  def to_elixir_type(:function) do
+    raise "Not implemented"
+  end
+
+  def to_elixir_type({:ufixed, _element_count, _precision}) do
+    quote do: float()
+  end
+
+  def to_elixir_type({:fixed, _element_count, _precision}) do
+    quote do: float()
+  end
+
+  def to_elixir_type({:int, _}) do
+    quote do: integer
+  end
+
+  def to_elixir_type(:string) do
+    quote do: String.t()
+  end
+
+  def to_elixir_type({:tuple, sub_types}) do
+    sub_types = Enum.map(sub_types, &to_elixir_type/1)
+
+    quote do: {unquote_splicing(sub_types)}
+  end
+
+  def to_elixir_type({:uint, _}) do
+    quote do: non_neg_integer
+  end
+
+  def to_elixir_type(unknown) do
+    Logger.warn("Unknown type #{inspect(unknown)}")
+    quote do: term
   end
 
   @doc """

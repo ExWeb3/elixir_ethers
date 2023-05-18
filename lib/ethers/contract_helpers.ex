@@ -46,7 +46,7 @@ defmodule Ethers.ContractHelpers do
     else
       types
     end
-    |> Enum.map(fn
+    |> Enum.map_join("\n", fn
       {type, ""} ->
         " - `#{inspect(type)}`"
 
@@ -56,7 +56,6 @@ defmodule Ethers.ContractHelpers do
       type ->
         " - `#{inspect(type)}`"
     end)
-    |> Enum.join("\n")
   end
 
   def human_signature(%ABI.FunctionSelector{
@@ -70,14 +69,13 @@ defmodule Ethers.ContractHelpers do
       else
         types
       end
-      |> Enum.map(fn
+      |> Enum.map_join(", ", fn
         {type, name} when is_binary(name) ->
           String.trim("#{ABI.FunctionSelector.encode_type(type)} #{name}")
 
         type ->
           "#{ABI.FunctionSelector.encode_type(type)}"
       end)
-      |> Enum.join(", ")
 
     "#{function}(#{args})"
   end
@@ -107,14 +105,29 @@ defmodule Ethers.ContractHelpers do
     end
   end
 
-  def get_argument_name_ast({ast, name}) do
-    do_get_argument_name_ast(ast, String.trim(name))
+  def generate_arguments(mod, types, names) do
+    types
+    |> Enum.count(& &1)
+    |> Macro.generate_arguments(mod)
+    |> then(fn args ->
+      if length(names) >= length(args) do
+        args
+        |> Enum.zip(names)
+        |> Enum.map(&get_argument_name_ast/1)
+      else
+        args
+      end
+    end)
   end
 
-  def do_get_argument_name_ast(ast, "_" <> name), do: do_get_argument_name_ast(ast, name)
-  def do_get_argument_name_ast(ast, ""), do: ast
+  defp get_argument_name_ast({ast, name}) do
+    get_argument_name_ast(ast, String.trim(name))
+  end
 
-  def do_get_argument_name_ast({orig, ctx, md}, name) when is_atom(orig) do
+  defp get_argument_name_ast(ast, "_" <> name), do: get_argument_name_ast(ast, name)
+  defp get_argument_name_ast(ast, ""), do: ast
+
+  defp get_argument_name_ast({orig, ctx, md}, name) when is_atom(orig) do
     name_atom = String.to_atom(Macro.underscore(name))
     {name_atom, ctx, md}
   end

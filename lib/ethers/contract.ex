@@ -166,29 +166,7 @@ defmodule Ethers.Contract do
 
   @spec generate_method(map(), atom()) :: any()
   defp generate_method(%{selector: %ABI.FunctionSelector{type: :constructor} = selector}, mod) do
-    func_args =
-      selector.types
-      |> Enum.count()
-      |> Macro.generate_arguments(mod)
-      |> then(fn args ->
-        if length(selector.input_names) == length(args) do
-          args
-          |> Enum.zip(selector.input_names)
-          |> Enum.map(fn {{_, ctx, md}, name} ->
-            if String.starts_with?(name, "_") do
-              name
-              |> String.slice(1..-1)
-            else
-              name
-            end
-            |> Macro.underscore()
-            |> String.to_atom()
-            |> then(&{&1, ctx, md})
-          end)
-        else
-          args
-        end
-      end)
+    func_args = generate_arguments(mod, selector.types, selector.input_names)
 
     func_input_types =
       selector.types
@@ -231,20 +209,7 @@ defmodule Ethers.Contract do
 
     bang_fun_name = String.to_atom("#{name}!")
 
-    func_args =
-      selector.types
-      |> Enum.count()
-      |> Macro.generate_arguments(mod)
-      |> then(fn args ->
-        if length(selector.input_names) == length(args) do
-          args
-          |> Enum.zip(selector.input_names)
-          |> Enum.map(&get_argument_name_ast/1)
-        else
-          # Invalid input name length, fallback to generated argument names
-          args
-        end
-      end)
+    func_args = generate_arguments(mod, selector.types, selector.input_names)
 
     func_input_types =
       selector.types
@@ -339,29 +304,7 @@ defmodule Ethers.Contract do
       |> Macro.underscore()
       |> String.to_atom()
 
-    func_args =
-      selector.inputs_indexed
-      |> Enum.count(& &1)
-      |> Macro.generate_arguments(mod)
-      |> then(fn args ->
-        if length(selector.input_names) >= length(args) do
-          args
-          |> Enum.zip(selector.input_names)
-          |> Enum.map(fn {{_, ctx, md}, name} ->
-            if String.starts_with?(name, "_") do
-              name
-              |> String.slice(1..-1)
-            else
-              name
-            end
-            |> Macro.underscore()
-            |> String.to_atom()
-            |> then(&{&1, ctx, md})
-          end)
-        else
-          args
-        end
-      end)
+    func_args = generate_arguments(mod, selector.inputs_indexed, selector.input_names)
 
     {indexed_types, non_indexed_types} =
       selector.types

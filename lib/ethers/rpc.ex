@@ -40,15 +40,16 @@ defmodule Ethers.RPC do
       |> Enum.into(params)
       |> Map.drop(@internal_params)
 
-    with {:ok, resp} when valid_result(resp) <- eth_call(params, block, opts) do
-      returns =
-        selector
-        |> ABI.decode(Ethers.Utils.hex_decode!(resp), :output)
-        |> Enum.zip(selector.returns)
-        |> Enum.map(fn {return, type} -> Utils.human_arg(return, type) end)
+    case eth_call(params, block, opts) do
+      {:ok, resp} when valid_result(resp) ->
+        returns =
+          selector
+          |> ABI.decode(Ethers.Utils.hex_decode!(resp), :output)
+          |> Enum.zip(selector.returns)
+          |> Enum.map(fn {return, type} -> Utils.human_arg(return, type) end)
 
-      {:ok, returns}
-    else
+        {:ok, returns}
+
       {:ok, "0x"} ->
         {:error, :unknown}
 
@@ -88,9 +89,10 @@ defmodule Ethers.RPC do
       |> Enum.into(params)
       |> Map.drop(@internal_params)
 
-    with {:ok, tx} when valid_result(tx) <- eth_send_transaction(params, opts) do
-      {:ok, tx}
-    else
+    case eth_send_transaction(params, opts) do
+      {:ok, tx} when valid_result(tx) ->
+        {:ok, tx}
+
       {:ok, "0x"} ->
         {:error, :unknown}
 

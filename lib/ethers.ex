@@ -8,7 +8,7 @@ defmodule Ethers do
   """
 
   alias Ethers.Types
-  alias Ethers.{RPC, Utils, Event}
+  alias Ethers.{Event, RPC, Utils}
 
   @doc """
   Returns the current gas price from the RPC API

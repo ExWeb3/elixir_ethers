@@ -3,7 +3,7 @@ defmodule Ethers.Event do
   EVM Event struct and helpers
   """
 
-  alias Ethers.{Utils, Types}
+  alias Ethers.{Types, Utils}
   alias ABI.{FunctionSelector, TypeDecoder}
 
   defstruct [

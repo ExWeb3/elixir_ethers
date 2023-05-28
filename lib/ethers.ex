@@ -100,13 +100,7 @@ defmodule Ethers do
   @spec estimate_gas(map(), Keyword.t()) ::
           {:ok, non_neg_integer()} | {:error, :gas_estimation_failed}
   def estimate_gas(params, opts \\ []) do
-    with {:ok, est_gas_hex} <- RPC.eth_estimate_gas(params, opts),
-         {:ok, est_gas} <- Utils.hex_to_integer(est_gas_hex) do
-      {:ok, div(est_gas * 115, 100)}
-    else
-      _ ->
-        {:error, :gas_estimation_failed}
-    end
+    RPC.estimate_gas(params, [], opts)
   end
 
   @doc """

@@ -31,6 +31,7 @@ defmodule Ethers.Contract do
   - `action`: Type of action for this function. Here are available values.
     - `:call` uses `eth_call` to call the function and get the result. Will not change blockchain state or cost gas.
     - `:send` uses `eth_sendTransaction` to call
+    - `:estimate_gas` uses `eth_estimateGas` to estimate the gas usage of this transaction.
     - `:prepare` only prepares the `data` needed to make a transaction. Useful for Multicall.
   - `from`: The address of the wallet making this transaction. The private key should be loaded in the rpc server (For example: go-ethereum). Must be in `"0x..."` format.
   - `gas`: The gas limit for your transaction.
@@ -155,6 +156,9 @@ defmodule Ethers.Contract do
 
   def perform_action(:send, params, overrides, rpc_opts),
     do: Ethers.RPC.send(params, overrides, rpc_opts)
+
+  def perform_action(:estimate_gas, params, overrides, rpc_opts),
+    do: Ethers.RPC.estimate_gas(params, overrides, rpc_opts)
 
   def perform_action(:prepare, params, overrides, _rpc_opts),
     do: {:ok, Enum.into(overrides, params)}

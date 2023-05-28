@@ -83,7 +83,7 @@ defmodule Ethers.RPC do
   @spec send(map, Keyword.t()) :: {:ok, String.t()} | {:error, term()}
   def send(params, overrides \\ [], opts \\ [])
 
-  def send(%{data: _} = params, overrides, opts) do
+  def send(params, overrides, opts) do
     params =
       overrides
       |> Enum.into(params)
@@ -98,6 +98,18 @@ defmodule Ethers.RPC do
 
       {:error, cause} ->
         {:error, cause}
+    end
+  end
+
+  def estimate_gas(params, overrides \\ [], opts \\ []) do
+    params =
+      overrides
+      |> Enum.into(params)
+      |> Map.drop(@internal_params)
+
+    with {:ok, gas_hex} <- eth_estimate_gas(params, opts),
+         {:ok, gas} <- Utils.hex_to_integer(gas_hex) do
+      {:ok, gas}
     end
   end
 
@@ -126,6 +138,7 @@ defmodule Ethers.RPC do
   end
 
   def eth_estimate_gas(params, opts \\ []) when is_map(params) do
+    params = Map.drop(params, @internal_params)
     {rpc_client, rpc_opts} = rpc_info(opts)
 
     rpc_client.eth_estimate_gas(params, rpc_opts)

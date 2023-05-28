@@ -89,10 +89,10 @@ defmodule Ethers.RPC do
       |> Enum.into(params)
       |> Map.drop(@internal_params)
 
-    case eth_send_transaction(params, opts) do
-      {:ok, tx} when valid_result(tx) ->
-        {:ok, tx}
-
+    with {:ok, params} <- Utils.maybe_add_gas_limit(params, opts),
+         {:ok, tx} when valid_result(tx) <- eth_send_transaction(params, opts) do
+      {:ok, tx}
+    else
       {:ok, "0x"} ->
         {:error, :unknown}
 

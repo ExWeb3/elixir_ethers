@@ -107,9 +107,8 @@ defmodule Ethers.RPC do
       |> Enum.into(params)
       |> Map.drop(@internal_params)
 
-    with {:ok, gas_hex} <- eth_estimate_gas(params, opts),
-         {:ok, gas} <- Utils.hex_to_integer(gas_hex) do
-      {:ok, gas}
+    with {:ok, gas_hex} <- eth_estimate_gas(params, opts) do
+      Utils.hex_to_integer(gas_hex)
     end
   end
 

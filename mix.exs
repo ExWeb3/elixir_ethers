@@ -72,7 +72,7 @@ defmodule Ethers.MixProject do
       {:dialyxir, "~> 1.3", only: [:dev], runtime: false},
       {:ethereumex, "~> 0.10.3"},
       {:ex_abi, "~> 0.6.0"},
-      {:ex_doc, "~> 0.29.4", only: :dev, runtime: false},
+      {:ex_doc, "~> 0.30.1", only: :dev, runtime: false},
       {:idna, "~> 6.1"},
       {:jason, "~> 1.4"}
     ]

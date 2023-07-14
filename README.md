@@ -153,6 +153,16 @@ iex> Ethers.get_logs(filter)
  ]}
 ```
 
+### Resolving Ethereum ENS names in Elixir
+
+To resolve ENS or any other name service provider in the blockchain
+you can simply use the [Ethers.NameService](https://hexdocs.pm/ethers/Ethers.NameService.html) module.
+
+```elixir
+iex> Ethers.NameService.resolve("vitalik.eth")
+{:ok, "0xd8da6bf26964af9d7eed9e03e53415d37aa96045"}
+```
+
 ## Contributing
 
 All contributions to this project are welcome. Please feel free to open issues and push PRs.

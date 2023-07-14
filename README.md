@@ -18,7 +18,7 @@ You can install the package by adding `ethers` to the list of dependencies in yo
 ```elixir
 def deps do
   [
-    {:ethers, "~> 0.0.3"}
+    {:ethers, "~> 0.0.4"}
   ]
 end
 ```
@@ -151,6 +151,18 @@ iex> Ethers.get_logs(filter)
    %Ethers.Event{...},
     ...
  ]}
+```
+
+## Contributing
+
+All contributions to this project are welcome. Please feel free to open issues and push PRs.
+
+To run the tests locally, the only dependency is [ganache](https://github.com/trufflesuite/ganache).
+After installing ganache, just run the following in a new window the you can run the tests on
+the same machine.
+
+```
+> ganache --wallet.deterministic
 ```
 
 ## Props

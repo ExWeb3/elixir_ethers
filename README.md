@@ -51,8 +51,8 @@ To send transactions, you need a wallet client capable of signing transactions a
 
 ## Usage
 
-To use Elixir Ethers, you must have your contract's ABI, which can be obtained from [etherscan.io](https://etherscan.io). 
-This library also supports standard contract interfaces such as `ERC20`, `ERC721` and some more (refer to built-in contracts in hex-doc).
+To use Elixir Ethers, you must have your contract's ABI in json format, which can be obtained from [etherscan.io](https://etherscan.io). 
+This library also contains standard contract interfaces such as `ERC20`, `ERC721` and some more by default (refer to built-in contracts in hex-doc).
 
 Create a module for your contract as follows:
 

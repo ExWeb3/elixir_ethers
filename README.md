@@ -70,9 +70,11 @@ After defining the module, all the functions can be called like any other Elixir
 The documentation is also available giving the developer a first-class experience.
 
 ```elixir
+# Calling functions on the blockchain
 iex> MyERC20Token.balance_of("0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2")
 {:ok, [654294510138460920346]}
 
+# Get the documentation of a function
 iex> h MyERC20Token.balance_of
                      def balance_of(owner, overrides \\ [])
 
@@ -118,17 +120,14 @@ iex> MyERC20Token.transfer("0x[Recipient Address Here]", Ethers.Utils.to_wei(1),
 Elixir Ethers provides functionality for creating event filters and fetching events from the RPC endpoint using `eth_getLogs`. 
 Each contract in Ethers generates an `EventFilters` module (e.g. `MyERC20Token.EventFilter`s) that can be used to create filters for events.
 
-To create an event filter and use the `Ethers.get_logs` function, follow this example:
+To create an event filter and use the [`Ethers.get_logs/3`](https://hexdocs.pm/ethers/Ethers.html#get_logs/3) function, follow this example:
 
 ```elixir
 iex> filter = MyERC20Token.EventFilters.transfer("0x[From Address Here]", nil)
-```
 
-Also `nil` can be used for a parameter in EventFilters functions to show that it should not be filtered.
+# Also `nil` can be used for a parameter in EventFilters functions to show that it should not be filtered.
+# Then you can simply list the logs.
 
-Then you can simply list the logs.
-
-```elixir
 iex> Ethers.get_logs(filter)
 {:ok,
  [
@@ -153,10 +152,10 @@ iex> Ethers.get_logs(filter)
  ]}
 ```
 
-### Resolving Ethereum ENS names in Elixir
+### Resolving Ethereum (ENS) names in Elixir
 
 To resolve ENS or any other name service provider in the blockchain
-you can simply use the [Ethers.NameService](https://hexdocs.pm/ethers/Ethers.NameService.html) module.
+you can simply use the [`Ethers.NameService`](https://hexdocs.pm/ethers/Ethers.NameService.html) module.
 
 ```elixir
 iex> Ethers.NameService.resolve("vitalik.eth")

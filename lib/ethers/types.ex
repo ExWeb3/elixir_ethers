@@ -84,7 +84,7 @@ defmodule Ethers.Types do
   end
 
   def to_elixir_type(unknown) do
-    Logger.warn("Unknown type #{inspect(unknown)}")
+    Logger.warning("Unknown type #{inspect(unknown)}")
     quote do: term
   end
 

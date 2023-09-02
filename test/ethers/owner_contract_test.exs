@@ -17,6 +17,7 @@ defmodule Ethers.OwnerContractTest do
     assert {:ok, tx_hash} = Ethers.deploy(OwnerContract, init_params, %{from: @from})
     assert {:ok, address} = Ethers.deployed_address(tx_hash)
 
-    assert {:ok, [@sample_address]} = OwnerContract.get_owner(to: address)
+    assert {:ok, %Ethers.Result{return_values: [@sample_address]}} =
+             OwnerContract.get_owner(to: address)
   end
 end

@@ -6,6 +6,7 @@ defmodule Ethers.NameService do
   import Ethers, only: [keccak_module: 0]
 
   alias Ethers.Contracts.ENS
+  alias Ethers.Result
 
   @null_address "0x0000000000000000000000000000000000000000"
 
@@ -30,11 +31,13 @@ defmodule Ethers.NameService do
   def resolve(name, opts \\ []) do
     name_hash = name_hash(name)
 
-    with {:ok, [resolver]} when resolver != @null_address <- ENS.resolver(name_hash, opts),
-         {:ok, [addr]} <- ENS.Resolver.addr(name_hash, Keyword.merge(opts, to: resolver)) do
+    with {:ok, %Result{return_values: [resolver]}} when resolver != @null_address <-
+           ENS.resolver(name_hash, opts),
+         {:ok, %Result{return_values: [addr]}} <-
+           ENS.Resolver.addr(name_hash, Keyword.merge(opts, to: resolver)) do
       {:ok, addr}
     else
-      {:ok, [@null_address]} -> {:error, :domain_not_found}
+      {:ok, %Result{return_values: [@null_address]}} -> {:error, :domain_not_found}
       {:error, _} = error -> error
     end
   end

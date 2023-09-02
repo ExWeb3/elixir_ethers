@@ -154,7 +154,7 @@ defmodule Ethers.Utils do
   end
 
   def maybe_add_gas_limit(params, opts) do
-    with {:ok, gas} <- RPC.estimate_gas(params, opts) do
+    with {:ok, %{gas_estimate: gas}} <- RPC.estimate_gas(params, opts) do
       mult = (opts[:mult] || 100) + 1000
       gas = div(mult * gas, 1000)
       {:ok, Map.put(params, :gas, gas)}

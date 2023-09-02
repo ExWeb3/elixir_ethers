@@ -8,6 +8,7 @@ defmodule Ethers.RegistryContractTest do
   doctest Ethers.Contract
 
   alias Ethers.Contract.Test.RegistryContract
+  alias Ethers.Result, as: R
 
   @from "0x90f8bf6a479f320ead074411a4b0e7944ea8c9c1"
 
@@ -19,11 +20,11 @@ defmodule Ethers.RegistryContractTest do
     end
 
     test "can call functions returning structs", %{address: address} do
-      {:ok, [{"", 0}]} = RegistryContract.info(@from, to: address)
+      {:ok, %R{return_values: [{"", 0}]}} = RegistryContract.info(@from, to: address)
 
-      {:ok, _tx_hash} = RegistryContract.register({"alisina", 27}, from: @from, to: address)
+      {:ok, %R{}} = RegistryContract.register({"alisina", 27}, from: @from, to: address)
 
-      {:ok, [{"alisina", 27}]} = RegistryContract.info(@from, to: address)
+      {:ok, %R{return_values: [{"alisina", 27}]}} = RegistryContract.info(@from, to: address)
     end
   end
 

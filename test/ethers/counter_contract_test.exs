@@ -8,6 +8,7 @@ defmodule Ethers.CounterContractTest do
   doctest Ethers.Contract
 
   alias Ethers.Event
+  alias Ethers.Result, as: R
 
   alias Ethers.Contract.Test.CounterContract
 
@@ -25,22 +26,25 @@ defmodule Ethers.CounterContractTest do
     setup :deploy_counter_contract
 
     test "calling view functions", %{address: address} do
-      {:ok, [100]} = CounterContract.get(to: address)
-      [100] = CounterContract.get!(to: address)
+      assert {:ok, %R{return_values: [100]}} = CounterContract.get(to: address)
+      assert %R{return_values: [100]} = CounterContract.get!(to: address)
     end
 
     test "sending transaction with state mutating functions", %{address: address} do
-      {:ok, _tx_hash} = CounterContract.set(101, from: @from, to: address)
-
-      {:ok, [101]} = CounterContract.get(to: address)
+      assert {:ok, %R{}} = CounterContract.set(101, from: @from, to: address)
+      assert {:ok, %R{return_values: [101]}} = CounterContract.get(to: address)
     end
 
     test "sending transaction with state mutating functions using bang functions", %{
       address: address
     } do
-      _tx_hash = CounterContract.set!(101, from: @from, to: address)
+      assert %R{} = CounterContract.set!(101, from: @from, to: address)
+      assert %R{return_values: [101]} = CounterContract.get!(to: address)
+    end
 
-      [101] = CounterContract.get!(to: address)
+    test "sending transaction will include the estimated gas in result", %{address: address} do
+      assert %R{gas_estimate: estimate} = CounterContract.set!(101, from: @from, to: address)
+      assert is_integer(estimate)
     end
   end
 

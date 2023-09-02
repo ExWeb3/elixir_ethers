@@ -42,13 +42,9 @@ defmodule Ethers.Contract do
 
   require Ethers.ContractHelpers
   import Ethers.ContractHelpers
+  alias Ethers.Result
 
   @type action :: :call | :send | :prepare
-  @type t_function_output :: %{
-          data: binary,
-          to: Ethers.Types.t_address(),
-          selector: ABI.FunctionSelector.t()
-        }
   @type t_event_output :: %{
           topics: [binary],
           address: Ethers.Types.t_address(),
@@ -145,9 +141,7 @@ defmodule Ethers.Contract do
 
   @doc false
   @spec perform_action(action(), map, Keyword.t(), Keyword.t()) ::
-          {:ok, [term]}
-          | {:ok, Ethers.Types.t_hash()}
-          | {:ok, Ethers.Contract.t_function_output()}
+          {:ok, Result.t()}
           | {:error, term()}
   def perform_action(action, params, overrides \\ [], rpc_opts \\ [])
 
@@ -161,7 +155,7 @@ defmodule Ethers.Contract do
     do: Ethers.RPC.estimate_gas(params, overrides, rpc_opts)
 
   def perform_action(:prepare, params, overrides, _rpc_opts),
-    do: {:ok, Enum.into(overrides, params)}
+    do: Ethers.RPC.prepare_params(params, overrides)
 
   def perform_action(action, _params, _overrides, _rpc_opts),
     do: raise("#{__MODULE__} Invalid action: #{inspect(action)}")

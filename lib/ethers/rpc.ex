@@ -3,11 +3,20 @@ defmodule Ethers.RPC do
   RPC Methods for interacting with the Ethereum blockchain
   """
 
-  alias Ethers.Utils
+  alias Ethers.{Utils, Result}
 
   defguardp valid_result(bin) when bin != "0x"
 
   @internal_params [:selector]
+
+  @doc """
+  Returns the prepared parameters with the overrides applied and internals removed.
+  """
+  @spec prepare_params(map(), map()) :: Result.t()
+  def prepare_params(params, overrides \\ %{}) do
+    params = do_prepare_params(params, overrides)
+    Result.new(params, :not_loaded, :not_estimated, nil)
+  end
 
   @doc """
   Makes an eth_call to with the given data and overrides, Than parses
@@ -29,16 +38,13 @@ defmodule Ethers.RPC do
       iex> Ethers.Contract.ERC20.total_supply() |> Ethers.Contract.call(to: "0xa0b...ef6")
       {:ok, [100000000000000]}
   """
-  @spec call(map, Keyword.t()) :: {:ok, [...]} | {:error, term()}
+  @spec call(map, Keyword.t()) :: {:ok, Result.t()} | {:error, term()}
   def call(params, overrides \\ [], opts \\ [])
 
   def call(%{data: _, selector: selector} = params, overrides, opts) do
     block = Keyword.get(opts, :block, "latest")
 
-    params =
-      overrides
-      |> Enum.into(params)
-      |> Map.drop(@internal_params)
+    params = do_prepare_params(params, overrides)
 
     case eth_call(params, block, opts) do
       {:ok, resp} when valid_result(resp) ->
@@ -48,7 +54,7 @@ defmodule Ethers.RPC do
           |> Enum.zip(selector.returns)
           |> Enum.map(fn {return, type} -> Utils.human_arg(return, type) end)
 
-        {:ok, returns}
+        Result.new(params, returns, :not_estimated, nil)
 
       {:ok, "0x"} ->
         {:error, :unknown}
@@ -80,18 +86,15 @@ defmodule Ethers.RPC do
       iex> Ethers.Contract.ERC20.transfer("0xff0...ea2", 1000) |> Ethers.Contract.send(to: "0xa0b...ef6")
       {:ok, transaction_bin}
   """
-  @spec send(map, Keyword.t()) :: {:ok, String.t()} | {:error, term()}
+  @spec send(map, Keyword.t()) :: {:ok, Result.t()} | {:error, term()}
   def send(params, overrides \\ [], opts \\ [])
 
   def send(params, overrides, opts) do
-    params =
-      overrides
-      |> Enum.into(params)
-      |> Map.drop(@internal_params)
+    params = do_prepare_params(params, overrides)
 
     with {:ok, params} <- Utils.maybe_add_gas_limit(params, opts),
          {:ok, tx} when valid_result(tx) <- eth_send_transaction(params, opts) do
-      {:ok, tx}
+      Result.new(params, :not_loaded, nil, tx)
     else
       {:ok, "0x"} ->
         {:error, :unknown}
@@ -102,13 +105,11 @@ defmodule Ethers.RPC do
   end
 
   def estimate_gas(params, overrides \\ [], opts \\ []) do
-    params =
-      overrides
-      |> Enum.into(params)
-      |> Map.drop(@internal_params)
+    params = do_prepare_params(params, overrides)
 
-    with {:ok, gas_hex} <- eth_estimate_gas(params, opts) do
-      Utils.hex_to_integer(gas_hex)
+    with {:ok, gas_hex} <- eth_estimate_gas(params, opts),
+         {:ok, estimated_gas} <- Utils.hex_to_integer(gas_hex) do
+      Result.new(params, :not_loaded, estimated_gas, nil)
     end
   end
 
@@ -137,7 +138,7 @@ defmodule Ethers.RPC do
   end
 
   def eth_estimate_gas(params, opts \\ []) when is_map(params) do
-    params = Map.drop(params, @internal_params)
+    params = do_prepare_params(params)
     {rpc_client, rpc_opts} = rpc_info(opts)
 
     rpc_client.eth_estimate_gas(params, rpc_opts)
@@ -171,5 +172,9 @@ defmodule Ethers.RPC do
       end
 
     {module, Keyword.get(overrides, :rpc_opts, [])}
+  end
+
+  def do_prepare_params(params, overrides \\ %{}) do
+    overrides |> Enum.into(params) |> Map.drop(@internal_params)
   end
 end

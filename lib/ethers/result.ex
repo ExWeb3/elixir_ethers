@@ -11,7 +11,7 @@ defmodule Ethers.Result do
           transaction_hash: Types.t_hash() | nil,
           gas_estimate: non_neg_integer() | :not_estimated,
           gas_used: non_neg_integer() | :not_loaded | nil,
-          return_values: [term()] | :not_loaded,
+          return_values: [term()] | nil,
           to: Types.t_address() | nil,
           data: binary()
         }

@@ -1,23 +1,6 @@
 defmodule Ethers.ContractHelpers do
   @moduledoc false
 
-  def read_abi(:abi, abi) when is_list(abi), do: {:ok, abi}
-  def read_abi(:abi, %{"abi" => abi}), do: read_abi(:abi, abi)
-
-  def read_abi(:abi, abi) when is_atom(abi) do
-    read_abi(:abi_file, Path.join(:code.priv_dir(:ethers), "abi/#{abi}.json"))
-  end
-
-  def read_abi(:abi, abi) when is_binary(abi) do
-    abi = Ethers.json_module().decode!(abi)
-    read_abi(:abi, abi)
-  end
-
-  def read_abi(:abi_file, file) do
-    abi = File.read!(file)
-    read_abi(:abi, abi)
-  end
-
   @spec read_abi(Keyword.t()) :: {:ok, [...]} | {:error, atom()}
   def read_abi(opts) do
     case Keyword.take(opts, [:abi, :abi_file]) do
@@ -36,7 +19,7 @@ defmodule Ethers.ContractHelpers do
         maybe_read_contract_binary(type, data)
 
       _ ->
-        {:error, :bad_argument}
+        raise ArgumentError, "Invalid options"
     end
   end
 
@@ -64,7 +47,7 @@ defmodule Ethers.ContractHelpers do
         function: function
       }) do
     args =
-      if length(types) == length(names) do
+      if is_list(names) and length(types) == length(names) do
         Enum.zip(types, names)
       else
         types
@@ -86,7 +69,7 @@ defmodule Ethers.ContractHelpers do
       :pure -> :call
       :payable -> :send
       :non_payable -> :send
-      _ -> :call
+      _ -> raise ArgumentError, "Invalid function state mutability: #{inspect(state_mutability)}"
     end
   end
 
@@ -118,6 +101,23 @@ defmodule Ethers.ContractHelpers do
         args
       end
     end)
+  end
+
+  defp read_abi(:abi, abi) when is_list(abi), do: {:ok, abi}
+  defp read_abi(:abi, %{"abi" => abi}), do: read_abi(:abi, abi)
+
+  defp read_abi(:abi, abi) when is_atom(abi) do
+    read_abi(:abi_file, Path.join(:code.priv_dir(:ethers), "abi/#{abi}.json"))
+  end
+
+  defp read_abi(:abi, abi) when is_binary(abi) do
+    abi = Ethers.json_module().decode!(abi)
+    read_abi(:abi, abi)
+  end
+
+  defp read_abi(:abi_file, file) do
+    abi = File.read!(file)
+    read_abi(:abi, abi)
   end
 
   defp get_argument_name_ast({ast, name}) do

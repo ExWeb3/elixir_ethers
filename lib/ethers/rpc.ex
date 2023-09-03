@@ -167,6 +167,18 @@ defmodule Ethers.RPC do
     rpc_client.eth_get_transaction_receipt(tx_hash, rpc_opts)
   end
 
+  def eth_block_number(opts \\ []) do
+    {rpc_client, rpc_opts} = rpc_info(opts)
+
+    rpc_client.eth_block_number(rpc_opts)
+  end
+
+  def eth_get_block_by_number(block_number, include_details?, opts \\ []) do
+    {rpc_client, rpc_opts} = rpc_info(opts)
+
+    rpc_client.eth_get_block_by_number(block_number, include_details?, rpc_opts)
+  end
+
   ## Helpers
 
   defp rpc_info(overrides) do

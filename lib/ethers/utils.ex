@@ -31,6 +31,9 @@ defmodule Ethers.Utils do
 
       iex> Ethers.Utils.hex_decode("6574686572735f6578")
       {:ok, "ethers_ex"}
+
+      iex> Ethers.Utils.hex_decode("0x686")
+      {:ok, <<6, 134>>}
   """
   @spec hex_decode(String.t()) :: {:ok, binary} | :error
   def hex_decode(<<"0x", encoded::binary>>), do: hex_decode(encoded)
@@ -65,7 +68,6 @@ defmodule Ethers.Utils do
       {:ok, 69905}
   """
   @spec hex_to_integer(String.t()) :: {:ok, integer()} | {:error, :invalid_hex}
-  def hex_to_integer("0x"), do: {:error, :invalid_hex}
   def hex_to_integer(<<"0x", encoded::binary>>), do: hex_to_integer(encoded)
 
   def hex_to_integer(encoded) do
@@ -194,6 +196,9 @@ defmodule Ethers.Utils do
   ## Examples
       iex> Ethers.Utils.human_arg(<<192, 42, 170, 57, 178, 35, 254, 141, 10, 14, 92, 79, 39, 
       ...> 234, 217, 8, 60, 117, 108, 194>>, :address)
+      "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2" 
+
+      iex> Ethers.Utils.human_arg("0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2", :address)
       "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2" 
   """
   @spec human_arg(term(), ABI.FunctionSelector.type()) :: term()

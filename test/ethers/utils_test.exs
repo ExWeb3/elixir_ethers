@@ -45,4 +45,26 @@ defmodule Ethers.UtilsTest do
                )
     end
   end
+
+  describe "maybe_add_gas_limit" do
+    test "does not add anything if the params already includes gas" do
+      assert {:ok, %{gas: :untouched}} = Ethers.Utils.maybe_add_gas_limit(%{gas: :untouched})
+    end
+  end
+
+  describe "hex_to_integer!" do
+    test "raises when the hex input is invalid" do
+      assert_raise ArgumentError,
+                   "Invalid integer HEX input \"0xrubbish\" reason :invalid_hex",
+                   fn -> Ethers.Utils.hex_to_integer!("0xrubbish") end
+    end
+  end
+
+  describe "hex_decode!" do
+    test "raises when the hex input is invalid" do
+      assert_raise ArgumentError,
+                   "Invalid HEX input \"0xrubbish\"",
+                   fn -> Ethers.Utils.hex_decode!("0xrubbish") end
+    end
+  end
 end

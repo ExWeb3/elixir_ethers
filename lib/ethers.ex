@@ -4,7 +4,7 @@ defmodule Ethers do
   with the Ethereum blockchain using Elixir.
 
   This module offers a simple API for common Ethereum operations such as deploying contracts,
-  estimating gas, fetching current gas prices, and querying event logs.
+  fetching current gas prices, and querying event logs.
   """
 
   alias Ethers.Types
@@ -98,19 +98,6 @@ defmodule Ethers do
       {:error, reason} ->
         {:error, reason}
     end
-  end
-
-  @doc """
-  Estimates gas for a eth_call
-
-  ## Parameters
-  - params
-  - opts: RPC and account options.
-  """
-  @spec estimate_gas(map(), Keyword.t()) ::
-          {:ok, non_neg_integer()} | {:error, :gas_estimation_failed}
-  def estimate_gas(params, opts \\ []) do
-    RPC.estimate_gas(params, opts)
   end
 
   @doc """

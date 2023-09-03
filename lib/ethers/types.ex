@@ -20,7 +20,7 @@ defmodule Ethers.Types do
   """
   @type t_hash :: <<_::528>>
 
-  defguard valid_bitsize(bitsize) when bitsize >= 8 and bitsize <= 256 and rem(bitsize, 8) == 0
+  defguardp valid_bitsize(bitsize) when bitsize >= 8 and bitsize <= 256 and rem(bitsize, 8) == 0
 
   @doc """
   Converts EVM data types to typespecs for documentation
@@ -54,7 +54,7 @@ defmodule Ethers.Types do
   end
 
   def to_elixir_type(:function) do
-    raise "Not implemented"
+    raise "Function type not supported!"
   end
 
   def to_elixir_type({:ufixed, _element_count, _precision}) do

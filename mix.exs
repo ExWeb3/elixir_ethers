@@ -76,7 +76,7 @@ defmodule Ethers.MixProject do
   defp deps do
     [
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
-      {:dialyxir, "~> 1.3", only: [:dev], runtime: false},
+      {:dialyxir, "~> 1.3", only: [:dev, :test], runtime: false},
       {:ethereumex, "~> 0.10.3"},
       {:ex_abi, "~> 0.6.0"},
       {:ex_doc, "~> 0.30.1", only: :dev, runtime: false},

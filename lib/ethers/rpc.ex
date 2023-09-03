@@ -3,7 +3,7 @@ defmodule Ethers.RPC do
   RPC Methods for interacting with the Ethereum blockchain
   """
 
-  alias Ethers.{Utils, Result}
+  alias Ethers.{Result, Utils}
 
   defguardp valid_result(bin) when bin != "0x"
 

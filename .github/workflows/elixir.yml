@@ -15,10 +15,14 @@ permissions:
   contents: read
 
 jobs:
-  build:
-    name: Build and test
+  test:
+    name: Test - Lint - Dialyze
 
     runs-on: ubuntu-22.04
+
+    env:
+      MIX_ENV: test
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     steps:
     - uses: actions/checkout@v3
@@ -26,8 +30,8 @@ jobs:
     - name: Set up Elixir
       uses: erlef/setup-beam@v1
       with:
-        elixir-version: '1.14.2' # Define the elixir version [required]
-        otp-version: '25.3' # Define the OTP version [required]
+        elixir-version: '1.15.5'
+        otp-version: '26.0.2'
 
     - uses: actions/setup-node@v3
       with:
@@ -52,14 +56,14 @@ jobs:
     - name: Install dependencies
       run: mix deps.get
 
-    - name: Run Ganache
+    - name: Start Ganache (Background)
       run: ganache --wallet.deterministic &
 
     - name: Prepare for tests
-      run: mix test_prepare
+      run: elixir test/test_prepare.exs
 
     - name: Run tests
-      run: mix test
+      run: mix coveralls.github
 
     - name: Credo
       run: mix credo --strict

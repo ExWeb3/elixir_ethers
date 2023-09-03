@@ -1,3 +1,8 @@
+defmodule Ethers.Contract.Test.OwnerContract do
+  @moduledoc false
+  use Ethers.Contract, abi_file: "tmp/owner_abi.json"
+end
+
 defmodule Ethers.OwnerContractTest do
   use ExUnit.Case
   doctest Ethers.Contract

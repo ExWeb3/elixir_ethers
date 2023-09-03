@@ -60,9 +60,7 @@ jobs:
       run: ganache --wallet.deterministic &
 
     - name: Prepare for tests
-      run: mix test_prepare
-      env:
-        MIX_ENV: dev
+      run: elixir test/test_prepare.exs
 
     - name: Run tests
       run: mix coveralls.github

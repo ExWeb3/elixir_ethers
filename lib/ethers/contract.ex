@@ -144,26 +144,26 @@ defmodule Ethers.Contract do
   end
 
   @doc false
-  @spec perform_action(action(), map, Keyword.t(), Keyword.t()) ::
+  @spec perform_action(action(), map, Keyword.t()) ::
           {:ok, [term]}
           | {:ok, Ethers.Types.t_hash()}
           | {:ok, Ethers.Contract.t_function_output()}
           | {:error, term()}
-  def perform_action(action, params, overrides \\ [], rpc_opts \\ [])
+  def perform_action(action, params, overrides \\ [])
 
-  def perform_action(:call, params, overrides, rpc_opts),
-    do: Ethers.RPC.call(params, overrides, rpc_opts)
+  def perform_action(:call, params, overrides),
+    do: Ethers.RPC.call(params, overrides)
 
-  def perform_action(:send, params, overrides, rpc_opts),
-    do: Ethers.RPC.send(params, overrides, rpc_opts)
+  def perform_action(:send, params, overrides),
+    do: Ethers.RPC.send(params, overrides)
 
-  def perform_action(:estimate_gas, params, overrides, rpc_opts),
-    do: Ethers.RPC.estimate_gas(params, overrides, rpc_opts)
+  def perform_action(:estimate_gas, params, overrides),
+    do: Ethers.RPC.estimate_gas(params, overrides)
 
-  def perform_action(:prepare, params, overrides, _rpc_opts),
+  def perform_action(:prepare, params, overrides),
     do: {:ok, Enum.into(overrides, params)}
 
-  def perform_action(action, _params, _overrides, _rpc_opts),
+  def perform_action(action, _params, _overrides),
     do: raise("#{__MODULE__} Invalid action: #{inspect(action)}")
 
   ## Helpers
@@ -267,10 +267,9 @@ defmodule Ethers.Contract do
           to: __MODULE__.default_address()
         }
 
-        {rpc_opts, overrides} = Keyword.pop(overrides, :rpc_opts, [])
         {action, overrides} = Keyword.pop(overrides, :action, unquote(default_action))
 
-        Ethers.Contract.perform_action(action, params, overrides, rpc_opts)
+        Ethers.Contract.perform_action(action, params, overrides)
       end
 
       @doc """

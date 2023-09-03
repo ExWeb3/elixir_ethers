@@ -68,6 +68,24 @@ defmodule Ethers.CounterContractTest do
     end
   end
 
+  describe "override block number" do
+    setup :deploy_counter_contract
+
+    test "can call a view function on a previous block", %{address: address} do
+      {:ok, _tx_hash} = CounterContract.set(101, from: @from, to: address)
+      {:ok, block_1} = Ethereumex.HttpClient.eth_block_number()
+
+      {:ok, _tx_hash} = CounterContract.set(102, from: @from, to: address)
+      {:ok, block_2} = Ethereumex.HttpClient.eth_block_number()
+
+      {:ok, _tx_hash} = CounterContract.set(103, from: @from, to: address)
+
+      assert CounterContract.get!(to: address, block: "latest") == [103]
+      assert CounterContract.get!(to: address, block: block_2) == [102]
+      assert CounterContract.get!(to: address, block: block_1) == [101]
+    end
+  end
+
   defp deploy_counter_contract(_ctx) do
     init_params = CounterContract.constructor(100)
     assert {:ok, tx_hash} = Ethers.deploy(CounterContract, init_params, %{from: @from})

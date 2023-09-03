@@ -8,6 +8,7 @@ defmodule Ethers.RPC do
   defguardp valid_result(bin) when bin != "0x"
 
   @internal_params [:selector]
+  @option_keys [:rpc_client, :rpc_opts, :block]
 
   @doc """
   Makes an eth_call to with the given data and overrides, Than parses
@@ -30,9 +31,11 @@ defmodule Ethers.RPC do
       {:ok, [100000000000000]}
   """
   @spec call(map, Keyword.t()) :: {:ok, [...]} | {:error, term()}
-  def call(params, overrides \\ [], opts \\ [])
+  def call(params, overrides \\ [])
 
-  def call(%{data: _, selector: selector} = params, overrides, opts) do
+  def call(%{data: _, selector: selector} = params, overrides) do
+    {opts, overrides} = Keyword.split(overrides, @option_keys)
+
     block = Keyword.get(opts, :block, "latest")
 
     params =
@@ -81,9 +84,11 @@ defmodule Ethers.RPC do
       {:ok, transaction_bin}
   """
   @spec send(map, Keyword.t()) :: {:ok, String.t()} | {:error, term()}
-  def send(params, overrides \\ [], opts \\ [])
+  def send(params, overrides \\ [])
 
-  def send(params, overrides, opts) do
+  def send(params, overrides) do
+    {opts, overrides} = Keyword.split(overrides, @option_keys)
+
     params =
       overrides
       |> Enum.into(params)
@@ -101,7 +106,9 @@ defmodule Ethers.RPC do
     end
   end
 
-  def estimate_gas(params, overrides \\ [], opts \\ []) do
+  def estimate_gas(params, overrides \\ []) do
+    {opts, overrides} = Keyword.split(overrides, @option_keys)
+
     params =
       overrides
       |> Enum.into(params)
@@ -137,7 +144,6 @@ defmodule Ethers.RPC do
   end
 
   def eth_estimate_gas(params, opts \\ []) when is_map(params) do
-    params = Map.drop(params, @internal_params)
     {rpc_client, rpc_opts} = rpc_info(opts)
 
     rpc_client.eth_estimate_gas(params, rpc_opts)

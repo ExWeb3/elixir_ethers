@@ -100,7 +100,7 @@ defmodule Ethers do
   @spec estimate_gas(map(), Keyword.t()) ::
           {:ok, non_neg_integer()} | {:error, :gas_estimation_failed}
   def estimate_gas(params, opts \\ []) do
-    RPC.estimate_gas(params, [], opts)
+    RPC.estimate_gas(params, opts)
   end
 
   @doc """

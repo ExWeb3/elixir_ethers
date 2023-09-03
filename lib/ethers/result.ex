@@ -5,12 +5,11 @@ defmodule Ethers.Result do
 
   alias Ether.Types
 
-  defstruct [:transaction_hash, :return_values, :gas_estimate, :gas_used, :to, :data]
+  defstruct [:transaction_hash, :return_values, :gas_estimate, :to, :data]
 
   @type t :: %__MODULE__{
           transaction_hash: Types.t_hash() | nil,
           gas_estimate: non_neg_integer() | :not_estimated,
-          gas_used: non_neg_integer() | :not_loaded | nil,
           return_values: [term()] | nil,
           to: Types.t_address() | nil,
           data: binary()

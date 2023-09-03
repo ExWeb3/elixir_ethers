@@ -15,7 +15,7 @@ defmodule Ethers.RPC do
   @spec prepare_params(map(), map()) :: Result.t()
   def prepare_params(params, overrides \\ %{}) do
     params = do_prepare_params(params, overrides)
-    Result.new(params, nil, :not_estimated, nil)
+    {:ok, Result.new(params, nil, :not_estimated, nil)}
   end
 
   @doc """
@@ -54,7 +54,7 @@ defmodule Ethers.RPC do
           |> Enum.zip(selector.returns)
           |> Enum.map(fn {return, type} -> Utils.human_arg(return, type) end)
 
-        Result.new(params, returns, :not_estimated, nil)
+        {:ok, Result.new(params, returns, :not_estimated, nil)}
 
       {:ok, "0x"} ->
         {:error, :unknown}
@@ -94,7 +94,7 @@ defmodule Ethers.RPC do
 
     with {:ok, params} <- Utils.maybe_add_gas_limit(params, opts),
          {:ok, tx} when valid_result(tx) <- eth_send_transaction(params, opts) do
-      Result.new(params, nil, nil, tx)
+      {:ok, Result.new(params, nil, nil, tx)}
     else
       {:ok, "0x"} ->
         {:error, :unknown}
@@ -109,7 +109,7 @@ defmodule Ethers.RPC do
 
     with {:ok, gas_hex} <- eth_estimate_gas(params, opts),
          {:ok, estimated_gas} <- Utils.hex_to_integer(gas_hex) do
-      Result.new(params, nil, estimated_gas, nil)
+      {:ok, Result.new(params, nil, estimated_gas, nil)}
     end
   end
 

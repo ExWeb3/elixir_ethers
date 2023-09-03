@@ -22,13 +22,12 @@ defmodule Ethers.Result do
           Types.t_hash() | nil
         ) :: t()
   def new(params, return_values, gas_estimate, transaction_hash) do
-    {:ok,
-     %__MODULE__{
-       to: params[:to],
-       data: params.data,
-       return_values: return_values,
-       gas_estimate: gas_estimate || params[:gas],
-       transaction_hash: transaction_hash
-     }}
+    %__MODULE__{
+      to: params[:to],
+      data: params.data,
+      return_values: return_values,
+      gas_estimate: gas_estimate || params[:gas],
+      transaction_hash: transaction_hash
+    }
   end
 end

@@ -14,6 +14,13 @@ defmodule Ethers.MixProject do
       name: "Ethers",
       source_url: @source_url,
       deps: deps(),
+      test_coverage: [tool: ExCoveralls],
+      preferred_cli_env: [
+        coveralls: :test,
+        "coveralls.detail": :test,
+        "coveralls.post": :test,
+        "coveralls.html": :test
+      ],
       description: "Ethereum/Web3 client based on ethers.js",
       package: package(),
       docs: docs(),
@@ -73,6 +80,7 @@ defmodule Ethers.MixProject do
       {:ethereumex, "~> 0.10.3"},
       {:ex_abi, "~> 0.6.0"},
       {:ex_doc, "~> 0.30.1", only: :dev, runtime: false},
+      {:excoveralls, "~> 0.10", only: :test},
       {:idna, "~> 6.1"},
       {:jason, "~> 1.4"}
     ]

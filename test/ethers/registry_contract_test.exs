@@ -1,3 +1,8 @@
+defmodule Ethers.Contract.Test.RegistryContract do
+  @moduledoc false
+  use Ethers.Contract, abi_file: "tmp/registry_abi.json"
+end
+
 defmodule Ethers.RegistryContractTest do
   use ExUnit.Case
   doctest Ethers.Contract

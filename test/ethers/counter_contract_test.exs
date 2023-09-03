@@ -1,3 +1,8 @@
+defmodule Ethers.Contract.Test.CounterContract do
+  @moduledoc false
+  use Ethers.Contract, abi_file: "tmp/counter_abi.json"
+end
+
 defmodule Ethers.CounterContractTest do
   use ExUnit.Case
   doctest Ethers.Contract

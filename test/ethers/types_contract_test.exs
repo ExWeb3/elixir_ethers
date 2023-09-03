@@ -1,3 +1,8 @@
+defmodule Ethers.Contract.Test.TypesContract do
+  @moduledoc false
+  use Ethers.Contract, abi_file: "tmp/types_abi.json"
+end
+
 defmodule Ethers.TypesContractTest do
   use ExUnit.Case
   doctest Ethers.Contract

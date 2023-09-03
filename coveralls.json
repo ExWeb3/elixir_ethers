@@ -1,5 +1,6 @@
 {
   "skip_files": [
-    "lib/ethers/contracts/"
+    "lib/ethers/contracts/",
+    "test"
   ]
 }

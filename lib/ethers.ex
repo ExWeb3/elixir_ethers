@@ -21,6 +21,16 @@ defmodule Ethers do
   end
 
   @doc """
+  Returns the current block number of the blockchain.
+  """
+  @spec current_block_number(Keyword.t()) :: {:ok, non_neg_integer()} | {:error, term()}
+  def current_block_number(opts \\ []) do
+    with {:ok, block_number} <- RPC.eth_block_number(opts) do
+      Ethers.Utils.hex_to_integer(block_number)
+    end
+  end
+
+  @doc """
   Deploys a contract to the blockchain.
 
   This will return the transaction hash for the deployment transaction.

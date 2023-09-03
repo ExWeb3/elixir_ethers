@@ -12,7 +12,7 @@ defmodule Ethers.RPC do
   @doc """
   Returns the prepared parameters with the overrides applied and internals removed.
   """
-  @spec prepare_params(map(), map()) :: Result.t()
+  @spec prepare_params(map(), map()) :: {:ok, Result.t()}
   def prepare_params(params, overrides \\ %{}) do
     params = do_prepare_params(params, overrides)
     {:ok, Result.new(params, nil, :not_estimated, nil)}

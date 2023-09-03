@@ -240,9 +240,7 @@ defmodule Ethers.Contract do
       #{unquote(document_types(selector.returns))}
       """
       @spec unquote(name)(unquote_splicing(func_input_types), Keyword.t()) ::
-              {:ok, [unquote(func_return_typespec)]}
-              | {:ok, Ethers.Types.t_hash()}
-              | {:ok, Ethers.Contract.t_function_output()}
+              {:ok, Result.t([unquote(func_return_typespec)])}
               | {:error, term()}
       def unquote(name)(unquote_splicing(func_args), unquote(overrides)) do
         args =
@@ -271,9 +269,7 @@ defmodule Ethers.Contract do
       Same as `#{unquote(name)}/#{unquote(Enum.count(func_args) + 1)}` but raises `Ethers.ExecutionError` on errors.
       """
       @spec unquote(bang_fun_name)(unquote_splicing(func_input_types), Keyword.t()) ::
-              [unquote(func_return_typespec)]
-              | Ethers.Types.t_hash()
-              | Ethers.Contract.t_function_output()
+              Result.t([unquote(func_return_typespec)])
               | no_return
       def unquote(bang_fun_name)(unquote_splicing(func_args), unquote(overrides)) do
         case unquote(name)(unquote_splicing(func_args), overrides) do

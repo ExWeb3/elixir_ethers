@@ -149,7 +149,7 @@ defmodule Ethers.Contract do
           | {:ok, Ethers.Types.t_hash()}
           | {:ok, Ethers.Contract.t_function_output()}
           | {:error, term()}
-  def perform_action(action, params, overrides \\ [])
+  def perform_action(action, params, overrides)
 
   def perform_action(:call, params, overrides),
     do: Ethers.RPC.call(params, overrides)
@@ -164,7 +164,7 @@ defmodule Ethers.Contract do
     do: {:ok, Enum.into(overrides, params)}
 
   def perform_action(action, _params, _overrides),
-    do: raise("#{__MODULE__} Invalid action: #{inspect(action)}")
+    do: raise(ArgumentError, "Invalid action: #{inspect(action)}")
 
   ## Helpers
 

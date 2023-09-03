@@ -42,6 +42,38 @@ defmodule Ethers.CounterContractTest do
 
       [101] = CounterContract.get!(to: address)
     end
+
+    test "returns error if to address is not given" do
+      {:error, :no_to_address} = CounterContract.get()
+    end
+
+    test "returns the gas estimate with :estimate_gas action", %{address: address} do
+      assert {:ok, gas_estimate} =
+               CounterContract.set(101, from: @from, to: address, action: :estimate_gas)
+
+      assert is_integer(gas_estimate)
+
+      # Same with the bang function
+      assert gas_estimate ==
+               CounterContract.set!(101, from: @from, to: address, action: :estimate_gas)
+    end
+
+    test "returns the params when called with :prepare action", %{address: address} do
+      assert {:ok,
+              %{
+                data:
+                  "0x60fe47b10000000000000000000000000000000000000000000000000000000000000065",
+                to: ^address,
+                from: @from
+              }} =
+               CounterContract.set(101, from: @from, to: address, action: :prepare)
+    end
+
+    test "raises error when given invalid action", %{address: address} do
+      assert_raise ArgumentError, "Invalid action: :invalid", fn ->
+        CounterContract.set(101, from: @from, to: address, action: :invalid)
+      end
+    end
   end
 
   describe "Event filter works with get_logs" do

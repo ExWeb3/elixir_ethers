@@ -69,10 +69,25 @@ defmodule Ethers.CounterContractTest do
                CounterContract.set(101, from: @from, to: address, action: :prepare)
     end
 
+    test "can use prepare params in call and send functions from RPC", %{address: address} do
+      assert {:ok, send_params} =
+               CounterContract.set(101, from: @from, to: address, action: :prepare)
+
+      assert {:ok, _tx_hash} = Ethers.RPC.send(send_params)
+
+      assert {:ok, call_params} = CounterContract.get(to: address, action: :prepare)
+      assert {:ok, [101]} == Ethers.RPC.call(call_params)
+    end
+
     test "raises error when given invalid action", %{address: address} do
       assert_raise ArgumentError, "Invalid action: :invalid", fn ->
         CounterContract.set(101, from: @from, to: address, action: :invalid)
       end
+    end
+
+    test "does not work without to address" do
+      assert {:error, :no_to_address} = CounterContract.set(101, from: @from)
+      assert {:error, :no_to_address} = CounterContract.get()
     end
   end
 

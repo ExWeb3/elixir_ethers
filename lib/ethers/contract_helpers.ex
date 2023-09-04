@@ -103,6 +103,13 @@ defmodule Ethers.ContractHelpers do
     end)
   end
 
+  def maybe_add_to_address(map, module) do
+    case module.default_address() do
+      nil -> map
+      address when is_binary(address) -> Map.put(map, :to, address)
+    end
+  end
+
   defp read_abi(:abi, abi) when is_list(abi), do: {:ok, abi}
   defp read_abi(:abi, %{"abi" => abi}), do: read_abi(:abi, abi)
 

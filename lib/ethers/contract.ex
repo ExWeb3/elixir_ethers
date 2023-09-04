@@ -261,11 +261,12 @@ defmodule Ethers.Contract do
           |> ABI.encode(args)
           |> Ethers.Utils.hex_encode()
 
-        params = %{
-          data: data,
-          selector: unquote(Macro.escape(selector)),
-          to: __MODULE__.default_address()
-        }
+        params =
+          %{
+            data: data,
+            selector: unquote(Macro.escape(selector))
+          }
+          |> maybe_add_to_address(__MODULE__)
 
         {action, overrides} = Keyword.pop(overrides, :action, unquote(default_action))
 

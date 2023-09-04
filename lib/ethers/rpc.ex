@@ -146,7 +146,13 @@ defmodule Ethers.RPC do
   def eth_estimate_gas(params, opts \\ []) when is_map(params) do
     {rpc_client, rpc_opts} = rpc_info(opts)
 
-    rpc_client.eth_estimate_gas(params, rpc_opts)
+    case params do
+      %{to: _to_address} ->
+        rpc_client.eth_estimate_gas(params, rpc_opts)
+
+      _ ->
+        {:error, :no_to_address}
+    end
   end
 
   def eth_get_logs(params, opts \\ []) when is_map(params) do

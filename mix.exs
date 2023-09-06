@@ -54,7 +54,7 @@ defmodule Ethers.MixProject do
 
     [
       main: "readme",
-      extras: ["README.md"],
+      extras: ["README.md": [title: "Introduction"]],
       source_url: @source_url,
       source_ref: source_ref,
       groups_for_modules: [

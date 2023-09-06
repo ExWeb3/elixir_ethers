@@ -16,7 +16,7 @@ Heavily inspired by the [ethers.js](https://github.com/ethers-io/ethers.js/), Et
 to generate Elixir modules for give smart contracts from their ABI. It also generates beautiful documentation for those modules which
 can further help in development.
 
-# Installation
+## Installation
 
 You can install the package by adding `ethers` to the list of dependencies in your `mix.exs` file::
 

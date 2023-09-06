@@ -1,4 +1,6 @@
 
+<img height="100" align="left" src="https://github.com/alisinabh/elixir_ethers/raw/main/assets/ethers_logo.png" alt="Ethers Elixir">
+
 # Elixir Ethers
 
 [![example workflow](https://github.com/alisinabh/elixir_ethers/actions/workflows/elixir.yml/badge.svg)](https://github.com/alisinabh/elixir_ethers)
@@ -8,14 +10,11 @@
 [![License](https://img.shields.io/hexpm/l/ethers.svg)](https://github.com/alisinabh/elixir_ethers/blob/master/LICENSE.md)
 [![Last Updated](https://img.shields.io/github/last-commit/alisinabh/elixir_ethers.svg)](https://github.com/alisinabh/elixir_ethers/commits/main)
 
-
-<img width="100" align="left" src="https://github.com/alisinabh/elixir_ethers/raw/main/assets/ethers_logo.png" alt="Ethers Elixir">
-
 Elixir Ethers is a comprehensive library for interacting with the Ethereum blockchain and its ecosystem. 
 Heavily inspired by the [ethers.js](https://github.com/ethers-io/ethers.js/) library, Elixir Ethers leverages macros to convert
 Ethereum contract ABIs into first-class Elixir modules during compile time, complete with documentation and type-specs.
 
-## Installation
+# Installation
 
 You can install the package by adding `ethers` to the list of dependencies in your `mix.exs` file::
 

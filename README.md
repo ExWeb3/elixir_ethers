@@ -10,9 +10,11 @@
 [![License](https://img.shields.io/hexpm/l/ethers.svg)](https://github.com/alisinabh/elixir_ethers/blob/master/LICENSE.md)
 [![Last Updated](https://img.shields.io/github/last-commit/alisinabh/elixir_ethers.svg)](https://github.com/alisinabh/elixir_ethers/commits/main)
 
-Elixir Ethers is a comprehensive library for interacting with the Ethereum blockchain and its ecosystem. 
-Heavily inspired by the [ethers.js](https://github.com/ethers-io/ethers.js/) library, Elixir Ethers leverages macros to convert
-Ethereum contract ABIs into first-class Elixir modules during compile time, complete with documentation and type-specs.
+Ethers is a comprehensive Web3 library for interacting with smart contracts on the Ethereum (Or any EVM based blockchain).
+
+Heavily inspired by the [ethers.js](https://github.com/ethers-io/ethers.js/), Ethers leverages the amazing Elixir meta-programming capabilities
+to generate Elixir modules for give smart contracts from their ABI. It also generates beautiful documentation for those modules which
+can further help in development.
 
 # Installation
 
@@ -21,7 +23,7 @@ You can install the package by adding `ethers` to the list of dependencies in yo
 ```elixir
 def deps do
   [
-    {:ethers, "~> 0.0.4"}
+    {:ethers, "~> 0.0.5"}
   ]
 end
 ```
@@ -29,7 +31,6 @@ end
 The complete documentation is available on [hexdocs](https://hexdocs.pm/ethers).
 
 ## Configuration
-
 
 To use Elixir Ethers, ensure you have a configured JSON-RPC endpoint.
 Configure the endpoint using the following configuration parameter.
@@ -105,7 +106,6 @@ Execution Options in Ethers.Contract.
 
 ### Sending transaction
 
-
 Sending transactions is also straightforward, as Elixir Ethers automatically determines whether a function is a view function or a state-changing function, using `eth_call` or `eth_sendTransaction` accordingly.
 You can override this behavior with the `:action` override.
 
@@ -116,7 +116,6 @@ Ensure that you specify a `from` option to inform your client which account to u
 iex> MyERC20Token.transfer("0x[Recipient Address Here]", Ethers.Utils.to_wei(1), from: "0x[Your address here]")
 {:ok, "0xf313ff7ff54c6db80ad44c3ad58f72ff0fea7ce88e5e9304991ebd35a6e76000"}
 ```
-
 
 ### Getting Logs (Events)
 
@@ -155,7 +154,7 @@ iex> Ethers.get_logs(filter)
  ]}
 ```
 
-### Resolving Ethereum (ENS) names in Elixir
+### Resolving Ethereum names (ENS domains) using Ethers
 
 To resolve ENS or any other name service provider in the blockchain
 you can simply use the [`Ethers.NameService`](https://hexdocs.pm/ethers/Ethers.NameService.html) module.
@@ -167,9 +166,10 @@ iex> Ethers.NameService.resolve("vitalik.eth")
 
 ## Contributing
 
-All contributions to this project are welcome. Please feel free to open issues and push PRs.
+All contributions to this project are very welcome. Please feel free to open issues and push PRs and even share your
+suggestions.
 
-To run the tests locally, the only dependency is [ganache](https://github.com/trufflesuite/ganache).
+To run the tests locally, you need to run [ganache](https://github.com/trufflesuite/ganache).
 After installing ganache, just run the following in a new window the you can run the tests on
 the same machine.
 
@@ -177,7 +177,7 @@ the same machine.
 > ganache --wallet.deterministic
 ```
 
-## Props
+## Acknowledgements
 
 This project was not possible if it was not for the great [:ex_abi](https://github.com/poanetwork/ex_abi) library and its contributors.
 

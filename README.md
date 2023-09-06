@@ -10,7 +10,7 @@
 [![License](https://img.shields.io/hexpm/l/ethers.svg)](https://github.com/alisinabh/elixir_ethers/blob/master/LICENSE.md)
 [![Last Updated](https://img.shields.io/github/last-commit/alisinabh/elixir_ethers.svg)](https://github.com/alisinabh/elixir_ethers/commits/main)
 
-Ethers is a comprehensive Web3 library for interacting with smart contracts on the Ethereum (Or any EVM based blockchain).
+Ethers is a comprehensive Web3 library for interacting with smart contracts on the Ethereum (Or any EVM based blockchain) using Elixir.
 
 Heavily inspired by the [ethers.js](https://github.com/ethers-io/ethers.js/), Ethers leverages the amazing Elixir meta-programming capabilities
 to generate Elixir modules for give smart contracts from their ABI. It also generates beautiful documentation for those modules which

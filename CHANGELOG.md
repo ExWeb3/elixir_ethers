@@ -1,8 +1,22 @@
 # Changelog
 
+## Unreleased
+
+### Enhancements
+
+ * Update `dialyxir` dependency to 1.4.0
+ * Update `ex_doc` to 0.30.6
+ * Add more function to `Utils` module
+ * Improve failure return values of deployment functions
+
+### Bug fixes
+
+ * Fix RPC options and client override issue
+ * Do not add `nil` to address when address is not present
+
 ## v0.0.5 (2023-08-21)
 
-## Enhancements
+### Enhancements
 
  * Add ENS (Ethereum name service) contracts and helper functions
  * Update `ex_doc` dependency to 0.30.4

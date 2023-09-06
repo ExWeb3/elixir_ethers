@@ -64,7 +64,8 @@ defmodule Ethers.MixProject do
         "Builtin EventFilters": [
           ~r/Contracts\.\w+\.EventFilters/
         ]
-      ]
+      ],
+      logo: "assets/exdoc_logo.png"
     ]
   end
 

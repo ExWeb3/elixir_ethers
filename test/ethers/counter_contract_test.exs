@@ -44,7 +44,9 @@ defmodule Ethers.CounterContractTest do
     end
 
     test "returns error if to address is not given" do
-      {:error, :no_to_address} = CounterContract.get()
+      assert {:error, :no_to_address} = CounterContract.get()
+      assert {:error, :no_to_address} = CounterContract.set(101, from: @from)
+      assert {:error, :no_to_address} = CounterContract.set(101, from: @from, gas: 100)
     end
 
     test "returns the gas estimate with :estimate_gas action", %{address: address} do

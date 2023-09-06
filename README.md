@@ -1,5 +1,5 @@
 
-<img height="100" align="left" src="https://github.com/alisinabh/elixir_ethers/raw/main/assets/ethers_logo.png" alt="Ethers Elixir">
+<img height="120" align="left" src="https://github.com/alisinabh/elixir_ethers/raw/main/assets/ethers_logo.png" alt="Ethers Elixir">
 
 # Elixir Ethers
 

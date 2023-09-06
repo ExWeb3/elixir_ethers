@@ -40,7 +40,7 @@ defmodule Ethers do
   File you have or as a separate file.
 
   ## Parameters
-  - contract_module_or_binary: Either the contract module which was already loaded or the compiled binary of the contract.
+  - contract_module_or_binary: Either the contract module which was already loaded or the compiled binary of the contract. The binary MUST be hex encoded.
   - contract_init: Constructor value for contract deployment. Use `CONTRACT_MODULE.constructor` function's output. If your contract does not have a constructor, you can pass an empty binary here.
   - params: Parameters for the transaction creating the contract.
   - opts: RPC and account options.
@@ -50,16 +50,17 @@ defmodule Ethers do
   def deploy(contract_module_or_binary, contract_init, params, opts \\ [])
 
   def deploy(contract_module, contract_init, params, opts) when is_atom(contract_module) do
-    cond do
-      not function_exported?(contract_module, :__contract_binary__, 0) ->
-        {:error, :invalid_contract_module}
-
-      bin = contract_module.__contract_binary__() ->
-        deploy(bin, contract_init, params, opts)
-
-      true ->
-        {:error, :no_contract_binary}
+    with true <- function_exported?(contract_module, :__contract_binary__, 0),
+         bin when not is_nil(bin) <- contract_module.__contract_binary__() do
+      deploy(bin, contract_init, params, opts)
+    else
+      _error ->
+        {:error, :binary_not_found}
     end
+  end
+
+  def deploy("0x" <> contract_binary, contract_init, params, opts) do
+    deploy(contract_binary, contract_init, params, opts)
   end
 
   def deploy(contract_binary, contract_init, params, opts) when is_binary(contract_binary) do
@@ -86,7 +87,7 @@ defmodule Ethers do
           | {:error, :no_contract_address | :transaction_not_found | atom()}
   def deployed_address(tx_hash, opts \\ []) when is_binary(tx_hash) do
     case RPC.eth_get_transaction_receipt(tx_hash, opts) do
-      {:ok, %{"contractAddress" => contract_address}} ->
+      {:ok, %{"contractAddress" => contract_address}} when not is_nil(contract_address) ->
         {:ok, contract_address}
 
       {:ok, nil} ->

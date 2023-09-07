@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v0.0.6 (2023-09-06)
+
 ### Enhancements
 
  * Update `dialyxir` dependency to 1.4.0

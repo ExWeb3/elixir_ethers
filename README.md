@@ -164,6 +164,21 @@ iex> Ethers.NameService.resolve("vitalik.eth")
 {:ok, "0xd8da6bf26964af9d7eed9e03e53415d37aa96045"}
 ```
 
+### Built-in contract interfaces
+
+Ethers already includes some of the well-known contract interface standards for you to use. Here is a list of them.
+
+ - [ERC20](https://hexdocs.pm/ethers/Ethers.Contracts.ERC20.html) - The well know fungible token standard
+ - [ERC721](https://hexdocs.pm/ethers/Ethers.Contracts.ERC721.html) - Non-Fungible tokens (NFTs) standard
+ - [ERC777](https://hexdocs.pm/ethers/Ethers.Contracts.ERC777.html) - Improved fungible token standard
+ - [ERC1155](https://hexdocs.pm/ethers/Ethers.Contracts.ERC1155.html) - Multi-Token standard (Fungible, Non-Fungible or Semi-Fungible)
+
+To use them you just need to specify the target contract address (`:to` option) of your token and call the functions. e.g.
+
+```elixir
+iex> Ethers.Contracts.ERC20.balance_of("0xWALLET_ADDRESS", to: "0xTOKEN_ADDRESS")
+```
+
 ## Contributing
 
 All contributions to this project are very welcome. Please feel free to open issues and push PRs and even share your

@@ -110,7 +110,7 @@ Ensure that you specify a `from` option to inform your client which account to u
 
 
 ```elixir
-iex> MyERC20Token.transfer("0x[Recipient Address Here]", Ethers.Utils.to_wei(1)) |> Ethers.send(from: "0x[Sender address here]")
+iex> MyERC20Token.transfer("0x[Recipient Address]", 1000) |> Ethers.send(from: "0x[Sender address]")
 {:ok, "0xf313ff7ff54c6db80ad44c3ad58f72ff0fea7ce88e5e9304991ebd35a6e76000"}
 ```
 

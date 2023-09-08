@@ -4,27 +4,17 @@ defmodule Ethers.ExecutionError do
 
   The Exception struct will have these values:
 
-  - `message`: A human readable message for the exception.
-  - `function`: The contract function which caused the exception.
-  - `args`: The arguments for the function causing exception.
-  - `error`: The error reason for the exception.
+  - `message`: A string message regarding the exception.
+  - `evm_error`: Usually a map containing the error detail returned as is by the RPC server.
   """
 
-  defexception [:message, :function, :args, :error]
+  defexception [:message, :evm_error]
 
   @impl true
-  def exception(error_data) do
-    function = error_data[:function]
-    args = error_data[:args]
-    error = error_data[:error]
-
+  def exception(evm_error) do
     %__MODULE__{
-      message:
-        error_data[:message] ||
-          "Execution failed in `#{function}/#{Enum.count(args)}` -- #{inspect(error)}",
-      function: function,
-      args: args,
-      error: error
+      message: evm_error["message"] || "unknown error!",
+      evm_error: evm_error
     }
   end
 end

@@ -37,7 +37,9 @@ defmodule EthersTest do
       assert {:ok, tx} = Ethers.deploy(HelloWorldContract, "", %{from: @from})
       assert {:ok, contract_address} = Ethers.deployed_address(tx)
 
-      assert HelloWorldContract.say_hello!(to: contract_address) == ["Hello World!"]
+      assert HelloWorldContract.say_hello() |> Ethers.call!(to: contract_address) == [
+               "Hello World!"
+             ]
     end
 
     test "can deploy a contract given the contract binary" do
@@ -45,7 +47,9 @@ defmodule EthersTest do
       assert {:ok, tx} = Ethers.deploy(bin, "", %{from: @from})
       assert {:ok, contract_address} = Ethers.deployed_address(tx)
 
-      assert HelloWorldContract.say_hello!(to: contract_address) == ["Hello World!"]
+      assert HelloWorldContract.say_hello() |> Ethers.call!(to: contract_address) == [
+               "Hello World!"
+             ]
     end
 
     test "can deploy a contract given the contract binary prefixed with 0x" do
@@ -53,7 +57,8 @@ defmodule EthersTest do
       assert {:ok, tx} = Ethers.deploy("0x" <> bin, "", %{from: @from})
       assert {:ok, contract_address} = Ethers.deployed_address(tx)
 
-      assert HelloWorldContract.say_hello!(to: contract_address) == ["Hello World!"]
+      assert HelloWorldContract.say_hello() |> Ethers.call!(to: contract_address) ==
+               ["Hello World!"]
     end
 
     test "returns error if the module does not include the binary" do
@@ -72,9 +77,13 @@ defmodule EthersTest do
       {:ok, tx} = Ethers.deploy(HelloWorldContract, "", %{from: @from})
       {:ok, contract_address} = Ethers.deployed_address(tx)
 
-      {:ok, tx_hash} = HelloWorldContract.set_hello("Bye", to: contract_address, from: @from)
+      {:ok, tx_hash} =
+        HelloWorldContract.set_hello("Bye") |> Ethers.send(to: contract_address, from: @from)
 
       assert {:error, :no_contract_address} = Ethers.deployed_address(tx_hash)
+
+      assert HelloWorldContract.say_hello() |> Ethers.call!(to: contract_address) ==
+               ["Bye"]
     end
   end
 end

@@ -17,7 +17,7 @@ defmodule Ethers.OwnerContractTest do
     assert {:ok, tx_hash} = Ethers.deploy(OwnerContract, init_params, %{from: @from})
     assert {:ok, address} = Ethers.deployed_address(tx_hash)
 
-    assert {:ok, [@sample_address]} = OwnerContract.get_owner(to: address)
+    assert {:ok, [@sample_address]} = OwnerContract.get_owner() |> Ethers.call(to: address)
   end
 
   describe "overriding RPC options" do
@@ -36,7 +36,8 @@ defmodule Ethers.OwnerContractTest do
       assert {:ok, address} = Ethers.deployed_address(tx_hash)
 
       assert {:ok, [@sample_address]} =
-               OwnerContract.get_owner(
+               OwnerContract.get_owner()
+               |> Ethers.call(
                  to: address,
                  rpc_client: Ethers.TestRPCModule,
                  rpc_opts: [send_back_to_pid: self()]

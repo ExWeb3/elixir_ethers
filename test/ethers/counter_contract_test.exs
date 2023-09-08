@@ -25,71 +25,71 @@ defmodule Ethers.CounterContractTest do
     setup :deploy_counter_contract
 
     test "calling view functions", %{address: address} do
-      {:ok, [100]} = CounterContract.get(to: address)
-      [100] = CounterContract.get!(to: address)
+      assert %{
+               data: "0x6d4ce63c",
+               selector: %ABI.FunctionSelector{
+                 function: "get",
+                 method_id: <<109, 76, 230, 60>>,
+                 type: :function,
+                 inputs_indexed: nil,
+                 state_mutability: :view,
+                 input_names: [],
+                 types: [],
+                 returns: [uint: 256]
+               }
+             } == CounterContract.get()
+
+      assert {:ok, [100]} = CounterContract.get() |> Ethers.call(to: address)
+      assert [100] = CounterContract.get() |> Ethers.call!(to: address)
     end
 
     test "sending transaction with state mutating functions", %{address: address} do
-      {:ok, _tx_hash} = CounterContract.set(101, from: @from, to: address)
+      {:ok, _tx_hash} = CounterContract.set(101) |> Ethers.send(from: @from, to: address)
 
-      {:ok, [101]} = CounterContract.get(to: address)
+      {:ok, [101]} = CounterContract.get() |> Ethers.call(to: address)
     end
 
     test "sending transaction with state mutating functions using bang functions", %{
       address: address
     } do
-      _tx_hash = CounterContract.set!(101, from: @from, to: address)
+      _tx_hash = CounterContract.set(101) |> Ethers.send!(from: @from, to: address)
 
-      [101] = CounterContract.get!(to: address)
+      [101] = CounterContract.get() |> Ethers.call!(to: address)
     end
 
     test "returns error if to address is not given" do
-      assert {:error, :no_to_address} = CounterContract.get()
-      assert {:error, :no_to_address} = CounterContract.set(101, from: @from)
-      assert {:error, :no_to_address} = CounterContract.set(101, from: @from, gas: 100)
+      assert {:error, :no_to_address} = CounterContract.get() |> Ethers.call()
+      assert {:error, :no_to_address} = CounterContract.set(101) |> Ethers.send(from: @from)
+
+      assert {:error, :no_to_address} =
+               CounterContract.set(101) |> Ethers.send(from: @from, gas: 100)
     end
 
-    test "returns the gas estimate with :estimate_gas action", %{address: address} do
+    test "returns the gas estimate with Ethers.estimate_gas", %{address: address} do
       assert {:ok, gas_estimate} =
-               CounterContract.set(101, from: @from, to: address, action: :estimate_gas)
+               CounterContract.set(101) |> Ethers.estimate_gas(from: @from, to: address)
 
       assert is_integer(gas_estimate)
 
       # Same with the bang function
-      assert gas_estimate ==
-               CounterContract.set!(101, from: @from, to: address, action: :estimate_gas)
+      assert ^gas_estimate =
+               CounterContract.set(101) |> Ethers.estimate_gas!(from: @from, to: address)
     end
 
-    test "returns the params when called with :prepare action", %{address: address} do
-      assert {:ok,
-              %{
-                data:
-                  "0x60fe47b10000000000000000000000000000000000000000000000000000000000000065",
-                to: ^address,
-                from: @from
-              }} =
-               CounterContract.set(101, from: @from, to: address, action: :prepare)
-    end
-
-    test "can use prepare params in call and send functions from RPC", %{address: address} do
-      assert {:ok, send_params} =
-               CounterContract.set(101, from: @from, to: address, action: :prepare)
-
-      assert {:ok, _tx_hash} = Ethers.RPC.send(send_params)
-
-      assert {:ok, call_params} = CounterContract.get(to: address, action: :prepare)
-      assert {:ok, [101]} == Ethers.RPC.call(call_params)
-    end
-
-    test "raises error when given invalid action", %{address: address} do
-      assert_raise ArgumentError, "Invalid action: :invalid", fn ->
-        CounterContract.set(101, from: @from, to: address, action: :invalid)
-      end
-    end
-
-    test "does not work without to address" do
-      assert {:error, :no_to_address} = CounterContract.set(101, from: @from)
-      assert {:error, :no_to_address} = CounterContract.get()
+    test "returns the params when called" do
+      assert %{
+               data: "0x60fe47b10000000000000000000000000000000000000000000000000000000000000065",
+               selector: %ABI.FunctionSelector{
+                 function: "set",
+                 method_id: <<96, 254, 71, 177>>,
+                 type: :function,
+                 inputs_indexed: nil,
+                 state_mutability: :non_payable,
+                 input_names: ["newAmount"],
+                 types: [uint: 256],
+                 returns: []
+               }
+             } == CounterContract.set(101)
     end
   end
 
@@ -97,7 +97,7 @@ defmodule Ethers.CounterContractTest do
     setup :deploy_counter_contract
 
     test "can get the emitted event with the correct filter", %{address: address} do
-      {:ok, _tx_hash} = CounterContract.set(101, from: @from, to: address)
+      {:ok, _tx_hash} = CounterContract.set(101) |> Ethers.send(from: @from, to: address)
 
       assert open_filter = CounterContract.EventFilters.set_called(nil)
       assert correct_filter = CounterContract.EventFilters.set_called(100)
@@ -121,17 +121,17 @@ defmodule Ethers.CounterContractTest do
     setup :deploy_counter_contract
 
     test "can call a view function on a previous block", %{address: address} do
-      {:ok, _tx_hash} = CounterContract.set(101, from: @from, to: address)
+      {:ok, _tx_hash} = CounterContract.set(101) |> Ethers.send(from: @from, to: address)
       {:ok, block_1} = Ethereumex.HttpClient.eth_block_number()
 
-      {:ok, _tx_hash} = CounterContract.set(102, from: @from, to: address)
+      {:ok, _tx_hash} = CounterContract.set(102) |> Ethers.send(from: @from, to: address)
       {:ok, block_2} = Ethereumex.HttpClient.eth_block_number()
 
-      {:ok, _tx_hash} = CounterContract.set(103, from: @from, to: address)
+      {:ok, _tx_hash} = CounterContract.set(103) |> Ethers.send(from: @from, to: address)
 
-      assert CounterContract.get!(to: address, block: "latest") == [103]
-      assert CounterContract.get!(to: address, block: block_2) == [102]
-      assert CounterContract.get!(to: address, block: block_1) == [101]
+      assert CounterContract.get() |> Ethers.call!(to: address, block: "latest") == [103]
+      assert CounterContract.get() |> Ethers.call!(to: address, block: block_2) == [102]
+      assert CounterContract.get() |> Ethers.call!(to: address, block: block_1) == [101]
     end
   end
 

@@ -16,9 +16,9 @@ defmodule Ethers.MultiClauseContractTest do
       assert {:ok, tx_hash} = Ethers.deploy(MultiClauseContract, init_params, %{from: @from})
       assert {:ok, address} = Ethers.deployed_address(tx_hash)
 
-      assert {:ok, [0]} = MultiClauseContract.next(to: address)
-      assert {:ok, [6]} = MultiClauseContract.next(5, to: address)
-      assert {:ok, [7]} = MultiClauseContract.next(6, to: address)
+      assert {:ok, [0]} = MultiClauseContract.next() |> Ethers.call(to: address)
+      assert {:ok, [6]} = MultiClauseContract.next(5) |> Ethers.call(to: address)
+      assert {:ok, [7]} = MultiClauseContract.next(6) |> Ethers.call(to: address)
     end
   end
 end

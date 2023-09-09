@@ -9,4 +9,7 @@ contract MultiClause {
     function next(uint256 _n) public pure returns (uint256) {
         return _n + 1;
     }
+
+    event Next(int256 indexed n);
+    event Next(string indexed n, string indexed b);
 }

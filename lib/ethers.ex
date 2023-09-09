@@ -122,13 +122,9 @@ defmodule Ethers do
   Makes an eth_call to with the given data and overrides, Than parses
   the response using the selector in the params
 
-  ## Overrides
-  This function accepts all of options which `Ethereumex.BaseClient.eth_send_transaction` accepts.
-  Notable you can use these.
+  ## Overrides and Options
 
   - `:to`: Indicates recepient address. (Contract address in this case)
-
-  ## Options
   - `:block`: The block number or block alias. Defaults to `latest`
   - `:rpc_client`: The RPC Client to use. It should implement ethereum jsonRPC API. default: Ethereumex.HttpClient
   - `:rpc_opts`: Extra options to pass to rpc_client. (Like timeout, Server URL, etc.)
@@ -189,13 +185,9 @@ defmodule Ethers do
   Makes an eth_send rpc call to with the given data and overrides, Then returns the
   transaction binary.
 
-  ## Overrides
-  This function accepts all of options which `Ethereumex.BaseClient.eth_send_transaction` accepts.
-  Notable you can use these.
+  ## Overrides and Options
 
   - `:to`: Indicates recepient address. (Contract address in this case)
-
-  ## Options
   - `:rpc_client`: The RPC Client to use. It should implement ethereum jsonRPC API. default: Ethereumex.HttpClient
   - `:rpc_opts`: Extra options to pass to rpc_client. (Like timeout, Server URL, etc.)
 
@@ -243,13 +235,9 @@ defmodule Ethers do
   @doc """
   Makes an eth_estimate_gas rpc call with the given parameters and overrides.
 
-  ## Overrides
-  This function accepts all of options which `Ethereumex.BaseClient.eth_send_transaction` accepts.
-  Notable you can use these.
+  ## Overrides and Options
 
   - `:to`: Indicates recepient address. (Contract address in this case)
-
-  ## Options
   - `:rpc_client`: The RPC Client to use. It should implement ethereum jsonRPC API. default: Ethereumex.HttpClient
   - `:rpc_opts`: Extra options to pass to rpc_client. (Like timeout, Server URL, etc.)
 

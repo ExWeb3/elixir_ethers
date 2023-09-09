@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Breaking Changes
+
+ * The generated contract functions no longer call or send transactions, They will only prepare parameters.
+ To execute an explicit call to `Ethers.send/2` or `Ethers.call/2` is required.
+
 ## v0.0.6 (2023-09-06)
 
 ### Enhancements

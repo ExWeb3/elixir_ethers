@@ -119,7 +119,7 @@ defmodule Ethers do
   end
 
   @doc """
-  Makes an eth_call to with the given data and overrides, Than parses
+  Makes an eth_call to with the given data and overrides then parses
   the response using the selector in the params
 
   ## Overrides and Options
@@ -183,7 +183,7 @@ defmodule Ethers do
 
   @doc """
   Makes an eth_send rpc call to with the given data and overrides, Then returns the
-  transaction binary.
+  transaction hash.
 
   ## Overrides and Options
 

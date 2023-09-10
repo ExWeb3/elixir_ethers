@@ -215,7 +215,7 @@ defmodule Ethers.Contract do
       ## Parameters
       #{unquote(document_types(selector.types, selector.input_names))}
 
-      ## Return Types (when called with `Ethers.send/2`)
+      ## Return Types (when called with `Ethers.call/2`)
       #{unquote(document_types(selector.returns))}
       """
       @spec unquote(name)(unquote_splicing(func_input_types)) ::

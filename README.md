@@ -96,7 +96,7 @@ State mutability: view
 
   • _owner: `:address`
 
-## Return Types (when called with `Ethers.send/2`)
+## Return Types (when called with `Ethers.call/2`)
 
   • {:uint, 256}
 ```

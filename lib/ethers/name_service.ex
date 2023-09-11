@@ -30,12 +30,10 @@ defmodule Ethers.NameService do
   def resolve(name, opts \\ []) do
     name_hash = name_hash(name)
 
-    with {:ok, [resolver]} when resolver != @null_address <- ENS.resolver(name_hash, opts),
-         {:ok, [addr]} <- ENS.Resolver.addr(name_hash, Keyword.merge(opts, to: resolver)) do
+    with {:ok, resolver} <- get_resolver(name_hash, opts),
+         opts = Keyword.put(opts, :to, resolver),
+         {:ok, [addr]} <- Ethers.call(ENS.Resolver.addr(name_hash), opts) do
       {:ok, addr}
-    else
-      {:ok, [@null_address]} -> {:error, :domain_not_found}
-      {:error, _} = error -> error
     end
   end
 
@@ -85,4 +83,14 @@ defmodule Ethers.NameService do
   end
 
   defp do_name_hash([]), do: <<0::256>>
+
+  defp get_resolver(name_hash, opts) do
+    params = ENS.resolver(name_hash)
+
+    case Ethers.call(params, opts) do
+      {:ok, [@null_address]} -> {:error, :domain_not_found}
+      {:ok, [resolver]} -> {:ok, resolver}
+      {:error, reason} -> {:error, reason}
+    end
+  end
 end

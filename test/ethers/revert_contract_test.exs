@@ -16,12 +16,18 @@ defmodule Ethers.RevertContractTest do
       assert {:ok, tx_hash} = Ethers.deploy(RevertContract, init_params, %{from: @from})
       assert {:ok, address} = Ethers.deployed_address(tx_hash)
 
-      assert {:ok, [true]} = RevertContract.get(true, to: address, from: @from)
+      assert {:ok, [true]} = RevertContract.get(true) |> Ethers.call(to: address, from: @from)
 
       assert {:error, %{"message" => message}} =
-               RevertContract.get(false, to: address, from: @from)
+               RevertContract.get(false) |> Ethers.call(to: address, from: @from)
 
       assert message =~ "success must be true"
+
+      assert_raise Ethers.ExecutionError,
+                   "VM Exception while processing transaction: revert success must be true",
+                   fn ->
+                     RevertContract.get(false) |> Ethers.call!(to: address, from: @from)
+                   end
     end
   end
 end

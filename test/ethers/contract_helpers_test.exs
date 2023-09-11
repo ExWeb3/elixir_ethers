@@ -86,34 +86,6 @@ defmodule Ethers.ContractHelpersTest do
     end
   end
 
-  describe "get_default_action" do
-    test "returns correct default actions" do
-      assert :call ==
-               ContractHelpers.get_default_action(%ABI.FunctionSelector{state_mutability: :view})
-
-      assert :call ==
-               ContractHelpers.get_default_action(%ABI.FunctionSelector{state_mutability: :pure})
-
-      assert :send ==
-               ContractHelpers.get_default_action(%ABI.FunctionSelector{
-                 state_mutability: :payable
-               })
-
-      assert :send ==
-               ContractHelpers.get_default_action(%ABI.FunctionSelector{
-                 state_mutability: :non_payable
-               })
-    end
-
-    test "raises error for invalid state mutability" do
-      assert_raise ArgumentError, "Invalid function state mutability: :invalid", fn ->
-        ContractHelpers.get_default_action(%ABI.FunctionSelector{
-          state_mutability: :invalid
-        })
-      end
-    end
-  end
-
   describe "maybe_add_to_address" do
     test "adds to address if contract has default address" do
       assert %{to: "0x"} == ContractHelpers.maybe_add_to_address(%{}, Ethers.WithDefaultAddress)

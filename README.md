@@ -12,9 +12,9 @@
 
 Ethers is a comprehensive Web3 library for interacting with smart contracts on the Ethereum (Or any EVM based blockchain) using Elixir.
 
-Heavily inspired by the [ethers.js](https://github.com/ethers-io/ethers.js/), Ethers leverages the amazing Elixir meta-programming capabilities
-to generate Elixir modules for give smart contracts from their ABI. It also generates beautiful documentation for those modules which
-can further help in development.
+Inspired by [ethers.js](https://github.com/ethers-io/ethers.js/) and [web3.js](https://web3js.readthedocs.io/), Ethers leverages 
+Elixir's amazing meta-programming capabilities to generate Elixir modules for give smart contracts from their ABI.
+It also generates beautiful documentation for those modules which can further help developers.
 
 ## Installation
 
@@ -75,31 +75,28 @@ The documentation is also available giving the developer a first-class experienc
 
 ```elixir
 # Calling functions on the blockchain
-iex> MyERC20Token.balance_of("0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2")
+iex> MyERC20Token.balance_of("0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2") |> Ethers.call()
 {:ok, [654294510138460920346]}
 
 # Get the documentation of a function
 iex> h MyERC20Token.balance_of
-                     def balance_of(owner, overrides \\ [])
+                     def balance_of(owner)
 
-  @spec balance_of(Ethers.Types.t_address(), Keyword.t()) ::
-          {:ok, [non_neg_integer()]}
-          | {:ok, Ethers.Types.t_hash()}
-          | {:ok, Ethers.Contract.t_function_output()}
-          | {:error, term()}
+  @spec balance_of(Ethers.Types.t_address()) ::
+          Ethers.Contract.t_function_output()
 
-Executes balanceOf(address _owner) on the contract.
+Executes balanceOf(address _owner) (view function) on the contract.
 
-Default action for this function is `:call`. To override default action see
-Execution Options in Ethers.Contract.
+This function should only be called for result and never in a transaction on
+its own. (Use Ethers.call/2)
+
+State mutability: view
 
 ## Parameters
 
   • _owner: `:address`
-  • overrides: Overrides and options for the call. See Execution Options in
-    Ethers.Contract.
 
-## Return Types
+## Return Types (when called with `Ethers.call/2`)
 
   • {:uint, 256}
 ```
@@ -113,7 +110,7 @@ Ensure that you specify a `from` option to inform your client which account to u
 
 
 ```elixir
-iex> MyERC20Token.transfer("0x[Recipient Address Here]", Ethers.Utils.to_wei(1), from: "0x[Your address here]")
+iex> MyERC20Token.transfer("0x[Recipient Address]", 1000) |> Ethers.send(from: "0x[Sender address]")
 {:ok, "0xf313ff7ff54c6db80ad44c3ad58f72ff0fea7ce88e5e9304991ebd35a6e76000"}
 ```
 

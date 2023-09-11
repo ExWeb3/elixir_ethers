@@ -24,23 +24,11 @@ defmodule Ethers.Contract do
   - `abi`: Used to pass in the encoded/decoded json ABI of contract.
   - `abi_file`: Used to pass in the file path to the json ABI of contract.
   - `default_address`: Default contract deployed address. Can be overridden with `:to` option in every function.
-
-  ## Execution Options
-  These can be specified for all the actions by contracts.
-
-  - `action`: Type of action for this function. Here are available values.
-    - `:call` uses `eth_call` to call the function and get the result. Will not change blockchain state or cost gas.
-    - `:send` uses `eth_sendTransaction` to call
-    - `:estimate_gas` uses `eth_estimateGas` to estimate the gas usage of this transaction.
-    - `:prepare` only prepares the `data` needed to make a transaction. Useful for Multicall.
-  - `from`: The address of the wallet making this transaction. The private key should be loaded in the rpc server (For example: go-ethereum). Must be in `"0x..."` format.
-  - `gas`: The gas limit for your transaction.
-  - `rpc_client`: The RPC module implementing Ethereum JSON RPC functions. Defaults to `Ethereumex.HttpClient`
-  - `rpc_opts`: Options to pass to the RCP client e.g. `:url`.
-  - `to`: The address of the recipient contract. It will be defaulted to `default_address` if it was specified in Contract otherwise is required. Must be in `"0x..."` format.
   """
 
   require Ethers.ContractHelpers
+  require Logger
+
   import Ethers.ContractHelpers
 
   @type action :: :call | :send | :prepare
@@ -143,29 +131,6 @@ defmodule Ethers.Contract do
     [extra_ast, constructor_ast | functions_ast] ++ [events_module_ast]
   end
 
-  @doc false
-  @spec perform_action(action(), map, Keyword.t()) ::
-          {:ok, [term]}
-          | {:ok, Ethers.Types.t_hash()}
-          | {:ok, Ethers.Contract.t_function_output()}
-          | {:error, term()}
-  def perform_action(action, params, overrides)
-
-  def perform_action(:call, params, overrides),
-    do: Ethers.RPC.call(params, overrides)
-
-  def perform_action(:send, params, overrides),
-    do: Ethers.RPC.send(params, overrides)
-
-  def perform_action(:estimate_gas, params, overrides),
-    do: Ethers.RPC.estimate_gas(params, overrides)
-
-  def perform_action(:prepare, params, overrides),
-    do: {:ok, Enum.into(overrides, params)}
-
-  def perform_action(action, _params, _overrides),
-    do: raise(ArgumentError, "Invalid action: #{inspect(action)}")
-
   ## Helpers
 
   @spec generate_method(map(), atom()) :: any()
@@ -201,8 +166,7 @@ defmodule Ethers.Contract do
 
   defp generate_method(
          %{
-           selector: %ABI.FunctionSelector{type: :function} = selector,
-           has_other_arities: has_other_arities
+           selector: %ABI.FunctionSelector{type: :function} = selector
          } = _function_data,
          mod
        ) do
@@ -211,46 +175,52 @@ defmodule Ethers.Contract do
       |> Macro.underscore()
       |> String.to_atom()
 
-    bang_fun_name = String.to_atom("#{name}!")
-
     func_args = generate_arguments(mod, selector.types, selector.input_names)
 
     func_input_types =
       selector.types
       |> Enum.map(&Ethers.Types.to_elixir_type/1)
 
-    func_return_typespec =
-      selector.returns
-      |> Enum.map(&Ethers.Types.to_elixir_type/1)
-      |> then(fn
-        [] -> []
-        list -> Enum.reduce(list, &{:|, [], [&1, &2]})
-      end)
+    help_message =
+      case selector.state_mutability do
+        sm when sm in [:pure, :view] ->
+          """
+          This function should only be called for result and never in a transaction on its own. (Use `Ethers.call/2`)
+          """
 
-    default_action = get_default_action(selector)
+        :non_payable ->
+          """
+          This function can be used for a transaction or additionally called for results (Use `Ethers.send/2`).
+          No amount of Ether can be sent with this function.
+          """
 
-    overrides = get_overrides(mod, has_other_arities)
+        :payable ->
+          """
+          This function can be used for a transaction or additionally called for results (Use `Ethers.send/2`)."
+          It also supports receiving ether from the transaction origin. 
+          """
+
+        unknown ->
+          Logger.warning("Unknown state mutability: #{inspect(unknown)}")
+          ""
+      end
 
     quote context: mod, location: :keep do
       @doc """
-      Executes `#{unquote(human_signature(selector))}` on the contract.
+      Executes `#{unquote(human_signature(selector))}` (#{unquote(selector.state_mutability)} function) on the contract.
 
-      Default action for this function is `#{inspect(unquote(default_action))}`.
-      To override default action see Execution Options in `Ethers.Contract`.
+      #{unquote(help_message)}
+      State mutability: #{unquote(selector.state_mutability)}
 
       ## Parameters
       #{unquote(document_types(selector.types, selector.input_names))}
-      - overrides: Overrides and options for the call. See Execution Options in `Ethers.Contract`.
 
-      ## Return Types
+      ## Return Types (when called with `Ethers.call/2`)
       #{unquote(document_types(selector.returns))}
       """
-      @spec unquote(name)(unquote_splicing(func_input_types), Keyword.t()) ::
-              {:ok, [unquote(func_return_typespec)]}
-              | {:ok, Ethers.Types.t_hash()}
-              | {:ok, Ethers.Contract.t_function_output()}
-              | {:error, term()}
-      def unquote(name)(unquote_splicing(func_args), unquote(overrides)) do
+      @spec unquote(name)(unquote_splicing(func_input_types)) ::
+              Ethers.Contract.t_function_output()
+      def unquote(name)(unquote_splicing(func_args)) do
         args =
           unquote(func_args)
           |> Enum.zip(unquote(Macro.escape(selector.types)))
@@ -261,37 +231,11 @@ defmodule Ethers.Contract do
           |> ABI.encode(args)
           |> Ethers.Utils.hex_encode()
 
-        params =
-          %{
-            data: data,
-            selector: unquote(Macro.escape(selector))
-          }
-          |> maybe_add_to_address(__MODULE__)
-
-        {action, overrides} = Keyword.pop(overrides, :action, unquote(default_action))
-
-        Ethers.Contract.perform_action(action, params, overrides)
-      end
-
-      @doc """
-      Same as `#{unquote(name)}/#{unquote(Enum.count(func_args) + 1)}` but raises `Ethers.ExecutionError` on errors.
-      """
-      @spec unquote(bang_fun_name)(unquote_splicing(func_input_types), Keyword.t()) ::
-              [unquote(func_return_typespec)]
-              | Ethers.Types.t_hash()
-              | Ethers.Contract.t_function_output()
-              | no_return
-      def unquote(bang_fun_name)(unquote_splicing(func_args), unquote(overrides)) do
-        case unquote(name)(unquote_splicing(func_args), overrides) do
-          {:ok, result} ->
-            result
-
-          {:error, reason} ->
-            raise Ethers.ExecutionError,
-              error: reason,
-              function: unquote(name),
-              args: unquote(func_args)
-        end
+        %{
+          data: data,
+          selector: unquote(Macro.escape(selector))
+        }
+        |> maybe_add_to_address(__MODULE__)
       end
     end
   end

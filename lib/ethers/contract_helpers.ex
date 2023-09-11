@@ -63,16 +63,6 @@ defmodule Ethers.ContractHelpers do
     "#{function}(#{args})"
   end
 
-  def get_default_action(%ABI.FunctionSelector{state_mutability: state_mutability}) do
-    case state_mutability do
-      :view -> :call
-      :pure -> :call
-      :payable -> :send
-      :non_payable -> :send
-      _ -> raise ArgumentError, "Invalid function state mutability: #{inspect(state_mutability)}"
-    end
-  end
-
   def get_overrides(module, has_other_arities) do
     if has_other_arities do
       # If the same function with different arities exists within the same contract,

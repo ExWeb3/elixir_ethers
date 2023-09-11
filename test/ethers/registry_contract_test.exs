@@ -15,21 +15,24 @@ defmodule Ethers.RegistryContractTest do
 
   describe "can send and receive structs" do
     test "can send transaction with structs", %{address: address} do
-      {:ok, _tx_hash} = RegistryContract.register({"alisina", 27}, from: @from, to: address)
+      {:ok, _tx_hash} =
+        RegistryContract.register({"alisina", 27}) |> Ethers.send(from: @from, to: address)
     end
 
     test "can call functions returning structs", %{address: address} do
-      {:ok, [{"", 0}]} = RegistryContract.info(@from, to: address)
+      {:ok, [{"", 0}]} = RegistryContract.info(@from) |> Ethers.call(to: address)
 
-      {:ok, _tx_hash} = RegistryContract.register({"alisina", 27}, from: @from, to: address)
+      {:ok, _tx_hash} =
+        RegistryContract.register({"alisina", 27}) |> Ethers.send(from: @from, to: address)
 
-      {:ok, [{"alisina", 27}]} = RegistryContract.info(@from, to: address)
+      {:ok, [{"alisina", 27}]} = RegistryContract.info(@from) |> Ethers.call(to: address)
     end
   end
 
   describe "event filters" do
     test "can create event filters and fetch register events", %{address: address} do
-      {:ok, _tx_hash} = RegistryContract.register({"alisina", 27}, from: @from, to: address)
+      {:ok, _tx_hash} =
+        RegistryContract.register({"alisina", 27}) |> Ethers.send(from: @from, to: address)
 
       empty_filter = RegistryContract.EventFilters.registered(nil)
       search_filter = RegistryContract.EventFilters.registered(@from)

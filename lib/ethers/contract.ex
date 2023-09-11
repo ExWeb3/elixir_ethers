@@ -256,12 +256,11 @@ defmodule Ethers.Contract do
 
     {indexed_types, non_indexed_types} =
       selector.types
-      |> Enum.zip(selector.inputs_indexed)
-      |> Enum.reduce({[], []}, fn
-        {type, true}, {indexed, non_indexed} ->
+      |> Enum.zip_reduce(selector.inputs_indexed, {[], []}, fn
+        type, true, {indexed, non_indexed} ->
           {indexed ++ [type], non_indexed}
 
-        {type, false}, {indexed, non_indexed} ->
+        type, false, {indexed, non_indexed} ->
           {indexed, non_indexed ++ [type]}
       end)
 

@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Enhancements
+
+ * Use zip_reduce for event generators
+ * Move documentation generators to ContractHelpers
+ * Display message for empty parameters or return types
+
 ### Breaking Changes
 
  * The generated contract functions no longer call or send transactions, They will only prepare parameters.

@@ -181,42 +181,16 @@ defmodule Ethers.Contract do
       selector.types
       |> Enum.map(&Ethers.Types.to_elixir_type/1)
 
-    help_message =
-      case selector.state_mutability do
-        sm when sm in [:pure, :view] ->
-          """
-          This function should only be called for result and never in a transaction on its own. (Use `Ethers.call/2`)
-          """
-
-        :non_payable ->
-          """
-          This function can be used for a transaction or additionally called for results (Use `Ethers.send/2`).
-          No amount of Ether can be sent with this function.
-          """
-
-        :payable ->
-          """
-          This function can be used for a transaction or additionally called for results (Use `Ethers.send/2`)."
-          It also supports receiving ether from the transaction origin. 
-          """
-
-        unknown ->
-          Logger.warning("Unknown state mutability: #{inspect(unknown)}")
-          ""
-      end
-
     quote context: mod, location: :keep do
       @doc """
       Executes `#{unquote(human_signature(selector))}` (#{unquote(selector.state_mutability)} function) on the contract.
 
-      #{unquote(help_message)}
+      #{unquote(document_help_message(selector))}
       State mutability: #{unquote(selector.state_mutability)}
 
-      ## Parameters
-      #{unquote(document_types(selector.types, selector.input_names))}
+      #{unquote(document_parameters(selector))}
 
-      ## Return Types (when called with `Ethers.call/2`)
-      #{unquote(document_types(selector.returns))}
+      #{unquote(document_returns(selector))}
       """
       @spec unquote(name)(unquote_splicing(func_input_types)) ::
               Ethers.Contract.t_function_output()

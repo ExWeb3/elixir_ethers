@@ -1,6 +1,8 @@
 defmodule Ethers.ContractHelpers do
   @moduledoc false
 
+  require Logger
+
   @spec read_abi(Keyword.t()) :: {:ok, [...]} | {:error, atom()}
   def read_abi(opts) do
     case Keyword.take(opts, [:abi, :abi_file]) do
@@ -39,6 +41,54 @@ defmodule Ethers.ContractHelpers do
       type ->
         " - `#{inspect(type)}`"
     end)
+  end
+
+  def document_help_message(selector) do
+    case selector.state_mutability do
+      sm when sm in [:pure, :view] ->
+        """
+        This function should only be called for result and never in a transaction on its own. (Use `Ethers.call/2`)
+        """
+
+      :non_payable ->
+        """
+        This function can be used for a transaction or additionally called for results (Use `Ethers.send/2`).
+        No amount of Ether can be sent with this function.
+        """
+
+      :payable ->
+        """
+        This function can be used for a transaction or additionally called for results (Use `Ethers.send/2`)."
+        It also supports receiving ether from the transaction origin. 
+        """
+
+      unknown ->
+        Logger.warning("Unknown state mutability: #{inspect(unknown)}")
+        ""
+    end
+  end
+
+  def document_parameters(%{types: []}), do: ""
+
+  def document_parameters(selector) do
+    """
+    ## Parameter Types
+    #{document_types(selector.types, selector.input_names)}
+    """
+  end
+
+  def document_returns(selector) do
+    return_type_docs =
+      if Enum.count(selector.returns) > 0 do
+        document_types(selector.returns)
+      else
+        "This function does not return any values!"
+      end
+
+    """
+    ## Return Types (when called with `Ethers.call/2`)
+    #{return_type_docs}
+    """
   end
 
   def human_signature(%ABI.FunctionSelector{

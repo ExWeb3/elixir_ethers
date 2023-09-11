@@ -11,10 +11,14 @@ defmodule Ethers.ExecutionError do
   defexception [:message, :evm_error]
 
   @impl true
-  def exception(evm_error) do
+  def exception(evm_error) when is_map(evm_error) do
     %__MODULE__{
       message: evm_error["message"] || "unknown error!",
       evm_error: evm_error
     }
+  end
+
+  def exception(error) when is_atom(error) or is_binary(error) do
+    %__MODULE__{message: "Unexpected error: #{error}"}
   end
 end

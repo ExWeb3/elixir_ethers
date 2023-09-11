@@ -61,10 +61,6 @@ defmodule Ethers.ContractHelpers do
         This function can be used for a transaction or additionally called for results (Use `Ethers.send/2`)."
         It also supports receiving ether from the transaction origin. 
         """
-
-      unknown ->
-        Logger.warning("Unknown state mutability: #{inspect(unknown)}")
-        ""
     end
   end
 

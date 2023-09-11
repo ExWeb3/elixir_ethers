@@ -63,6 +63,29 @@ defmodule Ethers.CounterContractTest do
 
       assert {:error, :no_to_address} =
                CounterContract.set(101) |> Ethers.send(from: @from, gas: 100)
+
+      assert {:error, :no_to_address} = CounterContract.set(101) |> Ethers.send()
+
+      assert {:error, :no_to_address} =
+               CounterContract.set(101) |> Ethers.estimate_gas(from: @from, gas: 100)
+    end
+
+    test "raises if to address is not given using the bang functions" do
+      assert_raise Ethers.ExecutionError, "Unexpected error: no_to_address", fn ->
+        CounterContract.get() |> Ethers.call!()
+      end
+
+      assert_raise Ethers.ExecutionError, "Unexpected error: no_to_address", fn ->
+        CounterContract.set(101) |> Ethers.send!(from: @from)
+      end
+
+      assert_raise Ethers.ExecutionError, "Unexpected error: no_to_address", fn ->
+        CounterContract.set(101) |> Ethers.send!(from: @from, gas: 100)
+      end
+
+      assert_raise Ethers.ExecutionError, "Unexpected error: no_to_address", fn ->
+        CounterContract.set(101) |> Ethers.estimate_gas!(from: @from, gas: 100)
+      end
     end
 
     test "returns the gas estimate with Ethers.estimate_gas", %{address: address} do

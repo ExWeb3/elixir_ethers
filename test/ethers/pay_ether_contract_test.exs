@@ -18,7 +18,7 @@ defmodule Ethers.PayEtherContractTest do
                PayEtherContract.pay_me()
                |> Ethers.send(to: address, value: Ethers.Utils.to_wei(1), from: @from)
 
-      assert {:error, %{"code" => -32000}} =
+      assert {:error, %{"code" => -32_000}} =
                PayEtherContract.dont_pay_me()
                |> Ethers.send(to: address, value: Ethers.Utils.to_wei(1), from: @from)
     end

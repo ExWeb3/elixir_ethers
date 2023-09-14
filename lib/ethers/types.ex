@@ -42,7 +42,7 @@ defmodule Ethers.Types do
   end
 
   def to_elixir_type({:bytes, size}) do
-    quote do: <<_::unquote(size * 8)>> | <<_::unquote(size * 8 * 2 + 2 * 8)>>
+    quote do: <<_::unquote(size * 8)>>
   end
 
   def to_elixir_type(:bytes) do
@@ -179,4 +179,54 @@ defmodule Ethers.Types do
   def default(type) when type in [:string, :bytes], do: ""
 
   def default({:bytes, size}), do: <<0::size*8>>
+
+  @doc """
+  Checks if a given data matches a given solidity type
+
+  ## Examples
+
+      iex> Ethers.Types.type_match?(:bool, false)
+      true
+
+      iex> Ethers.Types.type_match?({:uint, 8}, 200)
+      true
+
+      iex> Ethers.Types.type_match?({:uint, 8}, 400)
+      false
+  """
+  @spec type_match?(term, term()) :: boolean()
+  def type_match?(type, value)
+
+  def type_match?({:uint, _bsize} = type, value),
+    do: is_integer(value) and value >= 0 and value <= max(type)
+
+  def type_match?({:int, _bsize} = type, value),
+    do: is_integer(value) and min(type) <= value and value <= max(type)
+
+  def type_match?(:address, value), do: is_binary(value) and byte_size(value) <= 42
+
+  def type_match?(:string, value), do: is_binary(value) and String.valid?(value)
+
+  def type_match?(:bytes, value), do: is_binary(value)
+
+  def type_match?({:bytes, size}, value), do: is_binary(value) && byte_size(value) == size
+
+  def type_match?(:bool, value), do: is_boolean(value)
+
+  def type_match?({:array, sub_type, element_count}, values) do
+    type_match?({:array, sub_type}, values) and Enum.count(values) == element_count
+  end
+
+  def type_match?({:array, sub_type}, values) do
+    is_list(values) and Enum.all?(values, &type_match?(sub_type, &1))
+  end
+
+  def type_match?({:tuple, sub_types}, values) do
+    if is_tuple(values) and tuple_size(values) == Enum.count(sub_types) do
+      Enum.zip(sub_types, Tuple.to_list(values))
+      |> Enum.all?(fn {type, value} -> type_match?(type, value) end)
+    else
+      false
+    end
+  end
 end

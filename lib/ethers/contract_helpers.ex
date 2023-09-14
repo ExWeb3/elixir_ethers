@@ -43,48 +43,82 @@ defmodule Ethers.ContractHelpers do
     end)
   end
 
-  def document_help_message(selector) do
-    case selector.state_mutability do
-      sm when sm in [:pure, :view] ->
-        """
-        This function should only be called for result and never in a transaction on its own. (Use `Ethers.call/2`)
-        """
-
-      :non_payable ->
-        """
-        This function can be used for a transaction or additionally called for results (Use `Ethers.send/2`).
-        No amount of Ether can be sent with this function.
-        """
-
-      :payable ->
-        """
-        This function can be used for a transaction or additionally called for results (Use `Ethers.send/2`)."
-        It also supports receiving ether from the transaction origin. 
-        """
-    end
+  def document_help_message(selectors) do
+    selectors
+    |> Enum.map(& &1.state_mutability)
+    |> Enum.uniq()
+    |> do_document_help_message()
   end
 
-  def document_parameters(%{types: []}), do: ""
+  defp do_document_help_message([state_mutability]) do
+    message =
+      case state_mutability do
+        sm when sm in [:pure, :view] ->
+          """
+          This function should only be called for result and never in a transaction on its own. (Use `Ethers.call/2`)
+          """
 
-  def document_parameters(selector) do
+        :non_payable ->
+          """
+          This function can be used for a transaction or additionally called for results (Use `Ethers.send/2`).
+          No amount of Ether can be sent with this function.
+          """
+
+        :payable ->
+          """
+          This function can be used for a transaction or additionally called for results (Use `Ethers.send/2`)."
+          It also supports receiving ether from the transaction origin. 
+          """
+      end
+
+    """
+    #{message}
+
+    State mutability: #{state_mutability}
+    """
+  end
+
+  defp do_document_help_message(state_mutabilities) do
+    """
+    This function has multiple state mutabilities based on the overload that you use.
+
+    State mutabilities: #{Enum.join(state_mutabilities, ",")}
+    """
+  end
+
+  def document_parameters([%{types: []}]), do: ""
+
+  def document_parameters(selectors) do
+    parameters_docs =
+      Enum.map_join(selectors, "\n\n### OR\n", &document_types(&1.types, &1.input_names))
+
     """
     ## Parameter Types
-    #{document_types(selector.types, selector.input_names)}
+    #{parameters_docs}
     """
   end
 
-  def document_returns(selector) do
+  def document_returns(selectors) when is_list(selectors) do
     return_type_docs =
-      if Enum.count(selector.returns) > 0 do
-        document_types(selector.returns)
-      else
-        "This function does not return any values!"
-      end
+      selectors
+      |> Enum.map(& &1.returns)
+      |> Enum.uniq()
+      |> Enum.map_join("\n\n### OR\n", fn returns ->
+        if Enum.count(returns) > 0 do
+          document_types(returns)
+        else
+          "This function does not return any values!"
+        end
+      end)
 
     """
     ## Return Types (when called with `Ethers.call/2`)
     #{return_type_docs}
     """
+  end
+
+  def document_state_mutability(selectors) do
+    Enum.map_join(selectors, " OR ", & &1.state_mutability)
   end
 
   def human_signature(%ABI.FunctionSelector{
@@ -109,6 +143,10 @@ defmodule Ethers.ContractHelpers do
     "#{function}(#{args})"
   end
 
+  def human_signature(selectors) when is_list(selectors) do
+    Enum.map_join(selectors, " OR ", &human_signature/1)
+  end
+
   def get_overrides(module, has_other_arities) do
     if has_other_arities do
       # If the same function with different arities exists within the same contract,
@@ -124,9 +162,8 @@ defmodule Ethers.ContractHelpers do
     end
   end
 
-  def generate_arguments(mod, types, names) do
-    types
-    |> Enum.count(& &1)
+  def generate_arguments(mod, arity, names) when is_integer(arity) do
+    arity
     |> Macro.generate_arguments(mod)
     |> then(fn args ->
       if length(names) >= length(args) do
@@ -136,6 +173,73 @@ defmodule Ethers.ContractHelpers do
       else
         args
       end
+    end)
+  end
+
+  def generate_typespecs(selectors) do
+    Enum.map(selectors, & &1.types)
+    |> Enum.zip_with(& &1)
+    |> Enum.map(fn type_group ->
+      type_group
+      |> Enum.map(&Ethers.Types.to_elixir_type/1)
+      |> Enum.uniq()
+      |> Enum.reduce(fn type, acc ->
+        quote do
+          unquote(type) | unquote(acc)
+        end
+      end)
+    end)
+  end
+
+  def find_selector!(selectors, args) do
+    filtered_selectors = Enum.filter(selectors, &selector_match?(&1, args))
+
+    case filtered_selectors do
+      [] ->
+        signatures =
+          Enum.map_join(selectors, "\n", &human_signature/1)
+
+        raise ArgumentError, """
+        No function selector matches current arguments!
+
+        ## Arguments
+        #{inspect(args)}
+
+        ## Conflicting function signatures
+        #{signatures}
+        """
+
+      [selector] ->
+        {selector, strip_typed_args(args)}
+
+      selectors ->
+        signatures =
+          Enum.map_join(selectors, "\n", &human_signature/1)
+
+        raise ArgumentError, """
+        Ambiguous parameters
+
+        ## Arguments
+        #{inspect(args)}
+
+        ## Conflicting function signatures
+        #{signatures}
+        """
+    end
+  end
+
+  defp strip_typed_args(args) do
+    Enum.map(args, fn
+      {:typed, _type, arg} -> arg
+      arg -> arg
+    end)
+  end
+
+  def selector_match?(selector, args) do
+    Enum.zip(selector.types, args)
+    |> Enum.all?(fn
+      {type, {:typed, assigned_type, _arg}} -> assigned_type == type
+      {type, arg} -> Ethers.Types.type_match?(type, arg)
     end)
   end
 

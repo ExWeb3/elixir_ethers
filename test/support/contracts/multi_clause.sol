@@ -47,9 +47,19 @@ contract MultiClause {
         return "int8";
     }
 
-    event Said(uint256 indexed n);
-    event Said(int256 indexed n);
-    event Said(int128 indexed n);
-    event Said(address indexed n);
-    event Said(string indexed n);
+    function emitEvent(uint256 n) public {
+        emit MultiEvent(n);
+    }
+
+    function emitEvent(int256 n) public {
+        emit MultiEvent(n);
+    }
+
+    function emitEvent(string calldata n) public {
+        emit MultiEvent(n);
+    }
+
+    event MultiEvent(uint256 indexed n);
+    event MultiEvent(int256 indexed n);
+    event MultiEvent(string indexed n);
 }

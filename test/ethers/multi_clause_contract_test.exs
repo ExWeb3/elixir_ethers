@@ -48,6 +48,64 @@ defmodule Ethers.MultiClauseContractTest do
     end
   end
 
+  describe "multi clause events" do
+    test "listens on the right event", %{address: address} do
+      MultiClauseContract.emit_event({:typed, {:uint, 256}, 10})
+      |> Ethers.send!(to: address, from: @from)
+
+      uint_filter = MultiClauseContract.EventFilters.multi_event({:typed, {:uint, 256}, 10})
+
+      assert {:ok, [%Ethers.Event{address: ^address, topics: ["MultiEvent(uint256)", 10]}]} =
+               Ethers.get_logs(uint_filter, address: address)
+
+      MultiClauseContract.emit_event({:typed, {:int, 256}, -20})
+      |> Ethers.send!(to: address, from: @from)
+
+      int_filter = MultiClauseContract.EventFilters.multi_event({:typed, {:int, 256}, -20})
+
+      assert {:ok, [%Ethers.Event{address: ^address, topics: ["MultiEvent(int256)", -20]}]} =
+               Ethers.get_logs(int_filter, address: address)
+
+      MultiClauseContract.emit_event("Hello")
+      |> Ethers.send!(to: address, from: @from)
+
+      string_filter = MultiClauseContract.EventFilters.multi_event({:typed, :string, "Hello"})
+
+      assert {:ok, [%Ethers.Event{address: ^address, topics: ["MultiEvent(string)", _]}]} =
+               Ethers.get_logs(string_filter, address: address)
+
+      string_filter = MultiClauseContract.EventFilters.multi_event({:typed, :string, "Good Bye"})
+
+      assert {:ok, []} = Ethers.get_logs(string_filter, address: address)
+    end
+
+    test "listens on the right event with nil values", %{address: address} do
+      MultiClauseContract.emit_event({:typed, {:uint, 256}, 10})
+      |> Ethers.send!(to: address, from: @from)
+
+      uint_filter = MultiClauseContract.EventFilters.multi_event({:typed, {:uint, 256}, nil})
+
+      assert {:ok, [%Ethers.Event{address: ^address, topics: ["MultiEvent(uint256)", 10]}]} =
+               Ethers.get_logs(uint_filter, address: address)
+
+      MultiClauseContract.emit_event({:typed, {:int, 256}, -20})
+      |> Ethers.send!(to: address, from: @from)
+
+      int_filter = MultiClauseContract.EventFilters.multi_event({:typed, {:int, 256}, nil})
+
+      assert {:ok, [%Ethers.Event{address: ^address, topics: ["MultiEvent(int256)", -20]}]} =
+               Ethers.get_logs(int_filter, address: address)
+    end
+
+    test "raises on conflicting parameters" do
+      assert_raise ArgumentError,
+                   "Ambiguous parameters\n\n## Arguments\n~c\"\\n\"\n\n## Conflicting function signatures\nMultiEvent(uint256 n)\nMultiEvent(int256 n)\n",
+                   fn ->
+                     MultiClauseContract.EventFilters.multi_event(10)
+                   end
+    end
+  end
+
   defp deploy_multi_clause_contract(_ctx) do
     init_params = MultiClauseContract.constructor()
     assert {:ok, tx_hash} = Ethers.deploy(MultiClauseContract, init_params, %{from: @from})

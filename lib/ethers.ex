@@ -273,15 +273,23 @@ defmodule Ethers do
 
   @doc """
   Returns the event logs with the given filter
+
+  ## Overrides and Options
+
+  - `:address`: Indicates event emitter contract address. (nil means all contracts)
+  - `:rpc_client`: The RPC Client to use. It should implement ethereum jsonRPC API. default: Ethereumex.HttpClient
+  - `:rpc_opts`: Extra options to pass to rpc_client. (Like timeout, Server URL, etc.)
   """
-  @spec get_logs(map(), Keyword.t(), Keyword.t()) :: {:ok, [Event.t()]} | {:error, atom()}
-  def get_logs(%{topics: _, selector: selector} = params, overrides \\ [], opts \\ []) do
+  @spec get_logs(map(), Keyword.t()) :: {:ok, [Event.t()]} | {:error, atom()}
+  def get_logs(%{topics: _, selector: selector} = params, overrides \\ []) do
+    {opts, overrides} = Keyword.split(overrides, @option_keys)
+
     params =
       overrides
       |> Enum.into(params)
-      |> Map.drop([:selector])
+      |> Map.drop(@internal_params)
 
-    with {:ok, resp} when is_list(resp) <- RPC.eth_get_logs(params, opts) do
+    with {:ok, resp} when is_list(resp) <- eth_get_logs(params, opts) do
       logs = Enum.map(resp, &Event.decode(&1, selector))
 
       {:ok, logs}

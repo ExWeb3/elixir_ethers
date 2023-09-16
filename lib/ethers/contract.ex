@@ -23,7 +23,7 @@ defmodule Ethers.Contract do
   ## Valid `use` options
   - `abi`: Used to pass in the encoded/decoded json ABI of contract.
   - `abi_file`: Used to pass in the file path to the json ABI of contract.
-  - `default_address`: Default contract deployed address. Can be overridden with `:to` option in every function.
+  - `default_address`: Default contract deployed address to include in the parameters. (Optional)
   """
 
   require Ethers.ContractHelpers
@@ -97,8 +97,7 @@ defmodule Ethers.Contract do
           selectors: selectors,
           function: function,
           arity: arity,
-          type: type,
-          has_multiple_clause: Enum.count(function_selectors, &(&1.function == function)) > 1
+          type: type
         }
       end)
 
@@ -193,9 +192,7 @@ defmodule Ethers.Contract do
       |> Macro.underscore()
       |> String.to_atom()
 
-    aggregated_input_names =
-      Enum.map(selectors, & &1.input_names)
-      |> Enum.zip_with(&(Enum.uniq(&1) |> Enum.join("_or_")))
+    aggregated_input_names = aggregate_input_names(selectors)
 
     func_args =
       generate_arguments(mod, arity, aggregated_input_names)
@@ -240,70 +237,63 @@ defmodule Ethers.Contract do
 
   defp generate_event_filter(
          %{
+           function: function,
            type: :event,
            arity: arity,
-           selectors: [%ABI.FunctionSelector{} = selector | _],
-           has_multiple_clause: has_multiple_clause
+           selectors: selectors
          } = _function_data,
          mod
        ) do
     name =
-      selector.function
+      function
       |> Macro.underscore()
       |> String.to_atom()
 
-    func_args =
-      generate_arguments(mod, arity, selector.input_names)
+    aggregated_input_names = aggregate_input_names(selectors)
 
-    {indexed_types, non_indexed_types} =
-      selector.types
-      |> Enum.zip_reduce(selector.inputs_indexed, {[], []}, fn
-        type, true, {indexed, non_indexed} ->
-          {indexed ++ [type], non_indexed}
+    func_args = generate_arguments(mod, arity, aggregated_input_names)
 
-        type, false, {indexed, non_indexed} ->
-          {indexed, non_indexed ++ [type]}
-      end)
+    func_input_typespec = generate_event_typespecs(selectors, arity)
 
-    func_input_typespec =
-      indexed_types
-      |> Enum.map(&Ethers.Types.to_elixir_type/1)
-
-    selector = %{selector | returns: non_indexed_types}
-
-    topic_0 =
-      selector
-      |> ABI.FunctionSelector.encode()
-      |> Ethers.keccak_module().hash_256()
-      |> Ethers.Utils.hex_encode()
-
-    overrides = get_overrides(mod, has_multiple_clause)
+    selectors = Enum.map(selectors, &Map.put(&1, :returns, Enum.drop(&1.types, arity)))
 
     quote context: mod, location: :keep do
       @doc """
-      Create event filter for `#{unquote(human_signature(selector))}` 
+      Create event filter for `#{unquote(human_signature(selectors))}` 
 
       For each indexed parameter you can either pass in the value you want to 
       filter or `nil` if you don't want to filter.
 
-      ## Parameters
-      #{unquote(document_types(indexed_types, selector.input_names))}
-      - overrides: Overrides and options for the call.
-        - `address`: The address or list of addresses of the originating contract(s). (**Optional**)
+      #{unquote(document_parameters(selectors))}
 
-      ## Event Data Types
-      #{unquote(document_types(selector.types, selector.input_names))}
+      #{unquote(document_returns(selectors))}
       """
-      @spec unquote(name)(unquote_splicing(func_input_typespec), Keyword.t()) ::
+      @spec unquote(name)(unquote_splicing(func_input_typespec)) ::
               Ethers.Contract.t_event_output()
-      def unquote(name)(unquote_splicing(func_args), unquote(overrides)) do
-        address = Keyword.get(overrides, :address, __MODULE__.default_address())
+      def unquote(name)(unquote_splicing(func_args)) do
+        {selector, raw_args} =
+          Ethers.ContractHelpers.find_selector!(
+            unquote(Macro.escape(selectors)),
+            unquote(func_args)
+          )
+
+        topic_0 =
+          selector
+          |> ABI.FunctionSelector.encode()
+          |> Ethers.keccak_module().hash_256()
+          |> Ethers.Utils.hex_encode()
 
         sub_topics =
-          Enum.zip(unquote(Macro.escape(selector.types)), unquote(func_args))
+          Enum.zip(selector.types, raw_args)
           |> Enum.map(fn
             {_, nil} ->
               nil
+
+            {type, value} when type in unquote(Ethers.Types.dynamically_sized_types()) ->
+              value
+              |> Ethers.Utils.prepare_arg(type)
+              |> Ethers.keccak_module().hash_256()
+              |> Ethers.Utils.hex_encode()
 
             {type, value} ->
               value
@@ -314,10 +304,10 @@ defmodule Ethers.Contract do
           end)
 
         %{
-          topics: [unquote(topic_0) | sub_topics],
-          address: address,
-          selector: unquote(Macro.escape(selector))
+          topics: [topic_0 | sub_topics],
+          selector: selector
         }
+        |> maybe_add_to_address(__MODULE__, :address)
       end
     end
   end

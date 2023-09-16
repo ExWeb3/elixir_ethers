@@ -147,21 +147,6 @@ defmodule Ethers.ContractHelpers do
     Enum.map_join(selectors, " OR ", &human_signature/1)
   end
 
-  def get_overrides(module, has_other_arities) do
-    if has_other_arities do
-      # If the same function with different arities exists within the same contract,
-      # then we would need to disable defaulting the overrides as this will cause
-      # ambiguousness towards the compiler.
-      quote context: module do
-        overrides
-      end
-    else
-      quote context: module do
-        overrides \\ []
-      end
-    end
-  end
-
   def generate_arguments(mod, arity, names) when is_integer(arity) do
     arity
     |> Macro.generate_arguments(mod)
@@ -178,7 +163,16 @@ defmodule Ethers.ContractHelpers do
 
   def generate_typespecs(selectors) do
     Enum.map(selectors, & &1.types)
-    |> Enum.zip_with(& &1)
+    |> do_generate_typescpecs()
+  end
+
+  def generate_event_typespecs(selectors, arity) do
+    Enum.map(selectors, &Enum.take(&1.types, arity))
+    |> do_generate_typescpecs()
+  end
+
+  defp do_generate_typescpecs(types) do
+    Enum.zip_with(types, & &1)
     |> Enum.map(fn type_group ->
       type_group
       |> Enum.map(&Ethers.Types.to_elixir_type/1)
@@ -235,18 +229,39 @@ defmodule Ethers.ContractHelpers do
     end)
   end
 
-  def selector_match?(selector, args) do
-    Enum.zip(selector.types, args)
-    |> Enum.all?(fn
-      {type, {:typed, assigned_type, _arg}} -> assigned_type == type
-      {type, arg} -> Ethers.Types.type_match?(type, arg)
-    end)
+  def selector_match?(%{type: :event} = selector, args) do
+    Enum.zip(selector.types, selector.inputs_indexed)
+    |> Enum.filter(&elem(&1, 1))
+    |> Enum.map(&elem(&1, 0))
+    |> do_selector_match?(args, true)
   end
 
-  def maybe_add_to_address(map, module) do
+  def selector_match?(selector, args) do
+    do_selector_match?(selector.types, args, false)
+  end
+
+  defp do_selector_match?(types, args, allow_nil) do
+    if Enum.count(types) == Enum.count(args) do
+      Enum.zip(types, args)
+      |> Enum.all?(fn
+        {type, {:typed, assigned_type, _arg}} -> assigned_type == type
+        {_type, nil} -> allow_nil == true
+        {type, arg} -> Ethers.Types.type_match?(type, arg)
+      end)
+    else
+      false
+    end
+  end
+
+  def aggregate_input_names(selectors) do
+    Enum.map(selectors, & &1.input_names)
+    |> Enum.zip_with(&(Enum.uniq(&1) |> Enum.join("_or_")))
+  end
+
+  def maybe_add_to_address(map, module, field_name \\ :to) do
     case module.default_address() do
       nil -> map
-      address when is_binary(address) -> Map.put(map, :to, address)
+      address when is_binary(address) -> Map.put(map, field_name, address)
     end
   end
 

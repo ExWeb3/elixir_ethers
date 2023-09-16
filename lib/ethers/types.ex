@@ -20,6 +20,8 @@ defmodule Ethers.Types do
   """
   @type t_hash :: <<_::528>>
 
+  @dynamically_sized_types [:string, :bytes]
+
   defguardp valid_bitsize(bitsize) when bitsize >= 8 and bitsize <= 256 and rem(bitsize, 8) == 0
 
   @doc """
@@ -229,4 +231,7 @@ defmodule Ethers.Types do
       false
     end
   end
+
+  @doc false
+  def dynamically_sized_types, do: @dynamically_sized_types
 end

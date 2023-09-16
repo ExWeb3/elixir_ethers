@@ -246,7 +246,7 @@ defmodule Ethers.ContractHelpers do
       |> Enum.all?(fn
         {type, {:typed, assigned_type, _arg}} -> assigned_type == type
         {_type, nil} -> allow_nil == true
-        {type, arg} -> Ethers.Types.type_match?(type, arg)
+        {type, arg} -> Ethers.Types.matches_type?(arg, type)
       end)
     else
       false

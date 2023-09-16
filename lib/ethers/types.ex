@@ -20,6 +20,19 @@ defmodule Ethers.Types do
   """
   @type t_hash :: <<_::528>>
 
+  @type t_bitsizes :: unquote(8..256//8 |> Enum.reduce(&{:|, [], [&1, &2]}))
+  @type t_bytesizes :: unquote(1..32 |> Enum.reduce(&{:|, [], [&1, &2]}))
+  @type t_evm_types ::
+          {:uint, t_bitsizes()}
+          | {:int, t_bitsizes()}
+          | {:bytes, t_bytesizes()}
+          | :bytes
+          | :string
+          | :address
+          | {:array, t_evm_types()}
+          | {:array, t_evm_types(), non_neg_integer()}
+          | {:tuple, [t_evm_types()]}
+
   @dynamically_sized_types [:string, :bytes]
 
   defguardp valid_bitsize(bitsize) when bitsize >= 8 and bitsize <= 256 and rem(bitsize, 8) == 0
@@ -187,46 +200,46 @@ defmodule Ethers.Types do
 
   ## Examples
 
-      iex> Ethers.Types.type_match?(:bool, false)
+      iex> Ethers.Types.matches_type?(false, :bool)
       true
 
-      iex> Ethers.Types.type_match?({:uint, 8}, 200)
+      iex> Ethers.Types.matches_type?(200, {:uint, 8})
       true
 
-      iex> Ethers.Types.type_match?({:uint, 8}, 400)
+      iex> Ethers.Types.matches_type?(400, {:uint, 8})
       false
   """
-  @spec type_match?(term, term()) :: boolean()
-  def type_match?(type, value)
+  @spec matches_type?(term(), t_evm_types()) :: boolean()
+  def matches_type?(value, type)
 
-  def type_match?({:uint, _bsize} = type, value),
+  def matches_type?(value, {:uint, _bsize} = type),
     do: is_integer(value) and value >= 0 and value <= max(type)
 
-  def type_match?({:int, _bsize} = type, value),
+  def matches_type?(value, {:int, _bsize} = type),
     do: is_integer(value) and min(type) <= value and value <= max(type)
 
-  def type_match?(:address, value), do: is_binary(value) and byte_size(value) <= 42
+  def matches_type?(value, :address), do: is_binary(value) and byte_size(value) <= 42
 
-  def type_match?(:string, value), do: is_binary(value) and String.valid?(value)
+  def matches_type?(value, :string), do: is_binary(value) and String.valid?(value)
 
-  def type_match?(:bytes, value), do: is_binary(value)
+  def matches_type?(value, :bytes), do: is_binary(value)
 
-  def type_match?({:bytes, size}, value), do: is_binary(value) && byte_size(value) == size
+  def matches_type?(value, {:bytes, size}), do: is_binary(value) && byte_size(value) == size
 
-  def type_match?(:bool, value), do: is_boolean(value)
+  def matches_type?(value, :bool), do: is_boolean(value)
 
-  def type_match?({:array, sub_type, element_count}, values) do
-    type_match?({:array, sub_type}, values) and Enum.count(values) == element_count
+  def matches_type?(values, {:array, sub_type, element_count}) do
+    matches_type?(values, {:array, sub_type}) and Enum.count(values) == element_count
   end
 
-  def type_match?({:array, sub_type}, values) do
-    is_list(values) and Enum.all?(values, &type_match?(sub_type, &1))
+  def matches_type?(values, {:array, sub_type}) do
+    is_list(values) and Enum.all?(values, &matches_type?(&1, sub_type))
   end
 
-  def type_match?({:tuple, sub_types}, values) do
+  def matches_type?(values, {:tuple, sub_types}) do
     if is_tuple(values) and tuple_size(values) == Enum.count(sub_types) do
       Enum.zip(sub_types, Tuple.to_list(values))
-      |> Enum.all?(fn {type, value} -> type_match?(type, value) end)
+      |> Enum.all?(fn {type, value} -> matches_type?(value, type) end)
     else
       false
     end
@@ -234,4 +247,31 @@ defmodule Ethers.Types do
 
   @doc false
   def dynamically_sized_types, do: @dynamically_sized_types
+
+  @doc """
+  Validates and creates typed values to use with functions or events.
+
+  Typed values are useful when there are multiple overloads of same function or event and you need
+  to specify one of them to be used.
+
+  Also raises with ArgumentError in case value does not match the given type.
+
+  ## Examples
+
+      iex> Ethers.Types.typed({:uint, 256}, 5)
+      {:typed, {:uint, 256}, 5}
+
+      iex> Ethers.Types.typed(:bytes, <<0, 1, 2>>)
+      {:typed, :bytes, <<0, 1, 2>>}
+  """
+  @spec typed(term(), t_evm_types() | nil) :: {:typed, term(), term()} | no_return()
+  def typed(type, nil), do: {:typed, type, nil}
+
+  def typed(type, value) do
+    if matches_type?(value, type) do
+      {:typed, type, value}
+    else
+      raise ArgumentError, "Value #{inspect(value)} does not match type #{inspect(type)}"
+    end
+  end
 end

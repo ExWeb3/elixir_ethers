@@ -33,4 +33,12 @@ defmodule Ethers.TypesTest do
       assert_raise FunctionClauseError, fn -> Ethers.Types.max({:uint, 9}) end
     end
   end
+
+  describe "typed/2" do
+    test "raises on type mismatch" do
+      assert_raise ArgumentError, "Value -5 does not match type {:uint, 256}", fn ->
+        Ethers.Types.typed({:uint, 256}, -5)
+      end
+    end
+  end
 end

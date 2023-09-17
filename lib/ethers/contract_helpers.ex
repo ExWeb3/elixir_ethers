@@ -199,7 +199,7 @@ defmodule Ethers.ContractHelpers do
         ## Arguments
         #{inspect(args)}
 
-        ## Conflicting function signatures
+        ## Available signatures
         #{signatures}
         """
 
@@ -216,7 +216,7 @@ defmodule Ethers.ContractHelpers do
         ## Arguments
         #{inspect(args)}
 
-        ## Conflicting function signatures
+        ## Possible signatures
         #{signatures}
         """
     end

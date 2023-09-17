@@ -17,7 +17,7 @@ defmodule Ethers.MultiClauseContractTest do
   describe "next function" do
     test "will raise on ambiguous arguments" do
       assert_raise ArgumentError,
-                   "Ambiguous parameters\n\n## Arguments\n[1]\n\n## Conflicting function signatures\nsay(uint128 n)\nsay(uint8 n)\nsay(int256 n)\nsay(uint256 n)\n",
+                   "Ambiguous parameters\n\n## Arguments\n[1]\n\n## Possible signatures\nsay(uint128 n)\nsay(uint8 n)\nsay(int256 n)\nsay(uint256 n)\n",
                    fn ->
                      MultiClauseContract.say(1)
                    end
@@ -25,7 +25,7 @@ defmodule Ethers.MultiClauseContractTest do
 
     test "will raise on non matching arguments" do
       assert_raise ArgumentError,
-                   "No function selector matches current arguments!\n\n## Arguments\n[{:typed, {:uint, 64}, 1}]\n\n## Conflicting function signatures\nsay(address n)\nsay(uint128 n)\nsay(uint8 n)\nsay(int256 n)\nsay(uint256 n)\nsay(string n)\n",
+                   "No function selector matches current arguments!\n\n## Arguments\n[{:typed, {:uint, 64}, 1}]\n\n## Available signatures\nsay(address n)\nsay(uint128 n)\nsay(uint8 n)\nsay(int256 n)\nsay(uint256 n)\nsay(string n)\n",
                    fn ->
                      MultiClauseContract.say(typed({:uint, 64}, 1))
                    end
@@ -101,7 +101,7 @@ defmodule Ethers.MultiClauseContractTest do
 
     test "raises on conflicting parameters" do
       assert_raise ArgumentError,
-                   "Ambiguous parameters\n\n## Arguments\n~c\"\\n\"\n\n## Conflicting function signatures\nMultiEvent(uint256 n)\nMultiEvent(int256 n)\n",
+                   "Ambiguous parameters\n\n## Arguments\n~c\"\\n\"\n\n## Possible signatures\nMultiEvent(uint256 n)\nMultiEvent(int256 n)\n",
                    fn ->
                      MultiClauseContract.EventFilters.multi_event(10)
                    end

@@ -201,7 +201,7 @@ defmodule Ethers.Contract do
 
     quote context: mod, location: :keep do
       @doc """
-      Executes `#{unquote(human_signature(selectors))}` (#{unquote(document_state_mutability(selectors))} function) on the contract.
+      Executes `#{unquote(human_signature(selectors))}` on the contract.
 
       #{unquote(document_help_message(selectors))}
 

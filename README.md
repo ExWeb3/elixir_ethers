@@ -85,14 +85,14 @@ iex> h MyERC20Token.balance_of
   @spec balance_of(Ethers.Types.t_address()) ::
           Ethers.Contract.t_function_output()
 
-Executes balanceOf(address _owner) (view function) on the contract.
+Executes balanceOf(address _owner) on the contract.
 
 This function should only be called for result and never in a transaction on
 its own. (Use Ethers.call/2)
 
 State mutability: view
 
-## Parameters
+## Parameter Types
 
   • _owner: `:address`
 

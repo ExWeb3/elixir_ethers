@@ -54,9 +54,13 @@ defmodule Ethers.Event do
       |> tl()
       |> Enum.map(&Utils.hex_decode!/1)
       |> Enum.zip(selector.types)
-      |> Enum.map(fn {data, type} ->
-        [decoded] = TypeDecoder.decode_raw(data, [type])
-        {decoded, type}
+      |> Enum.map(fn
+        {data, :string} ->
+          {Utils.hex_encode(data), :string}
+
+        {data, type} ->
+          [decoded] = TypeDecoder.decode_raw(data, [type])
+          {decoded, type}
       end)
       |> Enum.map(fn {data, type} -> Utils.human_arg(data, type) end)
 

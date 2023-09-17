@@ -33,4 +33,55 @@ defmodule Ethers.TypesTest do
       assert_raise FunctionClauseError, fn -> Ethers.Types.max({:uint, 9}) end
     end
   end
+
+  describe "typed/2" do
+    test "works with every type" do
+      [
+        {{:uint, 256}, 200},
+        {{:int, 256}, -100},
+        {{:int, 256}, 100},
+        {{:bytes, 2}, <<1, 2>>},
+        {:bytes, <<1, 2, 3>>},
+        {:bool, true},
+        {:bool, false},
+        {:string, "hello"},
+        {{:array, :bool}, [true, false]},
+        {{:array, :bool, 2}, [true, false]},
+        {{:tuple, [:bool, :bool]}, {true, false}}
+      ]
+      |> Enum.each(fn {type, value} ->
+        assert {:typed, type, value} == Ethers.Types.typed(type, value)
+      end)
+    end
+
+    test "works with nil values" do
+      assert {:typed, _, nil} = Ethers.Types.typed(:string, nil)
+      assert {:typed, _, nil} = Ethers.Types.typed({:uint, 256}, nil)
+    end
+
+    test "raises on type mismatch" do
+      [
+        {{:uint, 16}, 100_000},
+        {{:uint, 16}, -1},
+        {{:int, 8}, -300},
+        {{:int, 8}, 256},
+        {{:bytes, 2}, <<1, 2, 3>>},
+        {:bytes, false},
+        {:bool, 1},
+        {:bool, 0},
+        {:string, <<0xFFFF::16>>},
+        {{:array, :bool}, [true, 1]},
+        {{:array, :bool, 2}, [true, false, false]},
+        {{:tuple, [:bool, :bool]}, {true, 1}},
+        {{:tuple, [:bool, :bool]}, {true, false, false}}
+      ]
+      |> Enum.each(fn {type, value} ->
+        assert_raise ArgumentError,
+                     "Value #{inspect(value)} does not match type #{inspect(type)}",
+                     fn ->
+                       Ethers.Types.typed(type, value)
+                     end
+      end)
+    end
+  end
 end

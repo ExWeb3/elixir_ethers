@@ -43,6 +43,18 @@ defmodule Ethers.RegistryContractTest do
               [%{topics: ["Registered(address,(string,uint8))", @from], data: [{"alisina", 27}]}]} =
                Ethers.get_logs(search_filter)
     end
+
+    test "does not return any events for a non existing contract", %{address: address} do
+      {:ok, _tx_hash} =
+        RegistryContract.register({"alisina", 27}) |> Ethers.send(from: @from, to: address)
+
+      empty_filter = RegistryContract.EventFilters.registered(nil)
+
+      assert {:ok, [%Ethers.Event{address: ^address}]} =
+               Ethers.get_logs(empty_filter, address: address)
+
+      assert {:ok, []} = Ethers.get_logs(empty_filter, address: @from)
+    end
   end
 
   defp deploy_registry_contract(_ctx) do

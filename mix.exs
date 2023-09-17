@@ -54,7 +54,10 @@ defmodule Ethers.MixProject do
 
     [
       main: "readme",
-      extras: ["README.md": [title: "Introduction"]],
+      extras: [
+        "README.md": [title: "Introduction"],
+        "guides/typed-arguments.md": [title: "Typed Arguments"]
+      ],
       source_url: @source_url,
       source_ref: source_ref,
       groups_for_modules: [
@@ -65,7 +68,8 @@ defmodule Ethers.MixProject do
           ~r/Contracts\.\w+\.EventFilters/
         ]
       ],
-      logo: "assets/exdoc_logo.png"
+      logo: "assets/exdoc_logo.png",
+      markdown_processor: {ExDoc.Markdown.Earmark, footnotes: true}
     ]
   end
 

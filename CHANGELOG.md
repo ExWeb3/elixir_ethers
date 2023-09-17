@@ -11,7 +11,9 @@
 ### Breaking Changes
 
  * The generated contract functions no longer call or send transactions, They will only prepare parameters.
- To execute an explicit call to `Ethers.send/2` or `Ethers.call/2` is required.
+ To execute an explicit call to `Ethers.send/2` or `Ethers.call/2` is required
+ * Events no longer accept `address` overrides. Overriding now happens at `Ethers.get_logs/2` 
+ * Function `Ethers.get_logs/3` is now changed to `Ethers.get_logs/2`
 
 ## v0.0.6 (2023-09-06)
 

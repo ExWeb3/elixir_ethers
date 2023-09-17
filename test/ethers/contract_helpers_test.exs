@@ -35,20 +35,12 @@ defmodule Ethers.ContractHelpersTest do
   describe "generate_arguments" do
     test "works with correct names" do
       assert [{:amount, [], _}, {:sender, [], _}] =
-               ContractHelpers.generate_arguments(
-                 Ethers.TestModuleName,
-                 [{:uint, 256}, :address],
-                 ["amount", "sender"]
-               )
+               ContractHelpers.generate_arguments(Ethers.TestModuleName, 2, ["amount", "sender"])
     end
 
     test "works with invalid names" do
       assert [{:arg1, [], _}, {:arg2, [], _}] =
-               ContractHelpers.generate_arguments(
-                 Ethers.TestModuleName,
-                 [{:uint, 256}, :address],
-                 ["amount"]
-               )
+               ContractHelpers.generate_arguments(Ethers.TestModuleName, 2, ["amount"])
     end
   end
 

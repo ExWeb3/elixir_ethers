@@ -68,7 +68,7 @@ defmodule Ethers.NameService do
       iex> Ethers.NameService.name_hash("alisina.eth")
       Ethers.Utils.hex_decode!("0x1b557b3901bef3a986febf001c3b19370b34064b130d49ea967bf150f6d23dfe")
   """
-  @spec name_hash(String.t()) :: Ethers.Types.t_hash()
+  @spec name_hash(String.t()) :: <<_::256>>
   def name_hash(name) do
     name
     |> String.to_charlist()

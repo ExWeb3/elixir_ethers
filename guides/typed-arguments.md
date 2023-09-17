@@ -49,15 +49,16 @@ Ethers supports all generic data types from EVM. Here is a list of them.
 
 | Elixir Type              | Solidity Type     | Description                                         |
 | ------------------------ | ----------------- | --------------------------------------------------- |
-| `{:uint, bitsize}`       | `uint{bitsize}`   | unsigned integer [^1]                         |
-| `{:int, bitsize}`        | `int{bitsize}`    | signed integer  [^1]                          |
-| `{:bytes, size}`         | `bytes{size}`     | fixed length byte array [^2]                 | 
 | `:address`               | `address`         | Ethereum wallet address                             |
 | `:bool`                  | `bool`            | Boolean value                                       |
 | `:string`                | `string`          | Dynamic length string                               |
+| `:bytes`                 | `bytes`           | Dynamic length byte array [^1]                      | 
+| `{:bytes, size}`         | `bytes{size}`     | Fixed length byte array [^1]                        | 
+| `{:uint, bitsize}`       | `uint{bitsize}`   | Unsigned integer [^2]                               |
+| `{:int, bitsize}`        | `int{bitsize}`    | Signed integer  [^2]                                |
 | `{:array, type}`         | `T[]`             | Dynamic length array of type                        |
 | `{:array, type, length}` | `T[{length}]`     | Fixed length array of type                          |
 | `{:tuple, types}`        | Tuples or Structs | A tuple with types (structs in solidity are tuples) |
 
-[^1]: For `int` and `uint` data types, the bitsize must be between 8 and 256 and also dividable to 8.
-[^2]: For fixed length byte array (bytes1, bytes2, ..., bytes32) the size must be between 1 and 32.
+[^1]: For fixed length byte array (bytes1, bytes2, ..., bytes32) the size must be between 1 and 32.
+[^2]: For `int` and `uint` data types, the bitsize must be between 8 and 256 and also dividable to 8.

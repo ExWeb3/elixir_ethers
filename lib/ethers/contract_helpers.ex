@@ -74,15 +74,17 @@ defmodule Ethers.ContractHelpers do
     """
     #{message}
 
-    State mutability: #{state_mutability}
+    State mutability: #{document_state_mutabilities([state_mutability])}
     """
   end
 
   defp do_document_help_message(state_mutabilities) do
     """
     This function has multiple state mutabilities based on the overload that you use.
+    You may use the correct action (`Ethers.call/2` or `Ethers.send/2`) to interact with this function
+    based on the overload you choose.
 
-    State mutabilities: #{Enum.join(state_mutabilities, ",")}
+    State mutabilities: #{document_state_mutabilities(state_mutabilities)}
     """
   end
 
@@ -117,8 +119,8 @@ defmodule Ethers.ContractHelpers do
     """
   end
 
-  def document_state_mutability(selectors) do
-    Enum.map_join(selectors, " OR ", & &1.state_mutability)
+  defp document_state_mutabilities(state_mutabilities) do
+    Enum.join(state_mutabilities, " OR ")
   end
 
   def human_signature(%ABI.FunctionSelector{

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### New Features
+
+ * Checksum address utility functions
+
 ### Enhancements
 
  * Use zip_reduce for event generators

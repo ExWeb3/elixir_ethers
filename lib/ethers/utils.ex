@@ -219,6 +219,55 @@ defmodule Ethers.Utils do
   def human_arg(argument, _type), do: argument
 
   @doc """
+  Will convert an upper or lowercase Ethereum address to a checksum address.
+
+  ## Examples
+
+      iex> Ethers.Utils.to_checksum_address("0xc1912fee45d61c87cc5ea59dae31190fffff232d")
+      "0xc1912fEE45d61C87Cc5EA59DaE31190FFFFf232d"
+
+      iex> Ethers.Utils.to_checksum_address("0XC1912FEE45D61C87CC5EA59DAE31190FFFFF232D")
+      "0xc1912fEE45d61C87Cc5EA59DaE31190FFFFf232d"
+  """
+  @spec to_checksum_address(Ethers.Types.t_address()) :: Ethers.Types.t_address()
+  def to_checksum_address("0x" <> address), do: to_checksum_address(address)
+  def to_checksum_address("0X" <> address), do: to_checksum_address(address)
+
+  def to_checksum_address(address) do
+    address = String.downcase(address)
+
+    hashed_address =
+      address |> Ethers.keccak_module().hash_256() |> Base.encode16(case: :lower)
+
+    address
+    |> String.to_charlist()
+    |> Enum.zip(String.to_charlist(hashed_address))
+    |> Enum.map(fn
+      {c, _} when c < ?a -> c
+      {c, h} when h > ?7 -> :string.to_upper(c)
+      {c, _} -> c
+    end)
+    |> to_string()
+    |> then(&"0x#{&1}")
+  end
+
+  @doc """
+  Checks the checksum of a given address. Will also return false on non-checksum addresses.
+
+  ## Examples
+
+      iex> Ethers.Utils.valid_checksum_address?("0xc1912fEE45d61C87Cc5EA59DaE31190FFFFf232d")
+      true
+
+      iex> Ethers.Utils.valid_checksum_address?("0xc1912fee45d61C87Cc5EA59DaE31190FFFFf232d")
+      false
+  """
+  @spec valid_checksum_address?(Ethers.Types.t_address()) :: boolean()
+  def valid_checksum_address?(address) do
+    address === to_checksum_address(address)
+  end
+
+  @doc """
   Returns the timestamp for a given block number.
 
   The block_number parameter can be a non negative integer or the hex encoded value of that integer.

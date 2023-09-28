@@ -119,17 +119,25 @@ defmodule Ethers.Types do
 
       iex> Ethers.Types.max({:int, 16})
       32767
+
+      iex> Ethers.Types.max({:uint, 128})
+      340282366920938463463374607431768211455
+
+      iex> Ethers.Types.max({:int, 128})
+      170141183460469231731687303715884105727
   """
   def max(type)
 
   def max({:uint, bitsize}) when valid_bitsize(bitsize) do
-    (:math.pow(2, bitsize) - 1)
+    :math.pow(2, bitsize)
     |> trunc()
+    |> Kernel.-(1)
   end
 
   def max({:int, bitsize}) when valid_bitsize(bitsize) do
-    (:math.pow(2, bitsize - 1) - 1)
+    :math.pow(2, bitsize - 1)
     |> trunc()
+    |> Kernel.-(1)
   end
 
   @doc """
@@ -151,14 +159,18 @@ defmodule Ethers.Types do
 
       iex> Ethers.Types.min({:int, 24})
       -8388608
+
+      iex> Ethers.Types.min({:int, 128})
+      -170141183460469231731687303715884105728
   """
   def min(type)
 
   def min({:uint, bitsize}) when valid_bitsize(bitsize), do: 0
 
   def min({:int, bitsize}) when valid_bitsize(bitsize) do
-    (-1 * :math.pow(2, bitsize - 1))
+    :math.pow(2, bitsize - 1)
     |> trunc()
+    |> Kernel.*(-1)
   end
 
   @doc """

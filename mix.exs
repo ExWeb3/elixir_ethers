@@ -21,7 +21,7 @@ defmodule Ethers.MixProject do
         "coveralls.post": :test,
         "coveralls.html": :test
       ],
-      description: "Ethereum/Web3 client based on ethers.js",
+      description: "Ethereum/Web3 client for easy interaction with EVM based smart contracts",
       package: package(),
       docs: docs(),
       aliases: aliases()

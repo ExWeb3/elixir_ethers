@@ -138,6 +138,20 @@ defmodule Ethers.CounterContractTest do
       assert {:ok, [%Event{address: ^address, data: [101]}]} = Ethers.get_logs(correct_filter)
       assert {:ok, []} = Ethers.get_logs(incorrect_filter)
     end
+
+    test "cat get the emitted events with get_logs! function", %{address: address} do
+      {:ok, _tx_hash} = CounterContract.set(101) |> Ethers.send(from: @from, to: address)
+
+      assert filter = CounterContract.EventFilters.set_called(nil)
+
+      assert [
+               %Event{
+                 address: ^address,
+                 topics: ["SetCalled(uint256,uint256)", 100],
+                 data: [101]
+               }
+             ] = Ethers.get_logs!(filter)
+    end
   end
 
   describe "override block number" do

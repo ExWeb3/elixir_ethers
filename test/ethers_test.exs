@@ -86,4 +86,21 @@ defmodule EthersTest do
                ["Bye"]
     end
   end
+
+  describe "get_logs/2" do
+    test "returns error when request fails" do
+      assert {:error, %{reason: :nxdomain}} =
+               Ethers.get_logs(%{topics: [], selector: nil},
+                 rpc_opts: [url: "http://non.exists"]
+               )
+    end
+
+    test "with bang function, raises error when request fails" do
+      assert_raise Mint.TransportError, "non-existing domain", fn ->
+        Ethers.get_logs!(%{topics: [], selector: nil},
+          rpc_opts: [url: "http://non.exists"]
+        )
+      end
+    end
+  end
 end

@@ -296,6 +296,14 @@ defmodule Ethers do
     end
   end
 
+  @spec get_logs!(map(), Keyword.t()) :: [Event.t()] | no_return
+  def get_logs!(params, overrides \\ []) do
+    case get_logs(params, overrides) do
+      {:ok, logs} -> logs
+      {:error, reason} -> raise ExecutionError, reason
+    end
+  end
+
   @doc false
   def keccak_module, do: Application.get_env(:ethers, :keccak_module, ExKeccak)
   @doc false

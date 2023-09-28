@@ -34,6 +34,7 @@ defmodule Ethers.Types do
           | {:tuple, [t_evm_types()]}
 
   @dynamically_sized_types [:string, :bytes]
+  @valid_bitsize_range 8..256//8
 
   defguardp valid_bitsize(bitsize) when bitsize >= 8 and bitsize <= 256 and rem(bitsize, 8) == 0
 
@@ -119,18 +120,27 @@ defmodule Ethers.Types do
 
       iex> Ethers.Types.max({:int, 16})
       32767
+
+      iex> Ethers.Types.max({:uint, 128})
+      340282366920938463463374607431768211455
+
+      iex> Ethers.Types.max({:int, 128})
+      170141183460469231731687303715884105727
   """
   def max(type)
 
-  def max({:uint, bitsize}) when valid_bitsize(bitsize) do
-    (:math.pow(2, bitsize) - 1)
-    |> trunc()
-  end
+  Enum.each(@valid_bitsize_range, fn bitsize ->
+    {int_res, uint_res} =
+      Enum.reduce(1..bitsize, {1, 1}, fn _bsize, {_, acc} -> {acc, 2 * acc} end)
 
-  def max({:int, bitsize}) when valid_bitsize(bitsize) do
-    (:math.pow(2, bitsize - 1) - 1)
-    |> trunc()
-  end
+    def max({:uint, unquote(bitsize)}) do
+      unquote(uint_res - 1)
+    end
+
+    def max({:int, unquote(bitsize)}) do
+      unquote(int_res - 1)
+    end
+  end)
 
   @doc """
   Returns the minimum possible value in the given type if supported.
@@ -151,15 +161,21 @@ defmodule Ethers.Types do
 
       iex> Ethers.Types.min({:int, 24})
       -8388608
+
+      iex> Ethers.Types.min({:int, 128})
+      -170141183460469231731687303715884105728
   """
   def min(type)
 
   def min({:uint, bitsize}) when valid_bitsize(bitsize), do: 0
 
-  def min({:int, bitsize}) when valid_bitsize(bitsize) do
-    (-1 * :math.pow(2, bitsize - 1))
-    |> trunc()
-  end
+  Enum.each(@valid_bitsize_range, fn bitsize ->
+    int_res = Enum.reduce(1..(bitsize - 1), 1, fn _bsize, acc -> 2 * acc end)
+
+    def min({:int, unquote(bitsize)}) do
+      unquote(-int_res)
+    end
+  end)
 
   @doc """
   Returns the default value in the given type if supported.

@@ -92,11 +92,43 @@ defmodule Ethers.ContractHelpers do
 
   def document_parameters(selectors) do
     parameters_docs =
-      Enum.map_join(selectors, "\n\n### OR\n", &document_types(&1.types, &1.input_names))
+      Enum.map_join(selectors, "\n\n### OR\n", fn
+        %{type: :event} = selector ->
+          {types, names} =
+            Enum.zip(selector.types, selector.input_names)
+            |> Enum.zip(selector.inputs_indexed)
+            |> Enum.filter(&elem(&1, 1))
+            |> Enum.map(&elem(&1, 0))
+            |> Enum.unzip()
+
+          document_types(types, names)
+
+        selector ->
+          document_types(selector.types, selector.input_names)
+      end)
 
     """
     ## Parameter Types
     #{parameters_docs}
+    """
+  end
+
+  def document_returns([%{type: :event} | _] = selectors) do
+    return_type_docs =
+      selectors
+      |> Enum.map(& &1.types)
+      |> Enum.uniq()
+      |> Enum.map_join("\n\n### OR\n", fn returns ->
+        if Enum.count(returns) > 0 do
+          document_types(returns)
+        else
+          "This event does not contain any values!"
+        end
+      end)
+
+    """
+    ## Event return types (when called with `Ethers.get_logs/2`)
+    #{return_type_docs}
     """
   end
 
@@ -232,9 +264,7 @@ defmodule Ethers.ContractHelpers do
   end
 
   def selector_match?(%{type: :event} = selector, args) do
-    Enum.zip(selector.types, selector.inputs_indexed)
-    |> Enum.filter(&elem(&1, 1))
-    |> Enum.map(&elem(&1, 0))
+    event_indexed_types(selector)
     |> do_selector_match?(args, true)
   end
 
@@ -255,6 +285,15 @@ defmodule Ethers.ContractHelpers do
     end
   end
 
+  def aggregate_input_names([%{type: :event} | _] = selectors) do
+    Enum.map(selectors, fn selector ->
+      Enum.zip(selector.input_names, selector.inputs_indexed)
+      |> Enum.filter(&elem(&1, 1))
+      |> Enum.map(&elem(&1, 0))
+    end)
+    |> Enum.zip_with(&(Enum.uniq(&1) |> Enum.join("_or_")))
+  end
+
   def aggregate_input_names(selectors) do
     Enum.map(selectors, & &1.input_names)
     |> Enum.zip_with(&(Enum.uniq(&1) |> Enum.join("_or_")))
@@ -265,6 +304,45 @@ defmodule Ethers.ContractHelpers do
       nil -> map
       address when is_binary(address) -> Map.put(map, field_name, address)
     end
+  end
+
+  def encode_event_topics(selector, args) do
+    [event_topic_0(selector) | encode_event_sub_topics(selector, args)]
+  end
+
+  defp event_topic_0(selector) do
+    selector
+    |> ABI.FunctionSelector.encode()
+    |> Ethers.keccak_module().hash_256()
+    |> Ethers.Utils.hex_encode()
+  end
+
+  defp encode_event_sub_topics(selector, raw_args) do
+    event_indexed_types(selector)
+    |> Enum.zip(raw_args)
+    |> Enum.map(fn
+      {_, nil} ->
+        nil
+
+      {type, value} when type in unquote(Ethers.Types.dynamically_sized_types()) ->
+        value
+        |> Ethers.Utils.prepare_arg(type)
+        |> Ethers.keccak_module().hash_256()
+        |> Ethers.Utils.hex_encode()
+
+      {type, value} ->
+        value
+        |> Ethers.Utils.prepare_arg(type)
+        |> List.wrap()
+        |> ABI.TypeEncoder.encode([type])
+        |> Ethers.Utils.hex_encode()
+    end)
+  end
+
+  defp event_indexed_types(selector) do
+    Enum.zip(selector.types, selector.inputs_indexed)
+    |> Enum.filter(&elem(&1, 1))
+    |> Enum.map(&elem(&1, 0))
   end
 
   defp read_abi(:abi, abi) when is_list(abi), do: {:ok, abi}

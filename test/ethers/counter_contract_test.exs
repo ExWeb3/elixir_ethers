@@ -140,17 +140,31 @@ defmodule Ethers.CounterContractTest do
     end
 
     test "cat get the emitted events with get_logs! function", %{address: address} do
-      {:ok, _tx_hash} = CounterContract.set(101) |> Ethers.send(from: @from, to: address)
+      {:ok, tx_hash} = CounterContract.set(101) |> Ethers.send(from: @from, to: address)
 
       assert filter = CounterContract.EventFilters.set_called(nil)
 
       assert [
-               %Event{
+               %Ethers.Event{
                  address: ^address,
                  topics: ["SetCalled(uint256,uint256)", 100],
-                 data: [101]
+                 data: [101],
+                 data_raw: "0x0000000000000000000000000000000000000000000000000000000000000065",
+                 log_index: 0,
+                 removed: false,
+                 topics_raw: [
+                   "0x9db4e91e99652c2cf1713076f100fca6a4f5b81f166bce406ff2b3012694f49f",
+                   "0x0000000000000000000000000000000000000000000000000000000000000064"
+                 ],
+                 transaction_hash: ^tx_hash,
+                 transaction_index: 0,
+                 block_hash: block_hash,
+                 block_number: block_number
                }
              ] = Ethers.get_logs!(filter)
+
+      assert is_integer(block_number)
+      assert String.valid?(block_hash)
     end
   end
 

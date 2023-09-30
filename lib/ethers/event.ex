@@ -11,6 +11,7 @@ defmodule Ethers.Event do
     :address,
     :block_hash,
     :block_number,
+    :data_raw,
     :topics,
     :topics_raw,
     :transaction_hash,
@@ -28,6 +29,7 @@ defmodule Ethers.Event do
           topics_raw: [String.t(), ...],
           transaction_hash: Types.t_hash(),
           transaction_index: non_neg_integer(),
+          data_raw: String.t(),
           data: [term()],
           log_index: non_neg_integer(),
           removed: boolean()
@@ -74,15 +76,17 @@ defmodule Ethers.Event do
     {:ok, transaction_index} = Utils.hex_to_integer(Map.fetch!(log, "transactionIndex"))
 
     %__MODULE__{
-      transaction_hash: Map.fetch!(log, "transactionHash"),
-      transaction_index: transaction_index,
       address: Map.fetch!(log, "address"),
       block_hash: Map.fetch!(log, "blockHash"),
       block_number: block_number,
       data: data,
+      data_raw: Map.fetch!(log, "data"),
       log_index: log_index,
+      removed: Map.fetch!(log, "removed"),
       topics: topics,
-      topics_raw: topics_raw
+      topics_raw: topics_raw,
+      transaction_hash: Map.fetch!(log, "transactionHash"),
+      transaction_index: transaction_index
     }
   end
 end

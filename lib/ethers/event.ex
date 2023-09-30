@@ -44,8 +44,11 @@ defmodule Ethers.Event do
           []
 
         %{"data" => raw_data} ->
-          {:ok, data_bin} = Utils.hex_decode(raw_data)
+          data_bin = Utils.hex_decode!(raw_data)
+
           ABI.decode(selector, data_bin, :output)
+          |> Enum.zip(selector.returns)
+          |> Enum.map(fn {return, type} -> Utils.human_arg(return, type) end)
       end
 
     [_ | sub_topics_raw] = topics_raw = Map.fetch!(log, "topics")

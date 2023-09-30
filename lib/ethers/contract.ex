@@ -213,21 +213,14 @@ defmodule Ethers.Contract do
               Ethers.Contract.t_function_output()
       def unquote(name)(unquote_splicing(func_args)) do
         {selector, raw_args} =
-          Ethers.ContractHelpers.find_selector!(
-            unquote(Macro.escape(selectors)),
-            unquote(func_args)
-          )
+          find_selector!(unquote(Macro.escape(selectors)), unquote(func_args))
 
         args =
           Enum.zip(raw_args, selector.types)
           |> Enum.map(fn {arg, type} -> Ethers.Utils.prepare_arg(arg, type) end)
 
-        data =
-          ABI.encode(selector, args)
-          |> Ethers.Utils.hex_encode()
-
         %{
-          data: data,
+          data: ABI.encode(selector, args) |> Ethers.Utils.hex_encode(),
           selector: selector
         }
         |> maybe_add_to_address(__MODULE__)
@@ -272,39 +265,10 @@ defmodule Ethers.Contract do
               Ethers.Contract.t_event_output()
       def unquote(name)(unquote_splicing(func_args)) do
         {selector, raw_args} =
-          Ethers.ContractHelpers.find_selector!(
-            unquote(Macro.escape(selectors)),
-            unquote(func_args)
-          )
-
-        topic_0 =
-          selector
-          |> ABI.FunctionSelector.encode()
-          |> Ethers.keccak_module().hash_256()
-          |> Ethers.Utils.hex_encode()
-
-        sub_topics =
-          Enum.zip(selector.types, raw_args)
-          |> Enum.map(fn
-            {_, nil} ->
-              nil
-
-            {type, value} when type in unquote(Ethers.Types.dynamically_sized_types()) ->
-              value
-              |> Ethers.Utils.prepare_arg(type)
-              |> Ethers.keccak_module().hash_256()
-              |> Ethers.Utils.hex_encode()
-
-            {type, value} ->
-              value
-              |> Ethers.Utils.prepare_arg(type)
-              |> List.wrap()
-              |> ABI.TypeEncoder.encode([type])
-              |> Ethers.Utils.hex_encode()
-          end)
+          find_selector!(unquote(Macro.escape(selectors)), unquote(func_args))
 
         %{
-          topics: [topic_0 | sub_topics],
+          topics: encode_event_topics(selector, raw_args),
           selector: selector
         }
         |> maybe_add_to_address(__MODULE__, :address)

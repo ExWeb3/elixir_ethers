@@ -47,9 +47,12 @@ defmodule Ethers.Event do
 
         %{"data" => raw_data} ->
           data_bin = Utils.hex_decode!(raw_data)
+          returns = ContractHelpers.event_non_indexed_types(selector)
 
-          ABI.decode(selector, data_bin, :output)
-          |> Enum.zip(selector.returns)
+          selector
+          |> Map.put(:returns, returns)
+          |> ABI.decode(data_bin, :output)
+          |> Enum.zip(returns)
           |> Enum.map(fn {return, type} -> Utils.human_arg(return, type) end)
       end
 

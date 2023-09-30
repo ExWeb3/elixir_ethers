@@ -123,14 +123,19 @@ defmodule Ethers.ContractHelpers do
   def document_returns([%{type: :event} | _] = selectors) do
     return_type_docs =
       selectors
-      |> Enum.map(&event_non_indexed_types/1)
+      |> Enum.map(fn selector ->
+        Enum.zip([selector.types, selector.input_names, selector.inputs_indexed])
+        |> Enum.reject(&elem(&1, 2))
+        |> Enum.map(fn {type, name, false} -> {type, name} end)
+        |> Enum.unzip()
+      end)
       |> Enum.uniq()
-      |> Enum.map_join("\n\n### OR\n", fn returns ->
-        if Enum.count(returns) > 0 do
-          document_types(returns)
-        else
+      |> Enum.map_join("\n\n### OR\n", fn
+        {[], _input_names} ->
           "This event does not contain any values!"
-        end
+
+        {types, input_names} ->
+          document_types(types, input_names)
       end)
 
     """

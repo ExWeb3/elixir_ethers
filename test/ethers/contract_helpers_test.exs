@@ -90,9 +90,9 @@ defmodule Ethers.ContractHelpersTest do
 end
 
 defmodule Ethers.WithDefaultAddress do
-  def default_address, do: "0x"
+  def __default_address__, do: "0x"
 end
 
 defmodule Ethers.WithoutDefaultAddress do
-  def default_address, do: nil
+  def __default_address__, do: nil
 end

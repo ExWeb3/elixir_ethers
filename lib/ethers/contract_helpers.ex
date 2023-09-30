@@ -261,7 +261,7 @@ defmodule Ethers.ContractHelpers do
   end
 
   def maybe_add_to_address(map, module, field_name \\ :to) do
-    case module.default_address() do
+    case module.__default_address__() do
       nil -> map
       address when is_binary(address) -> Map.put(map, field_name, address)
     end

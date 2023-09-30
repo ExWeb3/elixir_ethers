@@ -124,7 +124,7 @@ defmodule Ethers.Contract do
         defmodule unquote(events_mod_name) do
           @moduledoc "Events for `#{Macro.to_string(unquote(module))}`"
 
-          defdelegate default_address, to: unquote(module)
+          defdelegate __default_address__, to: unquote(module)
           unquote(events)
         end
       end
@@ -138,8 +138,8 @@ defmodule Ethers.Contract do
 
         To specify a default address see `Ethers.Contract`
         """
-        @spec default_address() :: Ethers.Types.t_address() | nil
-        def default_address, do: unquote(default_address)
+        @spec __default_address__() :: Ethers.Types.t_address() | nil
+        def __default_address__, do: unquote(default_address)
       end
 
     [extra_ast, constructor_ast | functions_ast] ++ [events_module_ast]

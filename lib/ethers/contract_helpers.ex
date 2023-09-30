@@ -90,25 +90,32 @@ defmodule Ethers.ContractHelpers do
 
   def document_parameters([%{types: []}]), do: ""
 
-  def document_parameters(selectors) do
+  def document_parameters([%{type: :event} | _] = selectors) do
     parameters_docs =
-      Enum.map_join(selectors, "\n\n### OR\n", fn
-        %{type: :event} = selector ->
-          {types, names} =
-            Enum.zip(selector.types, selector.input_names)
-            |> Enum.zip(selector.inputs_indexed)
-            |> Enum.filter(&elem(&1, 1))
-            |> Enum.map(&elem(&1, 0))
-            |> Enum.unzip()
+      Enum.map_join(selectors, "\n\n### OR\n", fn selector ->
+        {types, names} =
+          Enum.zip(selector.types, selector.input_names)
+          |> Enum.zip(selector.inputs_indexed)
+          |> Enum.filter(&elem(&1, 1))
+          |> Enum.map(&elem(&1, 0))
+          |> Enum.unzip()
 
-          document_types(types, names)
-
-        selector ->
-          document_types(selector.types, selector.input_names)
+        document_types(types, names)
       end)
 
     """
-    ## Parameter Types
+    ## Parameter Types (Event indexed topics)
+
+    #{parameters_docs}
+    """
+  end
+
+  def document_parameters(selectors) do
+    parameters_docs =
+      Enum.map_join(selectors, "\n\n### OR\n", &document_types(&1.types, &1.input_names))
+
+    """
+    ## Function Parameter Types
     #{parameters_docs}
     """
   end
@@ -116,7 +123,7 @@ defmodule Ethers.ContractHelpers do
   def document_returns([%{type: :event} | _] = selectors) do
     return_type_docs =
       selectors
-      |> Enum.map(& &1.types)
+      |> Enum.map(&event_non_indexed_types/1)
       |> Enum.uniq()
       |> Enum.map_join("\n\n### OR\n", fn returns ->
         if Enum.count(returns) > 0 do
@@ -127,7 +134,10 @@ defmodule Ethers.ContractHelpers do
       end)
 
     """
-    ## Event return types (when called with `Ethers.get_logs/2`)
+    ## Event `data` Types (when called with `Ethers.get_logs/2`)
+
+    These are non-indexed topics (often referred to as data) of the event log.
+
     #{return_type_docs}
     """
   end

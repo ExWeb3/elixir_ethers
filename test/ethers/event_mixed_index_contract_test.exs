@@ -21,7 +21,7 @@ defmodule Ethers.EventMixedIndexContractTest do
                  state_mutability: nil,
                  input_names: ["amount", "sender", "isFinal", "receiver"],
                  types: [{:uint, 256}, :address, :bool, :address],
-                 returns: [:bool, :address]
+                 returns: [{:uint, 256}, :bool]
                },
                topics: [
                  "0x0f1459b71050cedb12633644ebaa16569e1bb49626ab8a0f4c7d1cf0d574abe7",

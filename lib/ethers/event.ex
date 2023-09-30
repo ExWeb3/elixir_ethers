@@ -3,6 +3,7 @@ defmodule Ethers.Event do
   EVM Event struct and helpers
   """
 
+  alias Ethers.ContractHelpers
   alias Ethers.{Types, Utils}
   alias ABI.{FunctionSelector, TypeDecoder}
 
@@ -47,13 +48,12 @@ defmodule Ethers.Event do
           ABI.decode(selector, data_bin, :output)
       end
 
-    topics_raw = Map.fetch!(log, "topics")
+    [_ | sub_topics_raw] = topics_raw = Map.fetch!(log, "topics")
 
     decoded_topics =
-      topics_raw
-      |> tl()
+      sub_topics_raw
       |> Enum.map(&Utils.hex_decode!/1)
-      |> Enum.zip(selector.types)
+      |> Enum.zip(ContractHelpers.event_indexed_types(selector))
       |> Enum.map(fn
         {data, :string} ->
           {Utils.hex_encode(data), :string}

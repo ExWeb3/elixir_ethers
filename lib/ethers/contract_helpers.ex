@@ -339,9 +339,15 @@ defmodule Ethers.ContractHelpers do
     end)
   end
 
-  defp event_indexed_types(selector) do
+  def event_indexed_types(selector) do
     Enum.zip(selector.types, selector.inputs_indexed)
     |> Enum.filter(&elem(&1, 1))
+    |> Enum.map(&elem(&1, 0))
+  end
+
+  def event_non_indexed_types(selector) do
+    Enum.zip(selector.types, selector.inputs_indexed)
+    |> Enum.reject(&elem(&1, 1))
     |> Enum.map(&elem(&1, 0))
   end
 

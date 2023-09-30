@@ -248,7 +248,7 @@ defmodule Ethers.Contract do
 
     func_input_typespec = generate_event_typespecs(selectors, arity)
 
-    selectors = Enum.map(selectors, &Map.put(&1, :returns, Enum.drop(&1.types, arity)))
+    selectors = Enum.map(selectors, &Map.put(&1, :returns, event_non_indexed_types(&1)))
 
     quote context: mod, location: :keep do
       @doc """

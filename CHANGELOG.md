@@ -11,6 +11,7 @@
  * Use zip_reduce for event generators
  * Move documentation generators to ContractHelpers
  * Display message for empty parameters or return types
+ * `Ethers.call/2` and `Ethers.get_logs/2` now automatically convert integer block numbers to hex values
 
 ### Breaking Changes
 

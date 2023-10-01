@@ -131,21 +131,21 @@ These are non-indexed topics (often referred to as data) of the event log.
 ### Calling contract functions
 
 After defining the module, all the functions can be called like any other Elixir module.
-To make a call (eth_call) to the blockchain, you can use `Ethers.call/2` function.
+To make a call (eth_call) to the blockchain, you can use [`Ethers.call/2`](https://hexdocs.pm/ethers/Ethers.html#call/2) function.
 
 ```elixir
 # Calling functions on the blockchain
-iex> MyERC20Token.balance_of("0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2") |> Ethers.call()
+iex> MyERC20Token.balance_of("0x[Address]") |> Ethers.call()
 {:ok, [654294510138460920346]}
 ```
 
 ### Sending transaction
 
-To send transaction (eth_sendTransaction) to the blockchain, you can use the `Ethers.send/2` function.
+To send transaction (eth_sendTransaction) to the blockchain, you can use the [`Ethers.send/2`](https://hexdocs.pm/ethers/Ethers.html#send/2) function.
 Ensure that you specify a `from` option to inform your client which account to use:
 
 ```elixir
-iex> MyERC20Token.transfer("0x[Recipient Address]", 1000) |> Ethers.send(from: "0x[Sender address]")
+iex> MyERC20Token.transfer("0x[Recipient]", 1000) |> Ethers.send(from: "0x[Sender]")
 {:ok, "0xf313ff7ff54c6db80ad44c3ad58f72ff0fea7ce88e5e9304991ebd35a6e76000"}
 ```
 
@@ -154,7 +154,7 @@ iex> MyERC20Token.transfer("0x[Recipient Address]", 1000) |> Ethers.send(from: "
 Elixir Ethers provides functionality for creating event filters and fetching events from the RPC endpoint using `eth_getLogs`. 
 Each contract in Ethers generates an `EventFilters` module (e.g. `MyERC20Token.EventFilter`s) that can be used to create filters for events.
 
-To create an event filter and use the [`Ethers.get_logs/3`](https://hexdocs.pm/ethers/Ethers.html#get_logs/3) function, follow this example:
+To create an event filter and use the [`Ethers.get_logs/2`](https://hexdocs.pm/ethers/Ethers.html#get_logs/2) function, follow this example:
 
 ```elixir
 iex> filter = MyERC20Token.EventFilters.transfer("0x[From Address Here]", nil)
@@ -210,6 +210,10 @@ To use them you just need to specify the target contract address (`:to` option) 
 ```elixir
 iex> Ethers.Contracts.ERC20.balance_of("0xWALLET_ADDRESS", to: "0xTOKEN_ADDRESS")
 ```
+
+## Documentation
+
+For a detailed documentation visit [Ethers hexdocs page](https://hexdocs.pm/ethers).
 
 ## Contributing
 

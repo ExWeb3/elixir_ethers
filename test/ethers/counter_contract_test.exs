@@ -166,6 +166,20 @@ defmodule Ethers.CounterContractTest do
       assert is_integer(block_number)
       assert String.valid?(block_hash)
     end
+
+    test "can filter logs with fromBlock and toBlock options", %{address: address} do
+      {:ok, _tx_hash} = CounterContract.set(101) |> Ethers.send(from: @from, to: address)
+
+      assert filter = CounterContract.EventFilters.set_called(nil)
+
+      {:ok, current_block_number} = Ethers.current_block_number()
+
+      assert [] ==
+               Ethers.get_logs!(filter,
+                 fromBlock: current_block_number - 1,
+                 toBlock: current_block_number - 1
+               )
+    end
   end
 
   describe "override block number" do
@@ -176,7 +190,9 @@ defmodule Ethers.CounterContractTest do
       {:ok, block_1} = Ethereumex.HttpClient.eth_block_number()
 
       {:ok, _tx_hash} = CounterContract.set(102) |> Ethers.send(from: @from, to: address)
-      {:ok, block_2} = Ethereumex.HttpClient.eth_block_number()
+      {:ok, block_2} = Ethers.current_block_number()
+
+      assert is_integer(block_2)
 
       {:ok, _tx_hash} = CounterContract.set(103) |> Ethers.send(from: @from, to: address)
 

@@ -19,8 +19,11 @@ defmodule Ethers do
 
   import Ethers.RPC
 
+  alias Ethers.Event
+  alias Ethers.ExecutionError
+  alias Ethers.RPC
   alias Ethers.Types
-  alias Ethers.{Event, ExecutionError, RPC, Utils}
+  alias Ethers.Utils
 
   @internal_params [:selector]
   @option_keys [:rpc_client, :rpc_opts, :block]
@@ -142,7 +145,11 @@ defmodule Ethers do
   def call(%{data: _, selector: selector} = params, overrides) do
     {opts, overrides} = Keyword.split(overrides, @option_keys)
 
-    block = Keyword.get(opts, :block, "latest")
+    block =
+      case Keyword.get(opts, :block, "latest") do
+        number when is_integer(number) -> Utils.integer_to_hex(number)
+        v -> v
+      end
 
     params =
       overrides
@@ -287,6 +294,8 @@ defmodule Ethers do
     params =
       overrides
       |> Enum.into(params)
+      |> ensure_hex_value(:fromBlock)
+      |> ensure_hex_value(:toBlock)
       |> Map.drop(@internal_params)
 
     with {:ok, resp} when is_list(resp) <- eth_get_logs(params, opts) do
@@ -310,4 +319,11 @@ defmodule Ethers do
   def json_module, do: Application.get_env(:ethers, :json_module, Jason)
   @doc false
   def rpc_client, do: Application.get_env(:ethers, :rpc_client, Ethereumex.HttpClient)
+
+  defp ensure_hex_value(params, key) do
+    case Map.get(params, key) do
+      v when is_integer(v) -> %{params | key => Utils.integer_to_hex(v)}
+      _ -> params
+    end
+  end
 end

@@ -230,9 +230,13 @@ the same machine.
 
 ## Acknowledgements
 
-This project was not possible if it was not for the great [:ex_abi](https://github.com/poanetwork/ex_abi) library and its contributors.
+Ethers was possible to make thanks to the great contributors of the following libraries.
 
-Also a special thanks to the authors and contributors of [:ethereumex](https://github.com/mana-ethereum/ethereumex) library.
+ - [ABI](https://github.com/poanetwork/ex_abi)
+ - [Ethereumex](https://github.com/mana-ethereum/ethereumex)
+ - [ExKeccak](https://github.com/tzumby/ex_keccak)
+
+And also all the people who contributed to this project in any ways.
 
 ## License
 

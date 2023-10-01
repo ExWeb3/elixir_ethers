@@ -7,7 +7,7 @@ defmodule Ethers.NameService do
 
   alias Ethers.Contracts.ENS
 
-  @null_address "0x0000000000000000000000000000000000000000"
+  @zero_address Ethers.Types.default(:address)
 
   @doc """
   Resolves a name on blockchain.
@@ -88,7 +88,7 @@ defmodule Ethers.NameService do
     params = ENS.resolver(name_hash)
 
     case Ethers.call(params, opts) do
-      {:ok, [@null_address]} -> {:error, :domain_not_found}
+      {:ok, [@zero_address]} -> {:error, :domain_not_found}
       {:ok, [resolver]} -> {:ok, resolver}
       {:error, reason} -> {:error, reason}
     end

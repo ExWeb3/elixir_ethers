@@ -65,22 +65,22 @@ defmodule MyERC20Token do
   use Ethers.Contract, 
     abi_file: "path/to/abi.json", 
     default_address: "[Token address here (optional)]"
+
+  # You can also add more code here in this module if you wish
 end
 ```
 
-### Calling contract functions
+### Generated documentation for functions and event filters
 
-After defining the module, all the functions can be called like any other Elixir module.
-The documentation is also available giving the developer a first-class experience.
+Ethers generates documentation for all the functions and event filters based on the ABI data.
+To get the documentation you can either use the `h/1` IEx helper function or generate HTML/epub docs using ExDoc.
+
+#### Get the documentation of a contract function
 
 ```elixir
-# Calling functions on the blockchain
-iex> MyERC20Token.balance_of("0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2") |> Ethers.call()
-{:ok, [654294510138460920346]}
+iex(3)> h MyERC20Token.balance_of
 
-# Get the documentation of a function
-iex> h MyERC20Token.balance_of
-                     def balance_of(owner)
+                             def balance_of(owner)
 
   @spec balance_of(Ethers.Types.t_address()) ::
           Ethers.Contract.t_function_output()
@@ -92,7 +92,7 @@ its own. (Use Ethers.call/2)
 
 State mutability: view
 
-## Parameter Types
+## Function Parameter Types
 
   • _owner: `:address`
 
@@ -101,13 +101,48 @@ State mutability: view
   • {:uint, 256}
 ```
 
+#### Get the documentation of a event filter
+
+```elixir
+iex(4)> h MyERC20Token.EventFilters.transfer
+
+                             def transfer(from, to)
+
+  @spec transfer(Ethers.Types.t_address(), Ethers.Types.t_address()) ::
+          Ethers.Contract.t_event_output()
+
+Create event filter for Transfer(address from, address to, uint256 value)
+
+For each indexed parameter you can either pass in the value you want to filter
+or nil if you don't want to filter.
+
+## Parameter Types (Event indexed topics)
+
+  • from: :address
+  • to: :address
+
+## Event `data` Types (when called with `Ethers.get_logs/2`)
+
+These are non-indexed topics (often referred to as data) of the event log.
+
+  • value: {:uint, 256}
+```
+
+### Calling contract functions
+
+After defining the module, all the functions can be called like any other Elixir module.
+To make a call (eth_call) to the blockchain, you can use `Ethers.call/2` function.
+
+```elixir
+# Calling functions on the blockchain
+iex> MyERC20Token.balance_of("0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2") |> Ethers.call()
+{:ok, [654294510138460920346]}
+```
+
 ### Sending transaction
 
-Sending transactions is also straightforward, as Elixir Ethers automatically determines whether a function is a view function or a state-changing function, using `eth_call` or `eth_sendTransaction` accordingly.
-You can override this behavior with the `:action` override.
-
+To send transaction (eth_sendTransaction) to the blockchain, you can use the `Ethers.send/2` function.
 Ensure that you specify a `from` option to inform your client which account to use:
-
 
 ```elixir
 iex> MyERC20Token.transfer("0x[Recipient Address]", 1000) |> Ethers.send(from: "0x[Sender address]")

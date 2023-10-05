@@ -37,6 +37,7 @@ defmodule Ethers.Types do
   @valid_bitsize_range 8..256//8
 
   defguardp valid_bitsize(bitsize) when bitsize >= 8 and bitsize <= 256 and rem(bitsize, 8) == 0
+  defguardp valid_bytesize(bytesize) when bytesize >= 1 and bytesize <= 32
 
   @doc """
   Converts EVM data types to typespecs for documentation
@@ -57,7 +58,7 @@ defmodule Ethers.Types do
     end
   end
 
-  def to_elixir_type({:bytes, size}) do
+  def to_elixir_type({:bytes, size}) when valid_bytesize(size) do
     quote do: <<_::unquote(size * 8)>>
   end
 
@@ -209,7 +210,7 @@ defmodule Ethers.Types do
 
   def default(type) when type in [:string, :bytes], do: ""
 
-  def default({:bytes, size}), do: <<0::size*8>>
+  def default({:bytes, size}) when valid_bytesize(size), do: <<0::size*8>>
 
   @doc """
   Checks if a given data matches a given solidity type
@@ -224,6 +225,9 @@ defmodule Ethers.Types do
 
       iex> Ethers.Types.matches_type?(400, {:uint, 8})
       false
+
+      iex> Ethers.Types.matches_type?("0xdAC17F958D2ee523a2206206994597C13D831ec7", :address)
+      true
   """
   @spec matches_type?(term(), t_evm_types()) :: boolean()
   def matches_type?(value, type)
@@ -232,15 +236,23 @@ defmodule Ethers.Types do
     do: is_integer(value) and value >= 0 and value <= max(type)
 
   def matches_type?(value, {:int, _bsize} = type),
-    do: is_integer(value) and min(type) <= value and value <= max(type)
+    do: is_integer(value) and value >= min(type) and value <= max(type)
 
-  def matches_type?(value, :address), do: is_binary(value) and byte_size(value) <= 42
+  def matches_type?(value, :address) when is_binary(value) do
+    byte_size(value) == 20 or (byte_size(value) == 42 and String.starts_with?(value, "0x"))
+  end
+
+  def matches_type?(_value, :address), do: false
 
   def matches_type?(value, :string), do: is_binary(value) and String.valid?(value)
 
   def matches_type?(value, :bytes), do: is_binary(value)
 
-  def matches_type?(value, {:bytes, size}), do: is_binary(value) && byte_size(value) == size
+  def matches_type?(value, {:bytes, size}) when valid_bytesize(size),
+    do: is_binary(value) && byte_size(value) == size
+
+  def matches_type?(_value, {:bytes, size}),
+    do: raise(ArgumentError, "Invalid size: #{inspect(size)} (must be 1 <= size <= 32)")
 
   def matches_type?(value, :bool), do: is_boolean(value)
 

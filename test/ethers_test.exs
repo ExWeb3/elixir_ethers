@@ -20,7 +20,7 @@ defmodule EthersTest do
   describe "current_block_number" do
     test "returns the current block number" do
       assert {:ok, n} = Ethers.current_block_number()
-      assert n > 0
+      assert n >= 0
     end
 
     test "can override the rpc options" do

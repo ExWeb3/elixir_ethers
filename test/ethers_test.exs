@@ -37,9 +37,8 @@ defmodule EthersTest do
       assert {:ok, tx} = Ethers.deploy(HelloWorldContract, "", %{from: @from})
       assert {:ok, contract_address} = Ethers.deployed_address(tx)
 
-      assert HelloWorldContract.say_hello() |> Ethers.call!(to: contract_address) == [
-               "Hello World!"
-             ]
+      assert HelloWorldContract.say_hello() |> Ethers.call!(to: contract_address) ==
+               ["Hello World!"]
     end
 
     test "can deploy a contract given the contract binary" do
@@ -47,9 +46,8 @@ defmodule EthersTest do
       assert {:ok, tx} = Ethers.deploy(bin, "", %{from: @from})
       assert {:ok, contract_address} = Ethers.deployed_address(tx)
 
-      assert HelloWorldContract.say_hello() |> Ethers.call!(to: contract_address) == [
-               "Hello World!"
-             ]
+      assert HelloWorldContract.say_hello() |> Ethers.call!(to: contract_address) ==
+               ["Hello World!"]
     end
 
     test "can deploy a contract given the contract binary prefixed with 0x" do

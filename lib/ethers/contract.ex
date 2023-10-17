@@ -103,19 +103,19 @@ defmodule Ethers.Contract do
     constructor_ast =
       function_selectors_with_meta
       |> Enum.find(@default_constructor, &(&1.type == :constructor))
-      |> generate_method(module)
+      |> impl(module)
 
     functions_ast =
       function_selectors_with_meta
       |> Enum.filter(&(&1.type == :function and not is_nil(&1.function)))
-      |> Enum.map(&generate_method(&1, module))
+      |> Enum.map(&impl(&1, module))
 
     events_mod_name = Module.concat(module, EventFilters)
 
     events =
       function_selectors_with_meta
       |> Enum.filter(&(&1.type == :event))
-      |> Enum.map(&generate_event_filter(&1, module))
+      |> Enum.map(&impl(&1, module))
 
     events_module_ast =
       quote context: module do
@@ -145,9 +145,8 @@ defmodule Ethers.Contract do
 
   ## Helpers
 
-  @spec generate_method(map(), atom()) :: any()
-  defp generate_method(%{type: :constructor, arity: arity, selectors: [selector]}, mod) do
-    func_args = generate_arguments(mod, arity, selector.input_names)
+  defp impl(%{type: :constructor, selectors: [selector]} = abi, mod) do
+    func_args = generate_arguments(mod, abi.arity, selector.input_names)
 
     func_input_types =
       selector.types
@@ -176,42 +175,34 @@ defmodule Ethers.Contract do
     end
   end
 
-  defp generate_method(
-         %{
-           type: :function,
-           function: function,
-           arity: arity,
-           selectors: selectors
-         } = _function_data,
-         mod
-       ) do
+  defp impl(%{type: :function} = abi, mod) do
     name =
-      function
+      abi.function
       |> Macro.underscore()
       |> String.to_atom()
 
-    aggregated_input_names = aggregate_input_names(selectors)
+    aggregated_input_names = aggregate_input_names(abi.selectors)
 
     func_args =
-      generate_arguments(mod, arity, aggregated_input_names)
+      generate_arguments(mod, abi.arity, aggregated_input_names)
 
-    func_input_types = generate_typespecs(selectors)
+    func_input_types = generate_typespecs(abi.selectors)
 
     quote context: mod, location: :keep do
       @doc """
-      Executes `#{unquote(human_signature(selectors))}` on the contract.
+      Executes `#{unquote(human_signature(abi.selectors))}` on the contract.
 
-      #{unquote(document_help_message(selectors))}
+      #{unquote(document_help_message(abi.selectors))}
 
-      #{unquote(document_parameters(selectors))}
+      #{unquote(document_parameters(abi.selectors))}
 
-      #{unquote(document_returns(selectors))}
+      #{unquote(document_returns(abi.selectors))}
       """
       @spec unquote(name)(unquote_splicing(func_input_types)) ::
               Ethers.Contract.t_function_output()
       def unquote(name)(unquote_splicing(func_args)) do
         {selector, raw_args} =
-          find_selector!(unquote(Macro.escape(selectors)), unquote(func_args))
+          find_selector!(unquote(Macro.escape(abi.selectors)), unquote(func_args))
 
         args =
           Enum.zip(raw_args, selector.types)
@@ -226,42 +217,34 @@ defmodule Ethers.Contract do
     end
   end
 
-  defp generate_event_filter(
-         %{
-           function: function,
-           type: :event,
-           arity: arity,
-           selectors: selectors
-         } = _function_data,
-         mod
-       ) do
+  defp impl(%{type: :event} = abi, mod) do
     name =
-      function
+      abi.function
       |> Macro.underscore()
       |> String.to_atom()
 
-    aggregated_input_names = aggregate_input_names(selectors)
+    aggregated_input_names = aggregate_input_names(abi.selectors)
 
-    func_args = generate_arguments(mod, arity, aggregated_input_names)
+    func_args = generate_arguments(mod, abi.arity, aggregated_input_names)
 
-    func_input_typespec = generate_event_typespecs(selectors, arity)
+    func_typespec = generate_event_typespecs(abi.selectors, abi.arity)
 
     quote context: mod, location: :keep do
       @doc """
-      Create event filter for `#{unquote(human_signature(selectors))}` 
+      Create event filter for `#{unquote(human_signature(abi.selectors))}` 
 
       For each indexed parameter you can either pass in the value you want to 
       filter or `nil` if you don't want to filter.
 
-      #{unquote(document_parameters(selectors))}
+      #{unquote(document_parameters(abi.selectors))}
 
-      #{unquote(document_returns(selectors))}
+      #{unquote(document_returns(abi.selectors))}
       """
-      @spec unquote(name)(unquote_splicing(func_input_typespec)) ::
+      @spec unquote(name)(unquote_splicing(func_typespec)) ::
               Ethers.Contract.t_event_output()
       def unquote(name)(unquote_splicing(func_args)) do
         {selector, raw_args} =
-          find_selector!(unquote(Macro.escape(selectors)), unquote(func_args))
+          find_selector!(unquote(Macro.escape(abi.selectors)), unquote(func_args))
 
         %{
           topics: encode_event_topics(selector, raw_args),

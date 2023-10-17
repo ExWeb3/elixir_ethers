@@ -237,16 +237,18 @@ defmodule Ethers.Utils do
     hashed_address =
       address |> Ethers.keccak_module().hash_256() |> Base.encode16(case: :lower)
 
-    address
-    |> String.to_charlist()
-    |> Enum.zip(String.to_charlist(hashed_address))
-    |> Enum.map(fn
-      {c, _} when c < ?a -> c
-      {c, h} when h > ?7 -> :string.to_upper(c)
-      {c, _} -> c
-    end)
-    |> to_string()
-    |> then(&"0x#{&1}")
+    checksum_address =
+      address
+      |> String.to_charlist()
+      |> Enum.zip(String.to_charlist(hashed_address))
+      |> Enum.map(fn
+        {c, _} when c < ?a -> c
+        {c, h} when h > ?7 -> :string.to_upper(c)
+        {c, _} -> c
+      end)
+      |> to_string()
+
+    "0x#{checksum_address}"
   end
 
   @doc """

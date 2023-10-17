@@ -102,8 +102,7 @@ defmodule Ethers.Contract do
 
     constructor_ast =
       function_selectors_with_meta
-      |> Enum.find(&(&1.type == :constructor))
-      |> then(&(&1 || @default_constructor))
+      |> Enum.find(@default_constructor, &(&1.type == :constructor))
       |> generate_method(module)
 
     functions_ast =

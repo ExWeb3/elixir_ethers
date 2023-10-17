@@ -197,17 +197,15 @@ defmodule Ethers.ContractHelpers do
   end
 
   def generate_arguments(mod, arity, names) when is_integer(arity) do
-    arity
-    |> Macro.generate_arguments(mod)
-    |> then(fn args ->
-      if length(names) >= length(args) do
-        args
-        |> Enum.zip(names)
-        |> Enum.map(&get_argument_name_ast/1)
-      else
-        args
-      end
-    end)
+    args = Macro.generate_arguments(arity, mod)
+
+    if length(names) >= length(args) do
+      args
+      |> Enum.zip(names)
+      |> Enum.map(&get_argument_name_ast/1)
+    else
+      args
+    end
   end
 
   def generate_typespecs(selectors) do

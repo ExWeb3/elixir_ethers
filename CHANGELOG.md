@@ -20,6 +20,7 @@
  * Events no longer accept `address` overrides. Overriding now happens at `Ethers.get_logs/2` 
  * Function `Ethers.get_logs/3` is now changed to `Ethers.get_logs/2`
  * Generated contract modules and EventFilter modules `default_address/0` function is now renamed to `__default_adress__/0` to prevent collision
+ * Removal of `Ethers.RPC` module
 
 ### Bug fixes
 

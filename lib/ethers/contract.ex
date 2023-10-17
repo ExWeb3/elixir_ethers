@@ -31,7 +31,6 @@ defmodule Ethers.Contract do
 
   import Ethers.ContractHelpers
 
-  @type action :: :call | :send | :prepare
   @type t_function_output :: %{
           data: binary,
           to: Ethers.Types.t_address() | nil,

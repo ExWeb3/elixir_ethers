@@ -21,7 +21,7 @@ defmodule Ethers.CounterContractTest do
     end
   end
 
-  describe "calling functions with default action" do
+  describe "calling functions" do
     setup :deploy_counter_contract
 
     test "calling view functions", %{address: address} do

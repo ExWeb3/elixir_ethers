@@ -3,8 +3,6 @@ defmodule Ethers.Utils do
   Utilities for interacting with ethereum blockchain
   """
 
-  alias Ethers.RPC
-
   @wei_multiplier trunc(:math.pow(10, 18))
   @default_sample_size 10_000
   @default_acceptable_drift 2 * 60
@@ -281,7 +279,9 @@ defmodule Ethers.Utils do
     do: get_block_timestamp(integer_to_hex(block_number), opts)
 
   def get_block_timestamp("0x" <> _ = block_number, opts) do
-    with {:ok, block} <- RPC.eth_get_block_by_number(block_number, false, opts) do
+    {rpc_client, rpc_opts} = Ethers.get_rpc_client(opts)
+
+    with {:ok, block} <- rpc_client.eth_get_block_by_number(block_number, false, rpc_opts) do
       hex_to_integer(Map.fetch!(block, "timestamp"))
     end
   end

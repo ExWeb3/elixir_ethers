@@ -81,7 +81,7 @@ defmodule Ethers.ContractHelpers do
   defp do_document_help_message(state_mutabilities) do
     """
     This function has multiple state mutabilities based on the overload that you use.
-    You may use the correct action (`Ethers.call/2` or `Ethers.send/2`) to interact with this function
+    You may use the correct function (`Ethers.call/2` or `Ethers.send/2`) to interact with this function
     based on the overload you choose.
 
     State mutabilities: #{document_state_mutabilities(state_mutabilities)}

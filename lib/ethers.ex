@@ -17,11 +17,8 @@ defmodule Ethers do
   - `rpc_opts`: Options to pass to the RCP client e.g. `:url`.
   """
 
-  import Ethers.RPC
-
   alias Ethers.Event
   alias Ethers.ExecutionError
-  alias Ethers.RPC
   alias Ethers.Types
   alias Ethers.Utils
 
@@ -33,9 +30,11 @@ defmodule Ethers do
   @doc """
   Returns the current gas price from the RPC API
   """
-  @spec current_gas_price() :: {:ok, non_neg_integer()}
-  def current_gas_price do
-    with {:ok, price_hex} <- RPC.eth_gas_price() do
+  @spec current_gas_price(Keyword.t()) :: {:ok, non_neg_integer()}
+  def current_gas_price(opts \\ []) do
+    {rpc_client, rpc_opts} = get_rpc_client(opts)
+
+    with {:ok, price_hex} <- rpc_client.eth_gas_price(rpc_opts) do
       Ethers.Utils.hex_to_integer(price_hex)
     end
   end
@@ -45,7 +44,9 @@ defmodule Ethers do
   """
   @spec current_block_number(Keyword.t()) :: {:ok, non_neg_integer()} | {:error, term()}
   def current_block_number(opts \\ []) do
-    with {:ok, block_number} <- RPC.eth_block_number(opts) do
+    {rpc_client, rpc_opts} = get_rpc_client(opts)
+
+    with {:ok, block_number} <- rpc_client.eth_block_number(rpc_opts) do
       Ethers.Utils.hex_to_integer(block_number)
     end
   end
@@ -90,8 +91,10 @@ defmodule Ethers do
         to: nil
       })
 
+    {rpc_client, rpc_opts} = get_rpc_client(opts)
+
     with {:ok, params} <- Utils.maybe_add_gas_limit(params, opts) do
-      RPC.eth_send_transaction(params, opts)
+      rpc_client.eth_send_transaction(params, rpc_opts)
     end
   end
 
@@ -106,7 +109,9 @@ defmodule Ethers do
           {:ok, Types.t_address()}
           | {:error, :no_contract_address | :transaction_not_found | atom()}
   def deployed_address(tx_hash, opts \\ []) when is_binary(tx_hash) do
-    case RPC.eth_get_transaction_receipt(tx_hash, opts) do
+    {rpc_client, rpc_opts} = get_rpc_client(opts)
+
+    case rpc_client.eth_get_transaction_receipt(tx_hash, rpc_opts) do
       {:ok, %{"contractAddress" => contract_address}} when not is_nil(contract_address) ->
         {:ok, contract_address}
 
@@ -156,24 +161,28 @@ defmodule Ethers do
       |> Enum.into(params)
       |> Map.drop(@internal_params)
 
-    case eth_call(params, block, opts) do
-      {:ok, resp} when valid_result(resp) ->
-        returns =
-          selector
-          |> ABI.decode(Ethers.Utils.hex_decode!(resp), :output)
-          |> Enum.zip(selector.returns)
-          |> Enum.map(fn {return, type} -> Utils.human_arg(return, type) end)
+    {rpc_client, rpc_opts} = get_rpc_client(opts)
 
-        {:ok, returns}
+    with :ok <- check_params(params, :call) do
+      case rpc_client.eth_call(params, block, rpc_opts) do
+        {:ok, resp} when valid_result(resp) ->
+          returns =
+            selector
+            |> ABI.decode(Ethers.Utils.hex_decode!(resp), :output)
+            |> Enum.zip(selector.returns)
+            |> Enum.map(fn {return, type} -> Utils.human_arg(return, type) end)
 
-      {:ok, "0x"} ->
-        {:error, :unknown}
+          {:ok, returns}
 
-      :error ->
-        {:error, :hex_decode_error}
+        {:ok, "0x"} ->
+          {:error, :unknown}
 
-      {:error, cause} ->
-        {:error, cause}
+        :error ->
+          {:error, :hex_decode_error}
+
+        {:error, cause} ->
+          {:error, cause}
+      end
     end
   end
 
@@ -216,8 +225,11 @@ defmodule Ethers do
       |> Enum.into(params)
       |> Map.drop(@internal_params)
 
-    with {:ok, params} <- Utils.maybe_add_gas_limit(params, opts),
-         {:ok, tx} when valid_result(tx) <- eth_send_transaction(params, opts) do
+    {rpc_client, rpc_opts} = get_rpc_client(opts)
+
+    with :ok <- check_params(params, :send),
+         {:ok, params} <- Utils.maybe_add_gas_limit(params, opts),
+         {:ok, tx} when valid_result(tx) <- rpc_client.eth_send_transaction(params, rpc_opts) do
       {:ok, tx}
     else
       {:ok, "0x"} ->
@@ -262,7 +274,10 @@ defmodule Ethers do
       |> Enum.into(params)
       |> Map.drop(@internal_params)
 
-    with {:ok, gas_hex} <- eth_estimate_gas(params, opts) do
+    {rpc_client, rpc_opts} = get_rpc_client(opts)
+
+    with :ok <- check_params(params, :estimate_gas),
+         {:ok, gas_hex} <- rpc_client.eth_estimate_gas(params, rpc_opts) do
       Utils.hex_to_integer(gas_hex)
     end
   end
@@ -298,7 +313,9 @@ defmodule Ethers do
       |> ensure_hex_value(:toBlock)
       |> Map.drop(@internal_params)
 
-    with {:ok, resp} when is_list(resp) <- eth_get_logs(params, opts) do
+    {rpc_client, rpc_opts} = get_rpc_client(opts)
+
+    with {:ok, resp} when is_list(resp) <- rpc_client.eth_get_logs(params, rpc_opts) do
       logs = Enum.map(resp, &Event.decode(&1, selector))
 
       {:ok, logs}
@@ -314,16 +331,41 @@ defmodule Ethers do
   end
 
   @doc false
+  @spec keccak_module() :: atom()
   def keccak_module, do: Application.get_env(:ethers, :keccak_module, ExKeccak)
+
   @doc false
+  @spec json_module() :: atom()
   def json_module, do: Application.get_env(:ethers, :json_module, Jason)
+
   @doc false
+  @spec rpc_client() :: atom()
   def rpc_client, do: Application.get_env(:ethers, :rpc_client, Ethereumex.HttpClient)
+
+  @doc false
+  @spec get_rpc_client(Keyword.t()) :: {atom(), Keyword.t()}
+  def get_rpc_client(opts) do
+    module =
+      case Keyword.fetch(opts, :rpc_client) do
+        {:ok, module} when is_atom(module) -> module
+        :error -> Ethers.rpc_client()
+      end
+
+    {module, Keyword.get(opts, :rpc_opts, [])}
+  end
 
   defp ensure_hex_value(params, key) do
     case Map.get(params, key) do
       v when is_integer(v) -> %{params | key => Utils.integer_to_hex(v)}
       _ -> params
     end
+  end
+
+  defp check_to_address(%{to: to_address}, _action) when is_binary(to_address), do: :ok
+  defp check_to_address(%{to: nil}, action) when action in [:send, :estimate_gas], do: :ok
+  defp check_to_address(_params, _action), do: {:error, :no_to_address}
+
+  defp check_params(params, action) do
+    check_to_address(params, action)
   end
 end

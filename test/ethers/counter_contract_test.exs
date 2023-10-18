@@ -23,7 +23,8 @@ defmodule Ethers.CounterContractTest do
 
   describe "inspecting function calls" do
     test "renders the correct values when inspected" do
-      assert "#Ethers.TxData<function get() view>" == inspect(CounterContract.get())
+      assert "#Ethers.TxData<function get() view returns (uint256)>" ==
+               inspect(CounterContract.get())
 
       assert "#Ethers.TxData<function set(uint256 newAmount 101) non_payable>" ==
                inspect(CounterContract.set(101))
@@ -32,7 +33,7 @@ defmodule Ethers.CounterContractTest do
     test "shows unknown state mutability correctly" do
       tx_data = CounterContract.get()
 
-      assert "#Ethers.TxData<function get() unknown>" ==
+      assert "#Ethers.TxData<function get() unknown returns (uint256)>" ==
                inspect(put_in(tx_data.selector.state_mutability, nil))
     end
 

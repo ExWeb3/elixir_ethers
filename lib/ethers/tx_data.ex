@@ -73,19 +73,39 @@ defmodule Ethers.TxData do
         end)
         |> Enum.intersperse(concat(color(",", :operator, opts), break(" ")))
 
+      returns =
+        Enum.map(selector.returns, &color(ABI.FunctionSelector.encode_type(&1), :atom, opts))
+        |> Enum.intersperse(concat(color(",", :operator, opts), break(" ")))
+
+      returns_doc =
+        if Enum.count(returns) > 0 do
+          [
+            break(" "),
+            color("returns ", :atom, opts),
+            color("(", :operator, opts),
+            nest(concat([break("") | returns]), 2),
+            break(""),
+            color(")", :operator, opts)
+          ]
+        else
+          []
+        end
+
       inner =
-        concat([
-          break(""),
-          color("function", :atom, opts),
-          " ",
-          color(selector.function, :call, opts),
-          color("(", :operator, opts),
-          nest(concat([break("") | arguments_doc]), 2),
-          break(""),
-          color(")", :call, opts),
-          " ",
-          state_mutability(selector, opts)
-        ])
+        concat(
+          [
+            break(""),
+            color("function", :atom, opts),
+            " ",
+            color(selector.function, :call, opts),
+            color("(", :operator, opts),
+            nest(concat([break("") | arguments_doc]), 2),
+            break(""),
+            color(")", :call, opts),
+            " ",
+            state_mutability(selector, opts)
+          ] ++ returns_doc
+        )
 
       concat([
         color("#Ethers.TxData<", :map, opts),

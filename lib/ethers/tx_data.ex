@@ -12,19 +12,19 @@ defmodule Ethers.TxData do
   @type t :: %__MODULE__{
           data: binary() | [binary()],
           selector: ABI.FunctionSelector.t(),
-          to: nil | Ethers.Types.t_address()
+          default_address: nil | Ethers.Types.t_address()
         }
 
   @enforce_keys [:data, :selector]
-  defstruct [:data, :selector, :to]
+  defstruct [:data, :selector, :default_address]
 
   @doc false
   @spec new(binary(), ABI.FunctionSelector.t(), Ethers.Types.t_address() | nil) :: t()
-  def new(data, selector, to) do
+  def new(data, selector, default_address) do
     %__MODULE__{
       data: data,
       selector: selector,
-      to: to
+      default_address: default_address
     }
   end
 
@@ -42,7 +42,7 @@ defmodule Ethers.TxData do
 
   defp get_tx_map(%{selector: %{type: :function}} = tx_data) do
     %{data: tx_data.data}
-    |> maybe_add_to_address(tx_data.to)
+    |> maybe_add_to_address(tx_data.default_address)
   end
 
   defp maybe_add_to_address(tx_map, nil), do: tx_map
@@ -53,7 +53,7 @@ defmodule Ethers.TxData do
 
     alias Ethers.Utils
 
-    def inspect(%{selector: selector, data: data}, opts) do
+    def inspect(%{selector: selector, data: data, default_address: default_address}, opts) do
       arguments = ABI.decode(selector, Utils.hex_decode!(data), :input)
 
       arguments_doc =
@@ -66,7 +66,7 @@ defmodule Ethers.TxData do
             " ",
             if(name, do: color(name, :variable, opts)),
             if(name, do: " "),
-            inspect(Utils.human_arg(arg, type))
+            human_arg(arg, type)
           ]
           |> Enum.reject(&is_nil/1)
           |> concat()
@@ -80,7 +80,7 @@ defmodule Ethers.TxData do
       returns_doc =
         if Enum.count(returns) > 0 do
           [
-            break(" "),
+            " ",
             color("returns ", :atom, opts),
             color("(", :operator, opts),
             nest(concat([break("") | returns]), 2),
@@ -89,6 +89,19 @@ defmodule Ethers.TxData do
           ]
         else
           []
+        end
+
+      default_address =
+        case default_address do
+          nil ->
+            []
+
+          _ ->
+            [
+              line(),
+              color("default_address: ", :default, opts),
+              color(inspect(default_address), :string, opts)
+            ]
         end
 
       inner =
@@ -104,7 +117,7 @@ defmodule Ethers.TxData do
             color(")", :call, opts),
             " ",
             state_mutability(selector, opts)
-          ] ++ returns_doc
+          ] ++ returns_doc ++ default_address
         )
 
       concat([
@@ -136,5 +149,7 @@ defmodule Ethers.TxData do
     defp state_mutability(%{state_mutability: state_mutability}, opts) do
       color(Atom.to_string(state_mutability), :string, opts)
     end
+
+    defp human_arg(arg, type), do: inspect(Utils.human_arg(arg, type))
   end
 end

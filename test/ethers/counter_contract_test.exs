@@ -43,6 +43,15 @@ defmodule Ethers.CounterContractTest do
       assert "#Ethers.TxData<function set(uint256 101) non_payable>" ==
                inspect(put_in(tx_data.selector.input_names, ["invalid", "names", "length"]))
     end
+
+    test "includes default address if given" do
+      tx_data = CounterContract.get()
+
+      tx_data_with_default_address = %{tx_data | default_address: @from}
+
+      assert "#Ethers.TxData<function get() view returns (uint256)\n  default_address: \"0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1\">" ==
+               inspect(tx_data_with_default_address)
+    end
   end
 
   describe "calling functions" do
@@ -61,7 +70,7 @@ defmodule Ethers.CounterContractTest do
                  types: [],
                  returns: [uint: 256]
                },
-               to: nil
+               default_address: nil
              } == CounterContract.get()
 
       assert {:ok, [100]} = CounterContract.get() |> Ethers.call(to: address)
@@ -137,7 +146,7 @@ defmodule Ethers.CounterContractTest do
                  types: [uint: 256],
                  returns: []
                },
-               to: nil
+               default_address: nil
              } == CounterContract.set(101)
     end
   end

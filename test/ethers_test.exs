@@ -124,7 +124,7 @@ defmodule EthersTest do
                  types: [],
                  returns: [:string]
                },
-               to: "0x1000bf6a479f320ead074411a4b0e7944ea8c9c1"
+               default_address: "0x1000bf6a479f320ead074411a4b0e7944ea8c9c1"
              } == HelloWorldWithDefaultAddressContract.say_hello()
 
       assert %{data: "0xef5fb05b", to: "0x1000bf6a479f320ead074411a4b0e7944ea8c9c1"} ==
@@ -145,7 +145,7 @@ defmodule EthersTest do
                  types: [],
                  returns: [:string]
                },
-               to: nil
+               default_address: nil
              } == HelloWorldContract.say_hello()
     end
 

@@ -106,6 +106,20 @@ defmodule Ethers.MultiClauseContractTest do
                      MultiClauseContract.EventFilters.multi_event(10)
                    end
     end
+
+    test "renders correct values when inspected" do
+      uint_filter = MultiClauseContract.EventFilters.multi_event(typed({:uint, 256}, nil))
+      int_filter = MultiClauseContract.EventFilters.multi_event(-30)
+      string_filter = MultiClauseContract.EventFilters.multi_event("value to filter")
+
+      assert "#Ethers.EventFilter<event MultiEvent(uint256 indexed n any)>" ==
+               inspect(uint_filter)
+
+      assert "#Ethers.EventFilter<event MultiEvent(int256 indexed n -30)>" == inspect(int_filter)
+
+      assert "#Ethers.EventFilter<event MultiEvent(string indexed n (hashed) \"0xa842b64ae579814ab0eb0812f6cf54815c20796d31e248113583d3cf17d7eef4\")>" ==
+               inspect(string_filter)
+    end
   end
 
   defp deploy_multi_clause_contract(_ctx) do

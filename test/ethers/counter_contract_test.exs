@@ -54,6 +54,37 @@ defmodule Ethers.CounterContractTest do
     end
   end
 
+  describe "inspecting event filters" do
+    test "renders the correct values when inspected" do
+      assert "#Ethers.EventFilter<event SetCalled(uint256 indexed oldAmount any, uint256 newAmount)>" ==
+               inspect(CounterContract.EventFilters.set_called(nil))
+
+      assert "#Ethers.EventFilter<event SetCalled(uint256 indexed oldAmount 101, uint256 newAmount)>" ==
+               inspect(CounterContract.EventFilters.set_called(101))
+    end
+
+    test "renders the correct values when input names are not provided or incorrect" do
+      filter = CounterContract.EventFilters.set_called(101)
+
+      assert "#Ethers.EventFilter<event SetCalled(uint256 indexed 101, uint256)>" ==
+               inspect(put_in(filter.selector.input_names, []))
+
+      assert "#Ethers.EventFilter<event SetCalled(uint256 indexed 101, uint256)>" ==
+               inspect(
+                 put_in(filter.selector.input_names, filter.selector.input_names ++ ["invalid"])
+               )
+    end
+
+    test "includes default address if given" do
+      filter = CounterContract.EventFilters.set_called(101)
+
+      filter_with_default_address = %{filter | default_address: @from}
+
+      assert "#Ethers.EventFilter<event SetCalled(uint256 indexed oldAmount 101, uint256 newAmount)\n  default_address: \"0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1\">" ==
+               inspect(filter_with_default_address)
+    end
+  end
+
   describe "calling functions" do
     setup :deploy_counter_contract
 

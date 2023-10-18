@@ -78,11 +78,3 @@ defmodule Ethers.ContractHelpersTest do
     end
   end
 end
-
-defmodule Ethers.WithDefaultAddress do
-  def __default_address__, do: "0x"
-end
-
-defmodule Ethers.WithoutDefaultAddress do
-  def __default_address__, do: nil
-end

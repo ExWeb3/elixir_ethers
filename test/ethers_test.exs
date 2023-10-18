@@ -164,7 +164,7 @@ defmodule EthersTest do
                  types: [:string],
                  returns: []
                },
-               address: "0x1000bf6a479f320ead074411a4b0e7944ea8c9c1"
+               default_address: "0x1000bf6a479f320ead074411a4b0e7944ea8c9c1"
              } == HelloWorldWithDefaultAddressContract.EventFilters.hello_set()
 
       assert %{
@@ -190,7 +190,7 @@ defmodule EthersTest do
                  types: [:string],
                  returns: []
                },
-               address: nil
+               default_address: nil
              } == HelloWorldContract.EventFilters.hello_set()
     end
   end

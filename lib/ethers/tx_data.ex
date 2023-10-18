@@ -59,8 +59,6 @@ defmodule Ethers.TxData do
       arguments_doc =
         Enum.zip([selector.types, input_names(selector), arguments])
         |> Enum.map(fn {type, name, arg} ->
-          Utils.human_arg(arg, type)
-
           [
             color(ABI.FunctionSelector.encode_type(type), :atom, opts),
             " ",

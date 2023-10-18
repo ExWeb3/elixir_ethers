@@ -28,7 +28,7 @@ defmodule Ethers.EventMixedIndexContractTest do
                  "0x00000000000000000000000090f8bf6a479f320ead074411a4b0e7944ea8c9c1",
                  "0x00000000000000000000000090f8bf6a479f320ead074411a4b0e7944ea8c9c1"
                ],
-               address: nil
+               default_address: nil
              } == EventMixedIndexContract.EventFilters.transfer(@from, @from)
     end
 
@@ -59,6 +59,24 @@ defmodule Ethers.EventMixedIndexContractTest do
                    "0x00000000000000000000000000000000000000000000000000000000000000640000000000000000000000000000000000000000000000000000000000000001"
                }
              ] = Ethers.get_logs!(filter)
+    end
+
+    test "inspect returns correct value" do
+      assert "#Ethers.EventFilter<event Transfer(uint256 amount, address indexed sender \"0x90f8bf6a479f320ead074411a4b0e7944ea80000\", bool isFinal, address indexed receiver \"0x90f8bf6a479f320ead074411a4b0e7944ea80001\")>" ==
+               inspect(
+                 EventMixedIndexContract.EventFilters.transfer(
+                   "0x90f8bf6a479f320ead074411a4b0e7944ea80000",
+                   "0x90f8bf6a479f320ead074411a4b0e7944ea80001"
+                 )
+               )
+
+      assert "#Ethers.EventFilter<event Transfer(uint256 amount, address indexed sender any, bool isFinal, address indexed receiver \"0x90f8bf6a479f320ead074411a4b0e7944ea80001\")>" ==
+               inspect(
+                 EventMixedIndexContract.EventFilters.transfer(
+                   nil,
+                   "0x90f8bf6a479f320ead074411a4b0e7944ea80001"
+                 )
+               )
     end
   end
 end

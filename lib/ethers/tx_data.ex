@@ -47,4 +47,74 @@ defmodule Ethers.TxData do
 
   defp maybe_add_to_address(tx_map, nil), do: tx_map
   defp maybe_add_to_address(tx_map, address), do: Map.put(tx_map, :to, address)
+
+  defimpl Inspect do
+    import Inspect.Algebra
+
+    alias Ethers.Utils
+
+    def inspect(%{selector: selector, data: data}, opts) do
+      arguments = ABI.decode(selector, Utils.hex_decode!(data), :input)
+
+      arguments_doc =
+        Enum.zip([selector.types, input_names(selector), arguments])
+        |> Enum.map(fn {type, name, arg} ->
+          Utils.human_arg(arg, type)
+
+          [
+            color(ABI.FunctionSelector.encode_type(type), :atom, opts),
+            " ",
+            if(name, do: color(name, :variable, opts)),
+            if(name, do: " "),
+            inspect(Utils.human_arg(arg, type))
+          ]
+          |> Enum.reject(&is_nil/1)
+          |> concat()
+        end)
+        |> Enum.intersperse(concat(color(",", :operator, opts), break(" ")))
+
+      inner =
+        concat([
+          break(""),
+          color("function", :atom, opts),
+          " ",
+          color(selector.function, :call, opts),
+          color("(", :operator, opts),
+          nest(concat([break("") | arguments_doc]), 2),
+          break(""),
+          color(")", :call, opts),
+          " ",
+          state_mutability(selector, opts)
+        ])
+
+      concat([
+        color("#Ethers.TxData<", :map, opts),
+        nest(inner, 2),
+        break(""),
+        color(">", :map, opts)
+      ])
+    end
+
+    defp input_names(selector) do
+      if Enum.count(selector.types) == Enum.count(selector.input_names) do
+        selector.input_names
+      else
+        1..Enum.count(selector.types)
+        |> Enum.map(fn _ -> nil end)
+      end
+    end
+
+    defp state_mutability(%{state_mutability: state_mutability}, opts)
+         when state_mutability in [:non_payable, :payable] do
+      color(Atom.to_string(state_mutability), nil, opts)
+    end
+
+    defp state_mutability(%{state_mutability: nil}, opts) do
+      color("unknown", nil, opts)
+    end
+
+    defp state_mutability(%{state_mutability: state_mutability}, opts) do
+      color(Atom.to_string(state_mutability), :string, opts)
+    end
+  end
 end

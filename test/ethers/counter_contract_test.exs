@@ -49,7 +49,7 @@ defmodule Ethers.CounterContractTest do
 
       tx_data_with_default_address = %{tx_data | default_address: @from}
 
-      assert "#Ethers.TxData<function get() view returns (uint256)\n  default_address: \"0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1\">" ==
+      assert ~s'#Ethers.TxData<function get() view returns (uint256)\n  default_address: "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1">' ==
                inspect(tx_data_with_default_address)
     end
   end
@@ -80,7 +80,7 @@ defmodule Ethers.CounterContractTest do
 
       filter_with_default_address = %{filter | default_address: @from}
 
-      assert "#Ethers.EventFilter<event SetCalled(uint256 indexed oldAmount 101, uint256 newAmount)\n  default_address: \"0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1\">" ==
+      assert ~s'#Ethers.EventFilter<event SetCalled(uint256 indexed oldAmount 101, uint256 newAmount)\n  default_address: "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1">' ==
                inspect(filter_with_default_address)
     end
   end

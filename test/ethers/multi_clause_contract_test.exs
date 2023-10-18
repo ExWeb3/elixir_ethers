@@ -101,7 +101,7 @@ defmodule Ethers.MultiClauseContractTest do
 
     test "raises on conflicting parameters" do
       assert_raise ArgumentError,
-                   "Ambiguous parameters\n\n## Arguments\n~c\"\\n\"\n\n## Possible signatures\nMultiEvent(uint256 n)\nMultiEvent(int256 n)\n",
+                   ~s'Ambiguous parameters\n\n## Arguments\n~c"\\n"\n\n## Possible signatures\nMultiEvent(uint256 n)\nMultiEvent(int256 n)\n',
                    fn ->
                      MultiClauseContract.EventFilters.multi_event(10)
                    end
@@ -117,7 +117,7 @@ defmodule Ethers.MultiClauseContractTest do
 
       assert "#Ethers.EventFilter<event MultiEvent(int256 indexed n -30)>" == inspect(int_filter)
 
-      assert "#Ethers.EventFilter<event MultiEvent(string indexed n (hashed) \"0xa842b64ae579814ab0eb0812f6cf54815c20796d31e248113583d3cf17d7eef4\")>" ==
+      assert ~s'#Ethers.EventFilter<event MultiEvent(string indexed n (hashed) "0xa842b64ae579814ab0eb0812f6cf54815c20796d31e248113583d3cf17d7eef4")>' ==
                inspect(string_filter)
     end
   end

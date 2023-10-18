@@ -12,6 +12,7 @@
  * Move documentation generators to ContractHelpers
  * Display message for empty parameters or return types
  * `Ethers.call/2` and `Ethers.get_logs/2` now automatically convert integer block numbers to hex values
+ * Return structs as a result in generated functions and event filter with Inspection protocols implemented for better development experience
 
 ### Breaking Changes
 

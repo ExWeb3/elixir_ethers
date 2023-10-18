@@ -31,17 +31,6 @@ defmodule Ethers.Contract do
 
   import Ethers.ContractHelpers
 
-  @type t_function_output :: %{
-          data: binary,
-          to: Ethers.Types.t_address() | nil,
-          selector: ABI.FunctionSelector.t()
-        }
-  @type t_event_output :: %{
-          topics: [binary],
-          address: Ethers.Types.t_address(),
-          selector: ABI.FunctionSelector.t()
-        }
-
   @default_constructor %{
     type: :constructor,
     arity: 0,
@@ -198,8 +187,7 @@ defmodule Ethers.Contract do
 
       #{unquote(document_returns(abi.selectors))}
       """
-      @spec unquote(name)(unquote_splicing(func_input_types)) ::
-              Ethers.Contract.t_function_output()
+      @spec unquote(name)(unquote_splicing(func_input_types)) :: Ethers.TxData.t()
       def unquote(name)(unquote_splicing(func_args)) do
         {selector, raw_args} =
           find_selector!(unquote(Macro.escape(abi.selectors)), unquote(func_args))
@@ -208,11 +196,9 @@ defmodule Ethers.Contract do
           Enum.zip(raw_args, selector.types)
           |> Enum.map(fn {arg, type} -> Ethers.Utils.prepare_arg(arg, type) end)
 
-        %{
-          data: ABI.encode(selector, args) |> Ethers.Utils.hex_encode(),
-          selector: selector
-        }
-        |> maybe_add_to_address(__MODULE__)
+        ABI.encode(selector, args)
+        |> Ethers.Utils.hex_encode()
+        |> Ethers.TxData.new(selector, __default_address__())
       end
     end
   end
@@ -240,17 +226,13 @@ defmodule Ethers.Contract do
 
       #{unquote(document_returns(abi.selectors))}
       """
-      @spec unquote(name)(unquote_splicing(func_typespec)) ::
-              Ethers.Contract.t_event_output()
+      @spec unquote(name)(unquote_splicing(func_typespec)) :: Ethers.EventFilter.t()
       def unquote(name)(unquote_splicing(func_args)) do
         {selector, raw_args} =
           find_selector!(unquote(Macro.escape(abi.selectors)), unquote(func_args))
 
-        %{
-          topics: encode_event_topics(selector, raw_args),
-          selector: selector
-        }
-        |> maybe_add_to_address(__MODULE__, :address)
+        encode_event_topics(selector, raw_args)
+        |> Ethers.EventFilter.new(selector, __default_address__())
       end
     end
   end

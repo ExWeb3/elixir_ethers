@@ -18,11 +18,12 @@ defmodule Ethers do
   """
 
   alias Ethers.Event
+  alias Ethers.EventFilter
   alias Ethers.ExecutionError
+  alias Ethers.TxData
   alias Ethers.Types
   alias Ethers.Utils
 
-  @internal_params [:selector]
   @option_keys [:rpc_client, :rpc_opts, :block]
 
   defguardp valid_result(bin) when bin != "0x"
@@ -144,11 +145,13 @@ defmodule Ethers do
   {:ok, [100000000000000]}
   ```
   """
-  @spec call(map(), Keyword.t()) :: {:ok, [...]} | {:error, term()}
+  @spec call(TxData.t(), Keyword.t()) :: {:ok, [...]} | {:error, term()}
   def call(params, overrides \\ [])
 
-  def call(%{data: _, selector: selector} = params, overrides) do
+  def call(%TxData{selector: selector} = tx_data, overrides) do
     {opts, overrides} = Keyword.split(overrides, @option_keys)
+
+    {rpc_client, rpc_opts} = get_rpc_client(opts)
 
     block =
       case Keyword.get(opts, :block, "latest") do
@@ -156,15 +159,10 @@ defmodule Ethers do
         v -> v
       end
 
-    params =
-      overrides
-      |> Enum.into(params)
-      |> Map.drop(@internal_params)
+    tx_params = TxData.to_map(tx_data, overrides)
 
-    {rpc_client, rpc_opts} = get_rpc_client(opts)
-
-    with :ok <- check_params(params, :call) do
-      case rpc_client.eth_call(params, block, rpc_opts) do
+    with :ok <- check_params(tx_params, :call) do
+      case rpc_client.eth_call(tx_params, block, rpc_opts) do
         {:ok, resp} when valid_result(resp) ->
           returns =
             selector
@@ -189,7 +187,7 @@ defmodule Ethers do
   @doc """
   Same as `Ethers.call/2` but raises on error.
   """
-  @spec call!(map(), Keyword.t()) :: [...] | no_return()
+  @spec call!(TxData.t(), Keyword.t()) :: [...] | no_return()
   def call!(params, overrides \\ []) do
     case call(params, overrides) do
       {:ok, result} -> result
@@ -214,22 +212,19 @@ defmodule Ethers do
   {:ok, _tx_hash}
   ```
   """
-  @spec send(map(), Keyword.t()) :: {:ok, String.t()} | {:error, term()}
-  def send(params, overrides \\ [])
+  @spec send(map() | TxData.t(), Keyword.t()) :: {:ok, String.t()} | {:error, term()}
+  def send(tx_data, overrides \\ [])
 
-  def send(params, overrides) do
+  def send(tx_data, overrides) do
     {opts, overrides} = Keyword.split(overrides, @option_keys)
 
-    params =
-      overrides
-      |> Enum.into(params)
-      |> Map.drop(@internal_params)
+    tx_params = TxData.to_map(tx_data, overrides)
 
     {rpc_client, rpc_opts} = get_rpc_client(opts)
 
-    with :ok <- check_params(params, :send),
-         {:ok, params} <- Utils.maybe_add_gas_limit(params, opts),
-         {:ok, tx} when valid_result(tx) <- rpc_client.eth_send_transaction(params, rpc_opts) do
+    with :ok <- check_params(tx_params, :send),
+         {:ok, tx_params} <- Utils.maybe_add_gas_limit(tx_params, opts),
+         {:ok, tx} when valid_result(tx) <- rpc_client.eth_send_transaction(tx_params, rpc_opts) do
       {:ok, tx}
     else
       {:ok, "0x"} ->
@@ -243,9 +238,9 @@ defmodule Ethers do
   @doc """
   Same as `Ethers.send/2` but raises on error.
   """
-  @spec send!(map(), Keyword.t()) :: String.t() | no_return()
-  def send!(params, overrides \\ []) do
-    case Ethers.send(params, overrides) do
+  @spec send!(map() | TxData.t(), Keyword.t()) :: String.t() | no_return()
+  def send!(tx_data, overrides \\ []) do
+    case Ethers.send(tx_data, overrides) do
       {:ok, tx_hash} -> tx_hash
       {:error, reason} -> raise ExecutionError, reason
     end
@@ -266,18 +261,15 @@ defmodule Ethers do
   ```
   """
   @spec estimate_gas(map(), Keyword.t()) :: {:ok, non_neg_integer()} | {:error, term()}
-  def estimate_gas(params, overrides \\ []) do
+  def estimate_gas(tx_data, overrides \\ []) do
     {opts, overrides} = Keyword.split(overrides, @option_keys)
 
-    params =
-      overrides
-      |> Enum.into(params)
-      |> Map.drop(@internal_params)
+    tx_params = TxData.to_map(tx_data, overrides)
 
     {rpc_client, rpc_opts} = get_rpc_client(opts)
 
-    with :ok <- check_params(params, :estimate_gas),
-         {:ok, gas_hex} <- rpc_client.eth_estimate_gas(params, rpc_opts) do
+    with :ok <- check_params(tx_params, :estimate_gas),
+         {:ok, gas_hex} <- rpc_client.eth_estimate_gas(tx_params, rpc_opts) do
       Utils.hex_to_integer(gas_hex)
     end
   end
@@ -286,8 +278,8 @@ defmodule Ethers do
   Same as `Ethers.estimate_gas/2` but raises on error.
   """
   @spec estimate_gas!(map(), Keyword.t()) :: non_neg_integer() | no_return()
-  def estimate_gas!(params, overrides \\ []) do
-    case estimate_gas(params, overrides) do
+  def estimate_gas!(tx_data, overrides \\ []) do
+    case estimate_gas(tx_data, overrides) do
       {:ok, gas} -> gas
       {:error, reason} -> raise ExecutionError, reason
     end
@@ -303,19 +295,18 @@ defmodule Ethers do
   - `:rpc_opts`: Extra options to pass to rpc_client. (Like timeout, Server URL, etc.)
   """
   @spec get_logs(map(), Keyword.t()) :: {:ok, [Event.t()]} | {:error, atom()}
-  def get_logs(%{topics: _, selector: selector} = params, overrides \\ []) do
+  def get_logs(%{selector: selector} = tx_data, overrides \\ []) do
     {opts, overrides} = Keyword.split(overrides, @option_keys)
 
-    params =
-      overrides
-      |> Enum.into(params)
+    log_params =
+      tx_data
+      |> EventFilter.to_map(overrides)
       |> ensure_hex_value(:fromBlock)
       |> ensure_hex_value(:toBlock)
-      |> Map.drop(@internal_params)
 
     {rpc_client, rpc_opts} = get_rpc_client(opts)
 
-    with {:ok, resp} when is_list(resp) <- rpc_client.eth_get_logs(params, rpc_opts) do
+    with {:ok, resp} when is_list(resp) <- rpc_client.eth_get_logs(log_params, rpc_opts) do
       logs = Enum.map(resp, &Event.decode(&1, selector))
 
       {:ok, logs}

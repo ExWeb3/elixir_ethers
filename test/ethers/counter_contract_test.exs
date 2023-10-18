@@ -25,7 +25,7 @@ defmodule Ethers.CounterContractTest do
     setup :deploy_counter_contract
 
     test "calling view functions", %{address: address} do
-      assert %{
+      assert %Ethers.TxData{
                data: "0x6d4ce63c",
                selector: %ABI.FunctionSelector{
                  function: "get",
@@ -36,7 +36,8 @@ defmodule Ethers.CounterContractTest do
                  input_names: [],
                  types: [],
                  returns: [uint: 256]
-               }
+               },
+               to: nil
              } == CounterContract.get()
 
       assert {:ok, [100]} = CounterContract.get() |> Ethers.call(to: address)
@@ -100,7 +101,7 @@ defmodule Ethers.CounterContractTest do
     end
 
     test "returns the params when called" do
-      assert %{
+      assert %Ethers.TxData{
                data: "0x60fe47b10000000000000000000000000000000000000000000000000000000000000065",
                selector: %ABI.FunctionSelector{
                  function: "set",
@@ -111,7 +112,8 @@ defmodule Ethers.CounterContractTest do
                  input_names: ["newAmount"],
                  types: [uint: 256],
                  returns: []
-               }
+               },
+               to: nil
              } == CounterContract.set(101)
     end
   end

@@ -9,6 +9,9 @@ contract HelloWorld {
     }
 
     function setHello(string calldata message) external {
+        emit HelloSet(message);
         str = message;
     }
+
+    event HelloSet(string message);
 }

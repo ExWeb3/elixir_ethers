@@ -77,16 +77,6 @@ defmodule Ethers.ContractHelpersTest do
                })
     end
   end
-
-  describe "maybe_add_to_address" do
-    test "adds to address if contract has default address" do
-      assert %{to: "0x"} == ContractHelpers.maybe_add_to_address(%{}, Ethers.WithDefaultAddress)
-    end
-
-    test "does not add to address if contract doesn't have a default one" do
-      assert %{} == ContractHelpers.maybe_add_to_address(%{}, Ethers.WithoutDefaultAddress)
-    end
-  end
 end
 
 defmodule Ethers.WithDefaultAddress do

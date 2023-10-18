@@ -312,13 +312,6 @@ defmodule Ethers.ContractHelpers do
     |> Enum.zip_with(&(Enum.uniq(&1) |> Enum.join("_or_")))
   end
 
-  def maybe_add_to_address(map, module, field_name \\ :to) do
-    case module.__default_address__() do
-      nil -> map
-      address when is_binary(address) -> Map.put(map, field_name, address)
-    end
-  end
-
   def encode_event_topics(selector, args) do
     [event_topic_0(selector) | encode_event_sub_topics(selector, args)]
   end

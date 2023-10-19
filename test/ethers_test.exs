@@ -3,11 +3,19 @@ defmodule Ethers.Contract.Test.HelloWorldContract do
   use Ethers.Contract, abi_file: "tmp/hello_world_abi.json"
 end
 
+defmodule Ethers.Contract.Test.HelloWorldWithDefaultAddressContract do
+  @moduledoc false
+  use Ethers.Contract,
+    abi_file: "tmp/hello_world_abi.json",
+    default_address: "0x1000bf6a479f320ead074411a4b0e7944ea8c9c1"
+end
+
 defmodule EthersTest do
   use ExUnit.Case
   doctest Ethers
 
   alias Ethers.Contract.Test.HelloWorldContract
+  alias Ethers.Contract.Test.HelloWorldWithDefaultAddressContract
 
   @from "0x90f8bf6a479f320ead074411a4b0e7944ea8c9c1"
 
@@ -99,6 +107,91 @@ defmodule EthersTest do
           rpc_opts: [url: "http://non.exists"]
         )
       end
+    end
+  end
+
+  describe "default address" do
+    test "is included in the function calls when has default address" do
+      assert %Ethers.TxData{
+               data: "0xef5fb05b",
+               selector: %ABI.FunctionSelector{
+                 function: "sayHello",
+                 method_id: <<239, 95, 176, 91>>,
+                 type: :function,
+                 inputs_indexed: nil,
+                 state_mutability: :view,
+                 input_names: [],
+                 types: [],
+                 returns: [:string]
+               },
+               default_address: "0x1000bf6a479f320ead074411a4b0e7944ea8c9c1"
+             } == HelloWorldWithDefaultAddressContract.say_hello()
+
+      assert %{data: "0xef5fb05b", to: "0x1000bf6a479f320ead074411a4b0e7944ea8c9c1"} ==
+               HelloWorldWithDefaultAddressContract.say_hello()
+               |> Ethers.TxData.to_map([])
+    end
+
+    test "is not included in the function calls when does not have default address" do
+      assert %Ethers.TxData{
+               data: "0xef5fb05b",
+               selector: %ABI.FunctionSelector{
+                 function: "sayHello",
+                 method_id: <<239, 95, 176, 91>>,
+                 type: :function,
+                 inputs_indexed: nil,
+                 state_mutability: :view,
+                 input_names: [],
+                 types: [],
+                 returns: [:string]
+               },
+               default_address: nil
+             } == HelloWorldContract.say_hello()
+    end
+
+    test "is included in event filters when has default address" do
+      assert %Ethers.EventFilter{
+               topics: [
+                 "0xbe6cf5e99b344c66895d6304d442b2f51b6359ee51ac581db2255de9373e24b8"
+               ],
+               selector: %ABI.FunctionSelector{
+                 function: "HelloSet",
+                 method_id: <<190, 108, 245, 233>>,
+                 type: :event,
+                 inputs_indexed: [false],
+                 state_mutability: nil,
+                 input_names: ["message"],
+                 types: [:string],
+                 returns: []
+               },
+               default_address: "0x1000bf6a479f320ead074411a4b0e7944ea8c9c1"
+             } == HelloWorldWithDefaultAddressContract.EventFilters.hello_set()
+
+      assert %{
+               topics: ["0xbe6cf5e99b344c66895d6304d442b2f51b6359ee51ac581db2255de9373e24b8"],
+               address: "0x1000bf6a479f320ead074411a4b0e7944ea8c9c1"
+             } ==
+               HelloWorldWithDefaultAddressContract.EventFilters.hello_set()
+               |> Ethers.EventFilter.to_map([])
+    end
+
+    test "is not included in event filters when does not have default address" do
+      assert %Ethers.EventFilter{
+               topics: [
+                 "0xbe6cf5e99b344c66895d6304d442b2f51b6359ee51ac581db2255de9373e24b8"
+               ],
+               selector: %ABI.FunctionSelector{
+                 function: "HelloSet",
+                 method_id: <<190, 108, 245, 233>>,
+                 type: :event,
+                 inputs_indexed: [false],
+                 state_mutability: nil,
+                 input_names: ["message"],
+                 types: [:string],
+                 returns: []
+               },
+               default_address: nil
+             } == HelloWorldContract.EventFilters.hello_set()
     end
   end
 end

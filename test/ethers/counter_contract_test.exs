@@ -21,11 +21,75 @@ defmodule Ethers.CounterContractTest do
     end
   end
 
+  describe "inspecting function calls" do
+    test "renders the correct values when inspected" do
+      assert "#Ethers.TxData<function get() view returns (uint256)>" ==
+               inspect(CounterContract.get())
+
+      assert "#Ethers.TxData<function set(uint256 newAmount 101) non_payable>" ==
+               inspect(CounterContract.set(101))
+    end
+
+    test "shows unknown state mutability correctly" do
+      tx_data = CounterContract.get()
+
+      assert "#Ethers.TxData<function get() unknown returns (uint256)>" ==
+               inspect(put_in(tx_data.selector.state_mutability, nil))
+    end
+
+    test "skips argument names in case of length mismatch" do
+      tx_data = CounterContract.set(101)
+
+      assert "#Ethers.TxData<function set(uint256 101) non_payable>" ==
+               inspect(put_in(tx_data.selector.input_names, ["invalid", "names", "length"]))
+    end
+
+    test "includes default address if given" do
+      tx_data = CounterContract.get()
+
+      tx_data_with_default_address = %{tx_data | default_address: @from}
+
+      assert ~s'#Ethers.TxData<function get() view returns (uint256)\n  default_address: "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1">' ==
+               inspect(tx_data_with_default_address)
+    end
+  end
+
+  describe "inspecting event filters" do
+    test "renders the correct values when inspected" do
+      assert "#Ethers.EventFilter<event SetCalled(uint256 indexed oldAmount any, uint256 newAmount)>" ==
+               inspect(CounterContract.EventFilters.set_called(nil))
+
+      assert "#Ethers.EventFilter<event SetCalled(uint256 indexed oldAmount 101, uint256 newAmount)>" ==
+               inspect(CounterContract.EventFilters.set_called(101))
+    end
+
+    test "renders the correct values when input names are not provided or incorrect" do
+      filter = CounterContract.EventFilters.set_called(101)
+
+      assert "#Ethers.EventFilter<event SetCalled(uint256 indexed 101, uint256)>" ==
+               inspect(put_in(filter.selector.input_names, []))
+
+      assert "#Ethers.EventFilter<event SetCalled(uint256 indexed 101, uint256)>" ==
+               inspect(
+                 put_in(filter.selector.input_names, filter.selector.input_names ++ ["invalid"])
+               )
+    end
+
+    test "includes default address if given" do
+      filter = CounterContract.EventFilters.set_called(101)
+
+      filter_with_default_address = %{filter | default_address: @from}
+
+      assert ~s'#Ethers.EventFilter<event SetCalled(uint256 indexed oldAmount 101, uint256 newAmount)\n  default_address: "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1">' ==
+               inspect(filter_with_default_address)
+    end
+  end
+
   describe "calling functions" do
     setup :deploy_counter_contract
 
     test "calling view functions", %{address: address} do
-      assert %{
+      assert %Ethers.TxData{
                data: "0x6d4ce63c",
                selector: %ABI.FunctionSelector{
                  function: "get",
@@ -36,7 +100,8 @@ defmodule Ethers.CounterContractTest do
                  input_names: [],
                  types: [],
                  returns: [uint: 256]
-               }
+               },
+               default_address: nil
              } == CounterContract.get()
 
       assert {:ok, [100]} = CounterContract.get() |> Ethers.call(to: address)
@@ -100,7 +165,7 @@ defmodule Ethers.CounterContractTest do
     end
 
     test "returns the params when called" do
-      assert %{
+      assert %Ethers.TxData{
                data: "0x60fe47b10000000000000000000000000000000000000000000000000000000000000065",
                selector: %ABI.FunctionSelector{
                  function: "set",
@@ -111,7 +176,8 @@ defmodule Ethers.CounterContractTest do
                  input_names: ["newAmount"],
                  types: [uint: 256],
                  returns: []
-               }
+               },
+               default_address: nil
              } == CounterContract.set(101)
     end
   end

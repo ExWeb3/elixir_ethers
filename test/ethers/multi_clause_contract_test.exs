@@ -32,21 +32,21 @@ defmodule Ethers.MultiClauseContractTest do
     end
 
     test "will work with typed arguments", %{address: address} do
-      assert ["uint256"] ==
+      assert "uint256" ==
                MultiClauseContract.say(typed({:uint, 256}, 101)) |> Ethers.call!(to: address)
 
-      assert ["int256"] ==
+      assert "int256" ==
                MultiClauseContract.say(typed({:int, 256}, 101)) |> Ethers.call!(to: address)
 
-      assert ["int256"] ==
+      assert "int256" ==
                MultiClauseContract.say(typed({:int, 256}, 101)) |> Ethers.call!(to: address)
     end
   end
 
   describe "smart function" do
     test "can deduce type based on properties", %{address: address} do
-      assert ["uint8"] == MultiClauseContract.smart(255) |> Ethers.call!(to: address)
-      assert ["int8"] == MultiClauseContract.smart(-1) |> Ethers.call!(to: address)
+      assert "uint8" == MultiClauseContract.smart(255) |> Ethers.call!(to: address)
+      assert "int8" == MultiClauseContract.smart(-1) |> Ethers.call!(to: address)
     end
   end
 

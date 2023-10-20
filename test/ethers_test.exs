@@ -46,7 +46,7 @@ defmodule EthersTest do
       assert {:ok, contract_address} = Ethers.deployed_address(tx)
 
       assert HelloWorldContract.say_hello() |> Ethers.call!(to: contract_address) ==
-               ["Hello World!"]
+               "Hello World!"
     end
 
     test "can deploy a contract given the contract binary" do
@@ -55,7 +55,7 @@ defmodule EthersTest do
       assert {:ok, contract_address} = Ethers.deployed_address(tx)
 
       assert HelloWorldContract.say_hello() |> Ethers.call!(to: contract_address) ==
-               ["Hello World!"]
+               "Hello World!"
     end
 
     test "can deploy a contract given the contract binary prefixed with 0x" do
@@ -64,7 +64,7 @@ defmodule EthersTest do
       assert {:ok, contract_address} = Ethers.deployed_address(tx)
 
       assert HelloWorldContract.say_hello() |> Ethers.call!(to: contract_address) ==
-               ["Hello World!"]
+               "Hello World!"
     end
 
     test "returns error if the module does not include the binary" do
@@ -89,7 +89,7 @@ defmodule EthersTest do
       assert {:error, :no_contract_address} = Ethers.deployed_address(tx_hash)
 
       assert HelloWorldContract.say_hello() |> Ethers.call!(to: contract_address) ==
-               ["Bye"]
+               "Bye"
     end
   end
 

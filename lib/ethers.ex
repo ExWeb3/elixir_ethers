@@ -103,7 +103,7 @@ defmodule Ethers do
   Returns the address of the deployed contract if the deployment is finished and successful
 
   ## Parameters
-  - tx_hash: Hash of the Transaction which created a contract. 
+  - tx_hash: Hash of the Transaction which created a contract.
   - opts: RPC and account options.
   """
   @spec deployed_address(binary, Keyword.t()) ::
@@ -170,7 +170,10 @@ defmodule Ethers do
             |> Enum.zip(selector.returns)
             |> Enum.map(fn {return, type} -> Utils.human_arg(return, type) end)
 
-          {:ok, returns}
+          case returns do
+            [element] -> {:ok, element}
+            _ -> {:ok, returns}
+          end
 
         {:ok, "0x"} ->
           {:error, :unknown}

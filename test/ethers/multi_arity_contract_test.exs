@@ -16,9 +16,9 @@ defmodule Ethers.MultiArityContractTest do
       assert {:ok, tx_hash} = Ethers.deploy(MultiArityContract, init_params, %{from: @from})
       assert {:ok, address} = Ethers.deployed_address(tx_hash)
 
-      assert {:ok, [0]} = MultiArityContract.next() |> Ethers.call(to: address)
-      assert {:ok, [6]} = MultiArityContract.next(5) |> Ethers.call(to: address)
-      assert {:ok, [7]} = MultiArityContract.next(6) |> Ethers.call(to: address)
+      assert {:ok, 0} = MultiArityContract.next() |> Ethers.call(to: address)
+      assert {:ok, 6} = MultiArityContract.next(5) |> Ethers.call(to: address)
+      assert {:ok, 7} = MultiArityContract.next(6) |> Ethers.call(to: address)
     end
   end
 end

@@ -142,7 +142,7 @@ defmodule Ethers do
 
   ```elixir
   Ethers.Contract.ERC20.total_supply() |> Ethers.call(to: "0xa0b...ef6")
-  {:ok, [100000000000000]}
+  {:ok, 100000000000000}
   ```
   """
   @spec call(TxData.t(), Keyword.t()) :: {:ok, [...]} | {:error, term()}

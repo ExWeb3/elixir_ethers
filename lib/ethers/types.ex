@@ -33,7 +33,6 @@ defmodule Ethers.Types do
           | {:array, t_evm_types(), non_neg_integer()}
           | {:tuple, [t_evm_types()]}
 
-  @dynamically_sized_types [:string, :bytes]
   @valid_bitsize_range 8..256//8
 
   defguardp valid_bitsize(bitsize) when bitsize >= 8 and bitsize <= 256 and rem(bitsize, 8) == 0
@@ -272,9 +271,6 @@ defmodule Ethers.Types do
       false
     end
   end
-
-  @doc false
-  def dynamically_sized_types, do: @dynamically_sized_types
 
   @doc """
   Validates and creates typed values to use with functions or events.

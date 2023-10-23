@@ -104,14 +104,14 @@ defmodule Ethers.CounterContractTest do
                default_address: nil
              } == CounterContract.get()
 
-      assert {:ok, [100]} = CounterContract.get() |> Ethers.call(to: address)
-      assert [100] = CounterContract.get() |> Ethers.call!(to: address)
+      assert {:ok, 100} = CounterContract.get() |> Ethers.call(to: address)
+      assert 100 = CounterContract.get() |> Ethers.call!(to: address)
     end
 
     test "sending transaction with state mutating functions", %{address: address} do
       {:ok, _tx_hash} = CounterContract.set(101) |> Ethers.send(from: @from, to: address)
 
-      {:ok, [101]} = CounterContract.get() |> Ethers.call(to: address)
+      {:ok, 101} = CounterContract.get() |> Ethers.call(to: address)
     end
 
     test "sending transaction with state mutating functions using bang functions", %{
@@ -119,7 +119,7 @@ defmodule Ethers.CounterContractTest do
     } do
       _tx_hash = CounterContract.set(101) |> Ethers.send!(from: @from, to: address)
 
-      [101] = CounterContract.get() |> Ethers.call!(to: address)
+      assert 101 == CounterContract.get() |> Ethers.call!(to: address)
     end
 
     test "returns error if to address is not given" do
@@ -262,9 +262,9 @@ defmodule Ethers.CounterContractTest do
 
       {:ok, _tx_hash} = CounterContract.set(103) |> Ethers.send(from: @from, to: address)
 
-      assert CounterContract.get() |> Ethers.call!(to: address, block: "latest") == [103]
-      assert CounterContract.get() |> Ethers.call!(to: address, block: block_2) == [102]
-      assert CounterContract.get() |> Ethers.call!(to: address, block: block_1) == [101]
+      assert CounterContract.get() |> Ethers.call!(to: address, block: "latest") == 103
+      assert CounterContract.get() |> Ethers.call!(to: address, block: block_2) == 102
+      assert CounterContract.get() |> Ethers.call!(to: address, block: block_1) == 101
     end
   end
 

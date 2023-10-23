@@ -13,6 +13,7 @@
  * Display message for empty parameters or return types
  * `Ethers.call/2` and `Ethers.get_logs/2` now automatically convert integer block numbers to hex values
  * Return structs as a result in generated functions and event filter with Inspection protocols implemented for better development experience
+ * Support dynamically sized indexed event filters (bytes, strings, arrays and structs)
 
 ### Breaking Changes
 
@@ -22,6 +23,7 @@
  * Function `Ethers.get_logs/3` is now changed to `Ethers.get_logs/2`
  * Generated contract modules and EventFilter modules `default_address/0` function is now renamed to `__default_adress__/0` to prevent collision
  * Removal of `Ethers.RPC` module
+ * Remove `Ethers.Types.dynamically_sized_types/0` function
 
 ### Bug fixes
 

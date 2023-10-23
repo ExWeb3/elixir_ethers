@@ -136,7 +136,7 @@ To make a call (eth_call) to the blockchain, you can use [`Ethers.call/2`](https
 ```elixir
 # Calling functions on the blockchain
 iex> MyERC20Token.balance_of("0x[Address]") |> Ethers.call()
-{:ok, [654294510138460920346]}
+{:ok, 654294510138460920346}
 ```
 
 ### Sending transaction

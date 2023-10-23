@@ -103,7 +103,7 @@ defmodule Ethers do
   Returns the address of the deployed contract if the deployment is finished and successful
 
   ## Parameters
-  - tx_hash: Hash of the Transaction which created a contract. 
+  - tx_hash: Hash of the Transaction which created a contract.
   - opts: RPC and account options.
   """
   @spec deployed_address(binary, Keyword.t()) ::
@@ -142,10 +142,10 @@ defmodule Ethers do
 
   ```elixir
   Ethers.Contract.ERC20.total_supply() |> Ethers.call(to: "0xa0b...ef6")
-  {:ok, [100000000000000]}
+  {:ok, 100000000000000}
   ```
   """
-  @spec call(TxData.t(), Keyword.t()) :: {:ok, [...]} | {:error, term()}
+  @spec call(TxData.t(), Keyword.t()) :: {:ok, any()} | {:error, term()}
   def call(params, overrides \\ [])
 
   def call(%TxData{selector: selector} = tx_data, overrides) do
@@ -170,7 +170,10 @@ defmodule Ethers do
             |> Enum.zip(selector.returns)
             |> Enum.map(fn {return, type} -> Utils.human_arg(return, type) end)
 
-          {:ok, returns}
+          case returns do
+            [element] -> {:ok, element}
+            _ -> {:ok, returns}
+          end
 
         {:ok, "0x"} ->
           {:error, :unknown}
@@ -187,7 +190,7 @@ defmodule Ethers do
   @doc """
   Same as `Ethers.call/2` but raises on error.
   """
-  @spec call!(TxData.t(), Keyword.t()) :: [...] | no_return()
+  @spec call!(TxData.t(), Keyword.t()) :: any() | no_return()
   def call!(params, overrides \\ []) do
     case call(params, overrides) do
       {:ok, result} -> result

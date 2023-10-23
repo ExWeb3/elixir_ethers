@@ -20,12 +20,12 @@ defmodule Ethers.RegistryContractTest do
     end
 
     test "can call functions returning structs", %{address: address} do
-      {:ok, [{"", 0}]} = RegistryContract.info(@from) |> Ethers.call(to: address)
+      {:ok, {"", 0}} = RegistryContract.info(@from) |> Ethers.call(to: address)
 
       {:ok, _tx_hash} =
         RegistryContract.register({"alisina", 27}) |> Ethers.send(from: @from, to: address)
 
-      {:ok, [{"alisina", 27}]} = RegistryContract.info(@from) |> Ethers.call(to: address)
+      {:ok, {"alisina", 27}} = RegistryContract.info(@from) |> Ethers.call(to: address)
     end
   end
 

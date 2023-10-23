@@ -326,23 +326,39 @@ defmodule Ethers.ContractHelpers do
   defp encode_event_sub_topics(selector, raw_args) do
     event_indexed_types(selector)
     |> Enum.zip(raw_args)
-    |> Enum.map(fn
-      {_, nil} ->
-        nil
+    |> Enum.map(fn {type, value} -> do_encode_indexed_type(type, value) end)
+  end
 
-      {type, value} when type in unquote(Ethers.Types.dynamically_sized_types()) ->
-        value
-        |> Ethers.Utils.prepare_arg(type)
-        |> Ethers.keccak_module().hash_256()
-        |> Ethers.Utils.hex_encode()
+  defp do_encode_indexed_type(_, nil), do: nil
 
-      {type, value} ->
-        value
-        |> Ethers.Utils.prepare_arg(type)
-        |> List.wrap()
-        |> ABI.TypeEncoder.encode([type])
-        |> Ethers.Utils.hex_encode()
-    end)
+  defp do_encode_indexed_type(type, value) when type in [:string, :bytes] do
+    value
+    |> Ethers.Utils.prepare_arg(type)
+    |> Ethers.keccak_module().hash_256()
+    |> Ethers.Utils.hex_encode()
+  end
+
+  defp do_encode_indexed_type({:array, _, _} = type, value), do: hashed_encode(type, value)
+
+  defp do_encode_indexed_type({:array, subtype}, value) do
+    # Add count to array type to remove length prefix
+    # Otherwise behaves just like bounded array
+    hashed_encode({:array, subtype, Enum.count(value)}, value)
+  end
+
+  defp do_encode_indexed_type({:tuple, _} = type, value), do: hashed_encode(type, value)
+
+  defp do_encode_indexed_type(type, value) do
+    [Ethers.Utils.prepare_arg(value, type)]
+    |> ABI.TypeEncoder.encode([type])
+    |> Ethers.Utils.hex_encode()
+  end
+
+  defp hashed_encode(type, value) do
+    [Ethers.Utils.prepare_arg(value, type)]
+    |> ABI.TypeEncoder.encode([type])
+    |> Ethers.keccak_module().hash_256()
+    |> Ethers.Utils.hex_encode()
   end
 
   def event_indexed_types(selector) do

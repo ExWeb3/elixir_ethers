@@ -162,16 +162,25 @@ defmodule Ethers.EventFilter do
       argument_doc(types, input_names, inputs_indexed, topics, [doc | acc], opts)
     end
 
-    defp human_topic(type, topic) when type in unquote(Ethers.Types.dynamically_sized_types()) do
-      "(hashed) #{inspect(topic)}"
-    end
-
     defp human_topic(type, topic) do
-      [value] =
-        Utils.hex_decode!(topic)
-        |> ABI.TypeDecoder.decode([type])
+      hashed? =
+        case type do
+          type when type in [:string, :bytes] -> true
+          {:array, _} -> true
+          {:array, _, _} -> true
+          {:tuple, _} -> true
+          _ -> false
+        end
 
-      inspect(Utils.human_arg(value, type))
+      if hashed? do
+        "(hashed) #{inspect(topic)}"
+      else
+        [value] =
+          Utils.hex_decode!(topic)
+          |> ABI.TypeDecoder.decode([type])
+
+        inspect(Utils.human_arg(value, type))
+      end
     end
   end
 end

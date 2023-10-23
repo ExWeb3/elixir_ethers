@@ -145,7 +145,7 @@ defmodule Ethers do
   {:ok, 100000000000000}
   ```
   """
-  @spec call(TxData.t(), Keyword.t()) :: {:ok, [...]} | {:error, term()}
+  @spec call(TxData.t(), Keyword.t()) :: {:ok, any()} | {:error, term()}
   def call(params, overrides \\ [])
 
   def call(%TxData{selector: selector} = tx_data, overrides) do
@@ -190,7 +190,7 @@ defmodule Ethers do
   @doc """
   Same as `Ethers.call/2` but raises on error.
   """
-  @spec call!(TxData.t(), Keyword.t()) :: [...] | no_return()
+  @spec call!(TxData.t(), Keyword.t()) :: any() | no_return()
   def call!(params, overrides \\ []) do
     case call(params, overrides) do
       {:ok, result} -> result

@@ -10,6 +10,8 @@ defmodule Ethers.RegistryContractTest do
   alias Ethers.Contract.Test.RegistryContract
 
   @from "0x90f8bf6a479f320ead074411a4b0e7944ea8c9c1"
+  @from1 "0xFFcf8FDEE72ac11b5c542428B35EEF5769C409f0"
+  @from2 "0x22d491Bde2303f2f43325b2108D26f1eAbA1e32b"
 
   setup :deploy_registry_contract
 
@@ -26,6 +28,29 @@ defmodule Ethers.RegistryContractTest do
         RegistryContract.register({"alisina", 27}) |> Ethers.send(from: @from, to: address)
 
       {:ok, {"alisina", 27}} = RegistryContract.info(@from) |> Ethers.call(to: address)
+    end
+  end
+
+  describe "can handle tuples and arrays" do
+    test "can call functions returning array of structs", %{address: address} do
+      {:ok, _tx_hash} =
+        RegistryContract.register({"alisina", 27}) |> Ethers.send(from: @from, to: address)
+
+      {:ok, _tx_hash} =
+        RegistryContract.register({"bob", 13}) |> Ethers.send(from: @from1, to: address)
+
+      {:ok, _tx_hash} =
+        RegistryContract.register({"blaze", 37}) |> Ethers.send(from: @from2, to: address)
+
+      {:ok, [{"alisina", 27}, {"bob", 13}, {"blaze", 37}]} =
+        RegistryContract.info_many([@from, @from1, @from2]) |> Ethers.call(to: address)
+    end
+
+    test "can call functions returning tuple", %{address: address} do
+      {:ok, _tx_hash} =
+        RegistryContract.register({"alisina", 27}) |> Ethers.send(from: @from, to: address)
+
+      {:ok, ["alisina", 27]} = RegistryContract.info_as_tuple(@from) |> Ethers.call(to: address)
     end
   end
 

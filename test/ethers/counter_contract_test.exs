@@ -99,7 +99,8 @@ defmodule Ethers.CounterContractTest do
                  state_mutability: :view,
                  input_names: [],
                  types: [],
-                 returns: [uint: 256]
+                 returns: [uint: 256],
+                 return_names: [""]
                },
                default_address: nil
              } == CounterContract.get()

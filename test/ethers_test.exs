@@ -122,7 +122,8 @@ defmodule EthersTest do
                  state_mutability: :view,
                  input_names: [],
                  types: [],
-                 returns: [:string]
+                 returns: [:string],
+                 return_names: [""]
                },
                default_address: "0x1000bf6a479f320ead074411a4b0e7944ea8c9c1"
              } == HelloWorldWithDefaultAddressContract.say_hello()
@@ -143,7 +144,8 @@ defmodule EthersTest do
                  state_mutability: :view,
                  input_names: [],
                  types: [],
-                 returns: [:string]
+                 returns: [:string],
+                 return_names: [""]
                },
                default_address: nil
              } == HelloWorldContract.say_hello()

@@ -32,6 +32,17 @@ defmodule Ethers.ContractHelpersTest do
     end
   end
 
+  describe "document_types/2" do
+    test "returns correct type with name" do
+      assert " - amount: `{:uint, 256}`" ==
+               ContractHelpers.document_types([{:uint, 256}], ["amount"])
+    end
+
+    test "returns correct type if names not provided" do
+      assert " - `{:uint, 256}`" == ContractHelpers.document_types([{:uint, 256}])
+    end
+  end
+
   describe "generate_arguments" do
     test "works with correct names" do
       assert [{:amount, [], _}, {:sender, [], _}] =

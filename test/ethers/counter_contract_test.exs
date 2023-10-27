@@ -23,8 +23,11 @@ defmodule Ethers.CounterContractTest do
 
   describe "inspecting function calls" do
     test "renders the correct values when inspected" do
-      assert "#Ethers.TxData<function get() view returns (uint256)>" ==
+      assert "#Ethers.TxData<function get() view returns (uint256 amount)>" ==
                inspect(CounterContract.get())
+
+      assert "#Ethers.TxData<function getNoReturnName() view returns (uint256)>" ==
+               inspect(CounterContract.get_no_return_name())
 
       assert "#Ethers.TxData<function set(uint256 newAmount 101) non_payable>" ==
                inspect(CounterContract.set(101))
@@ -33,7 +36,7 @@ defmodule Ethers.CounterContractTest do
     test "shows unknown state mutability correctly" do
       tx_data = CounterContract.get()
 
-      assert "#Ethers.TxData<function get() unknown returns (uint256)>" ==
+      assert "#Ethers.TxData<function get() unknown returns (uint256 amount)>" ==
                inspect(put_in(tx_data.selector.state_mutability, nil))
     end
 
@@ -49,7 +52,7 @@ defmodule Ethers.CounterContractTest do
 
       tx_data_with_default_address = %{tx_data | default_address: @from}
 
-      assert ~s'#Ethers.TxData<function get() view returns (uint256)\n  default_address: "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1">' ==
+      assert ~s'#Ethers.TxData<function get() view returns (uint256 amount)\n  default_address: "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1">' ==
                inspect(tx_data_with_default_address)
     end
   end
@@ -100,7 +103,7 @@ defmodule Ethers.CounterContractTest do
                  input_names: [],
                  types: [],
                  returns: [uint: 256],
-                 return_names: [""]
+                 return_names: ["amount"]
                },
                default_address: nil
              } == CounterContract.get()

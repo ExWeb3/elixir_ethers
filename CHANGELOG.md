@@ -15,6 +15,7 @@
  * Return structs as a result in generated functions and event filter with Inspection protocols implemented for better development experience
  * Support dynamically sized indexed event filters (bytes, strings, arrays and structs)
  * `Ethers.call/2` now only returns as a list if the return type is either a solidity array or tuple
+ * Add return names in documentations and TxData inspection
 
 ### Breaking Changes
 

@@ -72,7 +72,18 @@ defmodule Ethers.TxData do
         |> Enum.intersperse(concat(color(",", :operator, opts), break(" ")))
 
       returns =
-        Enum.map(selector.returns, &color(ABI.FunctionSelector.encode_type(&1), :atom, opts))
+        Enum.zip(selector.returns, selector.return_names)
+        |> Enum.map(fn
+          {type, ""} ->
+            color(ABI.FunctionSelector.encode_type(type), :atom, opts)
+
+          {type, name} ->
+            concat([
+              color(ABI.FunctionSelector.encode_type(type), :atom, opts),
+              " ",
+              color(name, :variable, opts)
+            ])
+        end)
         |> Enum.intersperse(concat(color(",", :operator, opts), break(" ")))
 
       returns_doc =

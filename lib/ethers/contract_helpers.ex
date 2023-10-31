@@ -150,11 +150,10 @@ defmodule Ethers.ContractHelpers do
   def document_returns(selectors) when is_list(selectors) do
     return_type_docs =
       selectors
-      |> Enum.map(& &1.returns)
-      |> Enum.uniq()
-      |> Enum.map_join("\n\n### OR\n", fn returns ->
-        if Enum.count(returns) > 0 do
-          document_types(returns)
+      |> Enum.uniq_by(& &1.returns)
+      |> Enum.map_join("\n\n### OR\n", fn selector ->
+        if Enum.count(selector.returns) > 0 do
+          document_types(selector.returns, selector.return_names)
         else
           "This function does not return any values!"
         end

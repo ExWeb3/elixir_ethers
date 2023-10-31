@@ -8,7 +8,11 @@ contract Counter {
         storeAmount = initialAmount;
     }
 
-    function get() public view returns (uint256) {
+    function get() public view returns (uint256 amount) {
+        return storeAmount;
+    }
+
+    function getNoReturnName() public view returns (uint256) {
         return storeAmount;
     }
 

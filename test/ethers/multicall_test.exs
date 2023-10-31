@@ -4,50 +4,69 @@ defmodule Ethers.MulticallTest do
   import Ethers.Utils, only: [hex_decode!: 1]
 
   alias Ethers.Contract.Test.CounterContract
+  alias Ethers.Contract.Test.HelloWorldWithDefaultAddressContract
   alias Ethers.Contract.Test.HelloWorldContract
   alias Ethers.Contracts.Multicall3
   alias Ethers.Multicall
 
   @from "0x90f8bf6a479f320ead074411a4b0e7944ea8c9c1"
 
-  describe "multicall3" do
+  describe "multicall" do
     setup :deploy_contracts
 
-    test "multiple calls with no default address using Ethers.call", %{
+    test "aggregate3 with no default address using Ethers.call", %{
       counter_address: counter_address,
       hello_world_address: hello_world_address
     } do
-      [
-        {HelloWorldContract.say_hello(), to: hello_world_address}
-      ]
-      |> Multicall.aggregate3()
-      |> Ethers.call!()
-      |> Multicall.decode([
-        HelloWorldContract.say_hello()
-      ])
-      |> IO.inspect()
+      [true: "Hello World!", true: 420, true: 420] =
+        [
+          {HelloWorldContract.say_hello(), to: hello_world_address},
+          {CounterContract.get(), to: counter_address},
+          {CounterContract.get(), to: counter_address, allow_failure: false}
+        ]
+        |> Multicall.aggregate3()
+        |> Ethers.call!()
+        |> Multicall.aggregate3_decode([
+          HelloWorldContract.say_hello(),
+          CounterContract.get(),
+          CounterContract.get()
+        ])
     end
 
-    test "multiple calls with no default address and using Multicall.call", %{
+    test "aggregate3 with default address", %{
       counter_address: counter_address,
       hello_world_address: hello_world_address
     } do
-      [
-        {HelloWorldContract.say_hello(), to: hello_world_address}
-      ]
-      |> Multicall.aggregate3()
-      |> Ethers.call!()
-      |> Multicall.decode([
-        HelloWorldContract.say_hello()
-      ])
-      |> IO.inspect()
+      [true: "", true: ""] =
+        [
+          {HelloWorldWithDefaultAddressContract.say_hello()},
+          HelloWorldWithDefaultAddressContract.say_hello()
+        ]
+        |> Multicall.aggregate3()
+        |> Ethers.call!()
+        |> Multicall.aggregate3_decode([
+          HelloWorldWithDefaultAddressContract.say_hello(),
+          HelloWorldWithDefaultAddressContract.say_hello()
+        ])
     end
 
-    test "multiple calls with reduced abstraction", %{
+    test "aggregate3 with reduced abstraction and no decoding", %{
       counter_address: counter_address,
       hello_world_address: hello_world_address
     } do
-      {:ok, [true: "Hello World!", true: 420]} =
+      {:ok,
+       [
+         true:
+           <<0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+             0, 0, 0, 32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+             0, 0, 0, 0, 0, 0, 0, 12, 72, 101, 108, 108, 111, 32, 87, 111, 114, 108, 100, 33, 0,
+             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0>>,
+         false: "",
+         true:
+           <<0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+             0, 0, 1, 164>>,
+         false: ""
+       ]} =
         [
           {hello_world_address, true, hex_decode!("0xef5fb05b")},
           {hello_world_address, true, hex_decode!("0x6d4ce63c")},
@@ -56,6 +75,75 @@ defmodule Ethers.MulticallTest do
         ]
         |> Multicall3.aggregate3()
         |> Ethers.call()
+    end
+
+    test "aggregate2 with no default address using Ethers.call", %{
+      counter_address: counter_address,
+      hello_world_address: hello_world_address
+    } do
+      [block, ["Hello World!", 420, 420]] =
+        [
+          {HelloWorldContract.say_hello(), to: hello_world_address},
+          {CounterContract.get(), to: counter_address},
+          {CounterContract.get(), to: counter_address, allow_failure: false}
+        ]
+        |> Multicall.aggregate2()
+        |> Ethers.call!()
+        |> Multicall.aggregate2_decode([
+          HelloWorldContract.say_hello(),
+          CounterContract.get(),
+          CounterContract.get()
+        ])
+
+      {:ok, expected_block} = Ethers.current_block_number()
+      assert expected_block == block
+    end
+
+    test "aggregate2 with default address", %{
+      counter_address: counter_address,
+      hello_world_address: hello_world_address
+    } do
+      [block, ["", ""]] =
+        [
+          {HelloWorldWithDefaultAddressContract.say_hello()},
+          HelloWorldWithDefaultAddressContract.say_hello()
+        ]
+        |> Multicall.aggregate2()
+        |> Ethers.call!()
+        |> Multicall.aggregate2_decode([
+          HelloWorldWithDefaultAddressContract.say_hello(),
+          HelloWorldWithDefaultAddressContract.say_hello()
+        ])
+
+      {:ok, expected_block} = Ethers.current_block_number()
+      assert expected_block == block
+    end
+
+    test "aggregate2 with reduced abstraction and no decoding", %{
+      counter_address: counter_address,
+      hello_world_address: hello_world_address
+    } do
+      {:ok,
+       [
+         block,
+         [
+           <<0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+             0, 0, 0, 32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+             0, 0, 0, 0, 0, 0, 0, 12, 72, 101, 108, 108, 111, 32, 87, 111, 114, 108, 100, 33, 0,
+             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0>>,
+           <<0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+             0, 0, 1, 164>>
+         ]
+       ]} =
+        [
+          {hello_world_address, hex_decode!("0xef5fb05b")},
+          {counter_address, hex_decode!("0x6d4ce63c")}
+        ]
+        |> Multicall3.aggregate()
+        |> Ethers.call()
+
+      {:ok, expected_block} = Ethers.current_block_number()
+      assert expected_block == block
     end
   end
 

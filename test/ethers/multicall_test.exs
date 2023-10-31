@@ -4,8 +4,8 @@ defmodule Ethers.MulticallTest do
   import Ethers.Utils, only: [hex_decode!: 1]
 
   alias Ethers.Contract.Test.CounterContract
-  alias Ethers.Contract.Test.HelloWorldWithDefaultAddressContract
   alias Ethers.Contract.Test.HelloWorldContract
+  alias Ethers.Contract.Test.HelloWorldWithDefaultAddressContract
   alias Ethers.Contracts.Multicall3
   alias Ethers.Multicall
 
@@ -33,10 +33,7 @@ defmodule Ethers.MulticallTest do
         ])
     end
 
-    test "aggregate3 with default address", %{
-      counter_address: counter_address,
-      hello_world_address: hello_world_address
-    } do
+    test "aggregate3 with default address" do
       [true: "", true: ""] =
         [
           {HelloWorldWithDefaultAddressContract.say_hello()},
@@ -99,10 +96,7 @@ defmodule Ethers.MulticallTest do
       assert expected_block == block
     end
 
-    test "aggregate2 with default address", %{
-      counter_address: counter_address,
-      hello_world_address: hello_world_address
-    } do
+    test "aggregate2 with default address" do
       [block, ["", ""]] =
         [
           {HelloWorldWithDefaultAddressContract.say_hello()},

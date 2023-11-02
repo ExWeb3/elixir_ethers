@@ -139,6 +139,52 @@ defmodule Ethers.MulticallTest do
       {:ok, expected_block} = Ethers.current_block_number()
       assert expected_block == block
     end
+
+    test "aggregate3 using Multicall.call/2 ", %{
+      counter_address: counter_address,
+      hello_world_address: hello_world_address
+    } do
+      calls = [
+        {HelloWorldContract.say_hello(), to: hello_world_address},
+        {CounterContract.get(), to: counter_address},
+        {CounterContract.get(), to: counter_address, allow_failure: false},
+        HelloWorldWithDefaultAddressContract.say_hello()
+      ]
+
+      {:ok, [true: "Hello World!", true: 420, true: 420, true: ""]} =
+        calls
+        |> Multicall.aggregate3()
+        |> Multicall.call(calls: calls)
+    end
+
+    test "aggregate3 using Multicall.call/2 with no :calls", %{
+      counter_address: counter_address,
+      hello_world_address: hello_world_address
+    } do
+      {:ok,
+       [
+         true:
+           <<0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+             0, 0, 0, 32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+             0, 0, 0, 0, 0, 0, 0, 12, 72, 101, 108, 108, 111, 32, 87, 111, 114, 108, 100, 33, 0,
+             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0>>,
+         true:
+           <<0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+             0, 0, 1, 164>>,
+         true:
+           <<0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+             0, 0, 1, 164>>,
+         true: ""
+       ]} =
+        [
+          {HelloWorldContract.say_hello(), to: hello_world_address},
+          {CounterContract.get(), to: counter_address},
+          {CounterContract.get(), to: counter_address, allow_failure: false},
+          HelloWorldWithDefaultAddressContract.say_hello()
+        ]
+        |> Multicall.aggregate3()
+        |> Multicall.call()
+    end
   end
 
   defp deploy_contracts(_ctx) do

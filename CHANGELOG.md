@@ -16,6 +16,8 @@
  * Support dynamically sized indexed event filters (bytes, strings, arrays and structs)
  * `Ethers.call/2` now only returns as a list if the return type is either a solidity array or tuple
  * Add return names in documentations and TxData inspection
+ * Added an interface for `Multicall3` through `Ethers.Contracts.Multicall3`
+ * Added `Ethers.Multicall` as an abstraction for `Ethers.Contracts.Multicall3`
 
 ### Breaking Changes
 

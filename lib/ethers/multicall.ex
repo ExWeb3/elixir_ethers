@@ -207,11 +207,9 @@ defmodule Ethers.Multicall do
   """
   @spec decode(
           [%{(true | false) => any()}] | [integer() | [...]],
-          [Ethers.TxData.t() | binary()] | nil
+          [Ethers.TxData.t() | binary()]
         ) :: [%{(true | false) => any()}] | [integer() | [...]]
   def decode(resps, calls)
-
-  def decode(resps, nil), do: resps
 
   def decode([block, resps], calls) when is_integer(block) do
     aggregate2_decode([block, resps], calls)
@@ -297,7 +295,6 @@ defmodule Ethers.Multicall do
 
   defp decode_calls(calls), do: Enum.map(calls, &decode_call/1)
 
-  defp decode_call({%TxData{selector: selector}, _, _}), do: selector
   defp decode_call({%TxData{selector: selector}, _}), do: selector
   defp decode_call({%TxData{selector: selector}}), do: selector
   defp decode_call(%TxData{selector: selector}), do: selector

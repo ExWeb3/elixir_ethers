@@ -93,13 +93,13 @@ defmodule Ethers.Multicall do
         ) :: {Ethers.Types.t_address(), boolean(), binary()}
   def aggregate3_encode_data(data)
 
-  def aggregate3_encode_data({%TxData{data: data}, opts}) do
-    {Keyword.fetch!(opts, :to), Keyword.get(opts, :allow_failure, true), hex_decode!(data)}
-  end
-
   def aggregate3_encode_data({%TxData{data: data, default_address: address}, opts})
       when not is_nil(address) do
     {address, Keyword.get(opts, :allow_failure, true), hex_decode!(data)}
+  end
+
+  def aggregate3_encode_data({%TxData{data: data}, opts}) do
+    {Keyword.fetch!(opts, :to), Keyword.get(opts, :allow_failure, true), hex_decode!(data)}
   end
 
   def aggregate3_encode_data({%TxData{data: data, default_address: address}})

@@ -34,17 +34,23 @@ defmodule Ethers.MulticallTest do
     end
 
     test "aggregate3 with default address" do
-      [true: "", true: ""] =
+      calls =
         [
           {HelloWorldWithDefaultAddressContract.say_hello()},
           HelloWorldWithDefaultAddressContract.say_hello()
         ]
+
+      [true: "", true: ""] =
+        calls
         |> Multicall.aggregate3()
         |> Ethers.call!()
-        |> Multicall.aggregate3_decode([
-          HelloWorldWithDefaultAddressContract.say_hello(),
-          HelloWorldWithDefaultAddressContract.say_hello()
-        ])
+        |> Multicall.aggregate3_decode(calls)
+
+      [true: "", true: ""] =
+        calls
+        |> Multicall.aggregate3()
+        |> Ethers.call!()
+        |> Multicall.decode(calls)
     end
 
     test "aggregate3 with reduced abstraction and no decoding", %{
@@ -78,22 +84,27 @@ defmodule Ethers.MulticallTest do
       counter_address: counter_address,
       hello_world_address: hello_world_address
     } do
-      [block, ["Hello World!", 420, 420]] =
+      calls =
         [
           {HelloWorldContract.say_hello(), to: hello_world_address},
           {CounterContract.get(), to: counter_address},
           {CounterContract.get(), to: counter_address, allow_failure: false}
         ]
+
+      [block, ["Hello World!", 420, 420]] =
+        calls
         |> Multicall.aggregate2()
         |> Ethers.call!()
-        |> Multicall.aggregate2_decode([
-          HelloWorldContract.say_hello(),
-          CounterContract.get(),
-          CounterContract.get()
-        ])
+        |> Multicall.aggregate2_decode(calls)
 
       {:ok, expected_block} = Ethers.current_block_number()
       assert expected_block == block
+
+      [_block, ["Hello World!", 420, 420]] =
+        calls
+        |> Multicall.aggregate2()
+        |> Ethers.call!()
+        |> Multicall.decode(calls)
     end
 
     test "aggregate2 with default address" do
@@ -138,6 +149,24 @@ defmodule Ethers.MulticallTest do
 
       {:ok, expected_block} = Ethers.current_block_number()
       assert expected_block == block
+    end
+
+    test "aggregate3_encode_data/1 works correctly" do
+      {"0x1337", false, <<239, 95, 176, 91>>} =
+        Multicall.aggregate3_encode_data(
+          {HelloWorldContract.say_hello(), to: "0x1337", allow_failure: false}
+        )
+
+      {"0x1000bf6a479f320ead074411a4b0e7944ea8c9c1", false, <<239, 95, 176, 91>>} =
+        Multicall.aggregate3_encode_data(
+          {HelloWorldWithDefaultAddressContract.say_hello(), allow_failure: false}
+        )
+
+      {"0x1000bf6a479f320ead074411a4b0e7944ea8c9c1", true, <<239, 95, 176, 91>>} =
+        Multicall.aggregate3_encode_data({HelloWorldWithDefaultAddressContract.say_hello()})
+
+      {"0x1000bf6a479f320ead074411a4b0e7944ea8c9c1", true, <<239, 95, 176, 91>>} =
+        Multicall.aggregate3_encode_data(HelloWorldWithDefaultAddressContract.say_hello())
     end
   end
 

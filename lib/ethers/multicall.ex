@@ -35,7 +35,7 @@ defmodule Ethers.Multicall do
   More info at: https://github.com/mds1/multicall#batch-contract-reads
 
   ## Parameters
-  - data: A list of function calls with optional options
+  - data: A list of `TxData` structs or `{%TxData{...}, options}` tuples. The options can include:
     - allow_failure: If false the execution will revert. Defaults to true.
     - to: Overrides the `default_address` (if any) for the respective function call.
 

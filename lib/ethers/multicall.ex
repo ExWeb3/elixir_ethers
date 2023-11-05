@@ -154,7 +154,7 @@ defmodule Ethers.Multicall do
   Encodes a function call with optional options into a solidity compatible (address,bytes).
 
   ## Parameters
-  - data: A function call with optional options
+  - data:  A `TxData` structs or `{%TxData{...}, options}` tuple. The options can include:
     - to: Overrides the `default_address` (if any) for the respective function call.
 
   ## Examples

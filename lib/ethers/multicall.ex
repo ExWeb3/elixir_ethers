@@ -15,9 +15,9 @@ defmodule Ethers.Multicall do
   ]
 
   calls
-  |> Multicall.aggregate3() # Or can use `Multicall.aggregate2`
+  |> Ethers.Multicall.aggregate3() # Or can use `Ethers.Multicall.aggregate2/1`
   |> Ethers.call!()
-  |> Multicall.decode(calls)
+  |> Ethers.Multicall.decode(calls)
   ```
   """
 

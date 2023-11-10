@@ -24,7 +24,7 @@ defmodule Ethers do
   alias Ethers.Types
   alias Ethers.Utils
 
-  @option_keys [:rpc_client, :rpc_opts, :block]
+  @option_keys [:rpc_client, :rpc_opts]
 
   defguardp valid_result(bin) when bin != "0x"
 
@@ -148,42 +148,14 @@ defmodule Ethers do
   @spec call(TxData.t(), Keyword.t()) :: {:ok, any()} | {:error, term()}
   def call(params, overrides \\ [])
 
-  def call(%TxData{selector: selector} = tx_data, overrides) do
+  def call(tx_data, overrides) do
     {opts, overrides} = Keyword.split(overrides, @option_keys)
 
     {rpc_client, rpc_opts} = get_rpc_client(opts)
 
-    block =
-      case Keyword.get(opts, :block, "latest") do
-        number when is_integer(number) -> Utils.integer_to_hex(number)
-        v -> v
-      end
-
-    tx_params = TxData.to_map(tx_data, overrides)
-
-    with :ok <- check_params(tx_params, :call) do
-      case rpc_client.eth_call(tx_params, block, rpc_opts) do
-        {:ok, resp} when valid_result(resp) ->
-          returns =
-            selector
-            |> ABI.decode(Ethers.Utils.hex_decode!(resp), :output)
-            |> Enum.zip(selector.returns)
-            |> Enum.map(fn {return, type} -> Utils.human_arg(return, type) end)
-
-          case returns do
-            [element] -> {:ok, element}
-            _ -> {:ok, returns}
-          end
-
-        {:ok, "0x"} ->
-          {:error, :unknown}
-
-        :error ->
-          {:error, :hex_decode_error}
-
-        {:error, cause} ->
-          {:error, cause}
-      end
+    with {:ok, tx_params, block} <- pre_process(tx_data, overrides, :call, opts) do
+      rpc_client.eth_call(tx_params, block, rpc_opts)
+      |> post_process(tx_data, :call)
     end
   end
 
@@ -216,25 +188,14 @@ defmodule Ethers do
   ```
   """
   @spec send(map() | TxData.t(), Keyword.t()) :: {:ok, String.t()} | {:error, term()}
-  def send(tx_data, overrides \\ [])
-
-  def send(tx_data, overrides) do
+  def send(tx_data, overrides \\ []) do
     {opts, overrides} = Keyword.split(overrides, @option_keys)
-
-    tx_params = TxData.to_map(tx_data, overrides)
 
     {rpc_client, rpc_opts} = get_rpc_client(opts)
 
-    with :ok <- check_params(tx_params, :send),
-         {:ok, tx_params} <- Utils.maybe_add_gas_limit(tx_params, opts),
-         {:ok, tx} when valid_result(tx) <- rpc_client.eth_send_transaction(tx_params, rpc_opts) do
-      {:ok, tx}
-    else
-      {:ok, "0x"} ->
-        {:error, :unknown}
-
-      {:error, cause} ->
-        {:error, cause}
+    with {:ok, tx_params} <- pre_process(tx_data, overrides, :send, opts) do
+      rpc_client.eth_send_transaction(tx_params, rpc_opts)
+      |> post_process(tx_data, :send)
     end
   end
 
@@ -267,13 +228,11 @@ defmodule Ethers do
   def estimate_gas(tx_data, overrides \\ []) do
     {opts, overrides} = Keyword.split(overrides, @option_keys)
 
-    tx_params = TxData.to_map(tx_data, overrides)
-
     {rpc_client, rpc_opts} = get_rpc_client(opts)
 
-    with :ok <- check_params(tx_params, :estimate_gas),
-         {:ok, gas_hex} <- rpc_client.eth_estimate_gas(tx_params, rpc_opts) do
-      Utils.hex_to_integer(gas_hex)
+    with {:ok, tx_params} <- pre_process(tx_data, overrides, :estimate_gas, opts) do
+      rpc_client.eth_estimate_gas(tx_params, rpc_opts)
+      |> post_process(tx_data, :estimate_gas)
     end
   end
 
@@ -347,6 +306,63 @@ defmodule Ethers do
 
     {module, Keyword.get(opts, :rpc_opts, [])}
   end
+
+  defp pre_process(tx_data, overrides, _action = :call, _opts) do
+    {block, overrides} = Keyword.pop(overrides, :block, "latest")
+
+    block =
+      case block do
+        number when is_integer(number) -> Utils.integer_to_hex(number)
+        v -> v
+      end
+
+    tx_params = TxData.to_map(tx_data, overrides)
+
+    case check_params(tx_params, :call) do
+      :ok -> {:ok, tx_params, block}
+      err -> err
+    end
+  end
+
+  defp pre_process(tx_data, overrides, action = :send, opts) do
+    tx_params = TxData.to_map(tx_data, overrides)
+
+    with :ok <- check_params(tx_params, action),
+         {:ok, tx_params} <- Utils.maybe_add_gas_limit(tx_params, opts) do
+      {:ok, tx_params}
+    end
+  end
+
+  defp pre_process(tx_data, overrides, action = :estimate_gas, _opts) do
+    tx_params = TxData.to_map(tx_data, overrides)
+
+    with :ok <- check_params(tx_params, action) do
+      {:ok, tx_params}
+    end
+  end
+
+  defp post_process({:ok, resp}, tx_data, :call) when valid_result(resp) do
+    tx_data.selector
+    |> ABI.decode(Ethers.Utils.hex_decode!(resp), :output)
+    |> Enum.zip(tx_data.selector.returns)
+    |> Enum.map(fn {return, type} -> Utils.human_arg(return, type) end)
+    |> case do
+      [element] -> {:ok, element}
+      elements -> {:ok, elements}
+    end
+  end
+
+  defp post_process({:ok, tx_hash}, _tx_data, _action = :send) when valid_result(tx_hash),
+    do: {:ok, tx_hash}
+
+  defp post_process({:ok, gas_hex}, _tx_data, :estimate_gas) when valid_result(gas_hex),
+    do: Utils.hex_to_integer(gas_hex)
+
+  defp post_process({:ok, "0x"}, _tx_data, _action),
+    do: {:error, :unknown}
+
+  defp post_process({:error, cause}, _tx_data, _action),
+    do: {:error, cause}
 
   defp ensure_hex_value(params, key) do
     case Map.get(params, key) do

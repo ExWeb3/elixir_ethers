@@ -25,6 +25,7 @@ defmodule Ethers do
   alias Ethers.Utils
 
   @option_keys [:rpc_client, :rpc_opts]
+  @hex_decode_post_process [:estimate_gas, :current_gas_price, :current_block_number]
 
   defguardp valid_result(bin) when bin != "0x"
 
@@ -32,24 +33,26 @@ defmodule Ethers do
   Returns the current gas price from the RPC API
   """
   @spec current_gas_price(Keyword.t()) :: {:ok, non_neg_integer()}
-  def current_gas_price(opts \\ []) do
+  def current_gas_price(overrides \\ []) do
+    {opts, _overrides} = Keyword.split(overrides, @option_keys)
+
     {rpc_client, rpc_opts} = get_rpc_client(opts)
 
-    with {:ok, price_hex} <- rpc_client.eth_gas_price(rpc_opts) do
-      Ethers.Utils.hex_to_integer(price_hex)
-    end
+    rpc_client.eth_gas_price(rpc_opts)
+    |> post_process(nil, :current_gas_price)
   end
 
   @doc """
   Returns the current block number of the blockchain.
   """
   @spec current_block_number(Keyword.t()) :: {:ok, non_neg_integer()} | {:error, term()}
-  def current_block_number(opts \\ []) do
+  def current_block_number(overrides \\ []) do
+    {opts, _overrides} = Keyword.split(overrides, @option_keys)
+
     {rpc_client, rpc_opts} = get_rpc_client(opts)
 
-    with {:ok, block_number} <- rpc_client.eth_block_number(rpc_opts) do
-      Ethers.Utils.hex_to_integer(block_number)
-    end
+    rpc_client.eth_block_number(rpc_opts)
+    |> post_process(nil, :current_block_number)
   end
 
   @doc """
@@ -257,21 +260,14 @@ defmodule Ethers do
   - `:rpc_opts`: Extra options to pass to rpc_client. (Like timeout, Server URL, etc.)
   """
   @spec get_logs(map(), Keyword.t()) :: {:ok, [Event.t()]} | {:error, atom()}
-  def get_logs(%{selector: selector} = tx_data, overrides \\ []) do
+  def get_logs(event_filter, overrides \\ []) do
     {opts, overrides} = Keyword.split(overrides, @option_keys)
-
-    log_params =
-      tx_data
-      |> EventFilter.to_map(overrides)
-      |> ensure_hex_value(:fromBlock)
-      |> ensure_hex_value(:toBlock)
 
     {rpc_client, rpc_opts} = get_rpc_client(opts)
 
-    with {:ok, resp} when is_list(resp) <- rpc_client.eth_get_logs(log_params, rpc_opts) do
-      logs = Enum.map(resp, &Event.decode(&1, selector))
-
-      {:ok, logs}
+    with {:ok, log_params} <- pre_process(event_filter, overrides, :get_logs, opts) do
+      rpc_client.eth_get_logs(log_params, rpc_opts)
+      |> post_process(event_filter, :get_logs)
     end
   end
 
@@ -341,6 +337,16 @@ defmodule Ethers do
     end
   end
 
+  defp pre_process(event_filter, overrides, :get_logs, _opts) do
+    log_params =
+      event_filter
+      |> EventFilter.to_map(overrides)
+      |> ensure_hex_value(:fromBlock)
+      |> ensure_hex_value(:toBlock)
+
+    {:ok, log_params}
+  end
+
   defp post_process({:ok, resp}, tx_data, :call) when valid_result(resp) do
     tx_data.selector
     |> ABI.decode(Ethers.Utils.hex_decode!(resp), :output)
@@ -355,10 +361,22 @@ defmodule Ethers do
   defp post_process({:ok, tx_hash}, _tx_data, _action = :send) when valid_result(tx_hash),
     do: {:ok, tx_hash}
 
-  defp post_process({:ok, gas_hex}, _tx_data, :estimate_gas) when valid_result(gas_hex),
-    do: Utils.hex_to_integer(gas_hex)
+  defp post_process({:ok, gas_hex}, _tx_data, action)
+       when valid_result(gas_hex) and action in @hex_decode_post_process do
+    Utils.hex_to_integer(gas_hex)
+  end
 
-  defp post_process({:ok, "0x"}, _tx_data, _action),
+  defp post_process({:ok, resp}, event_filter, :get_logs) when is_list(resp) do
+    logs = Enum.map(resp, &Event.decode(&1, event_filter.selector))
+
+    {:ok, logs}
+  end
+
+  defp post_process({:ok, resp}, _event_filter, :get_logs) do
+    {:ok, resp}
+  end
+
+  defp post_process({:ok, _}, _tx_data, _action),
     do: {:error, :unknown}
 
   defp post_process({:error, cause}, _tx_data, _action),

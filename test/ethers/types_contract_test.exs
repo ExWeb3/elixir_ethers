@@ -91,8 +91,11 @@ defmodule Ethers.TypesContractTest do
   end
 
   defp deploy_types_contract(_ctx) do
-    init_params = TypesContract.constructor()
-    assert {:ok, tx_hash} = Ethers.deploy(TypesContract, init_params, %{from: @from})
+    encoded_constructor = TypesContract.constructor()
+
+    assert {:ok, tx_hash} =
+             Ethers.deploy(TypesContract, encoded_constructor: encoded_constructor, from: @from)
+
     assert {:ok, address} = Ethers.deployed_address(tx_hash)
 
     [address: address]

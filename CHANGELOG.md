@@ -29,6 +29,7 @@
  * Removal of `Ethers.RPC` module
  * Remove `Ethers.Types.dynamically_sized_types/0` function
  * `Ethers.call/2` response is not always a list
+ * `Ethers.deploy/4` is now removed and replaced with `Ethers.deploy/2` 
 
 ### Bug fixes
 

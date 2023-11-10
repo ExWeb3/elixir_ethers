@@ -42,7 +42,7 @@ defmodule EthersTest do
 
   describe "contract deployment" do
     test "can deploy a contract given a module which has the binary" do
-      assert {:ok, tx} = Ethers.deploy(HelloWorldContract, "", %{from: @from})
+      assert {:ok, tx} = Ethers.deploy(HelloWorldContract, from: @from)
       assert {:ok, contract_address} = Ethers.deployed_address(tx)
 
       assert HelloWorldContract.say_hello() |> Ethers.call!(to: contract_address) ==
@@ -51,7 +51,7 @@ defmodule EthersTest do
 
     test "can deploy a contract given the contract binary" do
       bin = HelloWorldContract.__contract_binary__()
-      assert {:ok, tx} = Ethers.deploy(bin, "", %{from: @from})
+      assert {:ok, tx} = Ethers.deploy(bin, from: @from)
       assert {:ok, contract_address} = Ethers.deployed_address(tx)
 
       assert HelloWorldContract.say_hello() |> Ethers.call!(to: contract_address) ==
@@ -60,7 +60,7 @@ defmodule EthersTest do
 
     test "can deploy a contract given the contract binary prefixed with 0x" do
       bin = HelloWorldContract.__contract_binary__()
-      assert {:ok, tx} = Ethers.deploy("0x" <> bin, "", %{from: @from})
+      assert {:ok, tx} = Ethers.deploy("0x" <> bin, from: @from)
       assert {:ok, contract_address} = Ethers.deployed_address(tx)
 
       assert HelloWorldContract.say_hello() |> Ethers.call!(to: contract_address) ==
@@ -68,10 +68,10 @@ defmodule EthersTest do
     end
 
     test "returns error if the module does not include the binary" do
-      assert {:error, :binary_not_found} = Ethers.deploy(NotFoundContract, "", %{from: @from})
+      assert {:error, :binary_not_found} = Ethers.deploy(NotFoundContract, from: @from)
 
       assert {:error, :binary_not_found} =
-               Ethers.deploy(Ethers.Contracts.ERC20, "", %{from: @from})
+               Ethers.deploy(Ethers.Contracts.ERC20, from: @from)
     end
 
     test "getting the deployed address of a non existing (not yet validated) transaction" do
@@ -80,7 +80,7 @@ defmodule EthersTest do
     end
 
     test "getting the deployed address of a non contract creation transaction" do
-      {:ok, tx} = Ethers.deploy(HelloWorldContract, "", %{from: @from})
+      {:ok, tx} = Ethers.deploy(HelloWorldContract, from: @from)
       {:ok, contract_address} = Ethers.deployed_address(tx)
 
       {:ok, tx_hash} =

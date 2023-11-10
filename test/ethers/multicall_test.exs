@@ -168,11 +168,16 @@ defmodule Ethers.MulticallTest do
   end
 
   defp deploy_contracts(_ctx) do
-    init_params = CounterContract.constructor(420)
-    assert {:ok, tx_hash} = Ethers.deploy(CounterContract, init_params, %{from: @from})
+    encoded_constructor = CounterContract.constructor(420)
+
+    assert {:ok, tx_hash} =
+             Ethers.deploy(CounterContract, encoded_constructor: encoded_constructor, from: @from)
+
     assert {:ok, counter_address} = Ethers.deployed_address(tx_hash)
 
-    assert {:ok, tx_hash} = Ethers.deploy(HelloWorldContract, "", %{from: @from})
+    assert {:ok, tx_hash} =
+             Ethers.deploy(HelloWorldContract, encoded_constructor: nil, from: @from)
+
     assert {:ok, hello_world_address} = Ethers.deployed_address(tx_hash)
 
     # Deploy Multicall3 to 0xcA11bde05977b3631167028862bE2a173976CA11.

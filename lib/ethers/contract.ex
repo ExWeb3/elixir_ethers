@@ -145,7 +145,7 @@ defmodule Ethers.Contract do
       @doc """
       Prepares contract constructor values.
 
-      To deploy a contracts see `Ethers.deploy/3`.
+      To deploy a contracts see `Ethers.deploy/2`.
 
       ## Parameters
       #{unquote(document_types(selector.types, selector.input_names))}
@@ -217,9 +217,9 @@ defmodule Ethers.Contract do
 
     quote context: mod, location: :keep do
       @doc """
-      Create event filter for `#{unquote(human_signature(abi.selectors))}` 
+      Create event filter for `#{unquote(human_signature(abi.selectors))}`
 
-      For each indexed parameter you can either pass in the value you want to 
+      For each indexed parameter you can either pass in the value you want to
       filter or `nil` if you don't want to filter.
 
       #{unquote(document_parameters(abi.selectors))}

@@ -61,40 +61,38 @@ defmodule Ethers do
   File you have or as a separate file.
 
   ## Parameters
-  - contract_module_or_binary: Either the contract module which was already loaded or the compiled binary of the contract. The binary MUST be hex encoded.
-  - contract_init: Constructor value for contract deployment. Use `CONTRACT_MODULE.constructor` function's output. If your contract does not have a constructor, you can pass an empty binary here.
-  - params: Parameters for the transaction creating the contract.
-  - opts: RPC and account options.
+  - contract_module_or_binary: Either the contract module which was already loaded or the compiled
+  binary of the contract. The binary MUST be hex encoded.
+  - overrides: A keyword list containing options and overrides.
+    - `encoded_constructor`: Hex encoded value for constructor parameters. (Optional)
+    - Any other account or RPC related options
   """
-  @spec deploy(atom() | binary(), binary(), Keyword.t(), Keyword.t()) ::
-          {:ok, Types.t_hash()} | {:error, atom()}
-  def deploy(contract_module_or_binary, contract_init, params, opts \\ [])
+  @spec deploy(atom() | binary(), Keyword.t()) ::
+          {:ok, Types.t_hash()} | {:error, term()}
+  def deploy(contract_module_or_binary, overrides \\ [])
 
-  def deploy(contract_module, contract_init, params, opts) when is_atom(contract_module) do
+  def deploy(contract_module, overrides) when is_atom(contract_module) do
     with true <- function_exported?(contract_module, :__contract_binary__, 0),
          bin when not is_nil(bin) <- contract_module.__contract_binary__() do
-      deploy(bin, contract_init, params, opts)
+      deploy(bin, overrides)
     else
       _error ->
         {:error, :binary_not_found}
     end
   end
 
-  def deploy("0x" <> contract_binary, contract_init, params, opts) do
-    deploy(contract_binary, contract_init, params, opts)
+  def deploy("0x" <> contract_binary, overrides) do
+    deploy(contract_binary, overrides)
   end
 
-  def deploy(contract_binary, contract_init, params, opts) when is_binary(contract_binary) do
-    params =
-      Enum.into(params, %{
-        data: "0x#{contract_binary}#{contract_init}",
-        to: nil
-      })
+  def deploy(contract_binary, overrides) when is_binary(contract_binary) do
+    {opts, overrides} = Keyword.split(overrides, @option_keys)
 
     {rpc_client, rpc_opts} = get_rpc_client(opts)
 
-    with {:ok, params} <- Utils.maybe_add_gas_limit(params, opts) do
-      rpc_client.eth_send_transaction(params, rpc_opts)
+    with {:ok, tx_params} <- pre_process(contract_binary, overrides, :deploy, opts) do
+      rpc_client.eth_send_transaction(tx_params, rpc_opts)
+      |> post_process(tx_params, :deploy)
     end
   end
 
@@ -107,7 +105,7 @@ defmodule Ethers do
   """
   @spec deployed_address(binary, Keyword.t()) ::
           {:ok, Types.t_address()}
-          | {:error, :no_contract_address | :transaction_not_found | atom()}
+          | {:error, :no_contract_address | :transaction_not_found | term()}
   def deployed_address(tx_hash, opts \\ []) when is_binary(tx_hash) do
     {rpc_client, rpc_opts} = get_rpc_client(opts)
 
@@ -288,7 +286,7 @@ defmodule Ethers do
     {module, Keyword.get(opts, :rpc_opts, [])}
   end
 
-  defp pre_process(tx_data, overrides, _action = :call, _opts) do
+  defp pre_process(tx_data, overrides, :call = _action, _opts) do
     {block, overrides} = Keyword.pop(overrides, :block, "latest")
 
     block =
@@ -305,16 +303,26 @@ defmodule Ethers do
     end
   end
 
-  defp pre_process(tx_data, overrides, action = :send, opts) do
+  defp pre_process(contract_binary, overrides, :deploy = _action, opts) do
+    {encoded_constructor, overrides} = Keyword.pop(overrides, :encoded_constructor)
+
+    overrides
+    |> Enum.into(%{
+      data: "0x#{contract_binary}#{encoded_constructor}",
+      to: nil
+    })
+    |> Utils.maybe_add_gas_limit(opts)
+  end
+
+  defp pre_process(tx_data, overrides, :send = action, opts) do
     tx_params = TxData.to_map(tx_data, overrides)
 
-    with :ok <- check_params(tx_params, action),
-         {:ok, tx_params} <- Utils.maybe_add_gas_limit(tx_params, opts) do
-      {:ok, tx_params}
+    with :ok <- check_params(tx_params, action) do
+      Utils.maybe_add_gas_limit(tx_params, opts)
     end
   end
 
-  defp pre_process(tx_data, overrides, action = :estimate_gas, _opts) do
+  defp pre_process(tx_data, overrides, :estimate_gas = action, _opts) do
     tx_params = TxData.to_map(tx_data, overrides)
 
     with :ok <- check_params(tx_params, action) do
@@ -344,6 +352,9 @@ defmodule Ethers do
   end
 
   defp post_process({:ok, tx_hash}, _tx_data, _action = :send) when valid_result(tx_hash),
+    do: {:ok, tx_hash}
+
+  defp post_process({:ok, tx_hash}, _tx_params, _action = :deploy) when valid_result(tx_hash),
     do: {:ok, tx_hash}
 
   defp post_process({:ok, gas_hex}, _tx_data, action)

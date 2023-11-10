@@ -33,8 +33,14 @@ defmodule Ethers.EventMixedIndexContractTest do
     end
 
     test "can filter and show the correct events" do
-      init_params = EventMixedIndexContract.constructor()
-      assert {:ok, tx_hash} = Ethers.deploy(EventMixedIndexContract, init_params, %{from: @from})
+      encoded_constructor = EventMixedIndexContract.constructor()
+
+      assert {:ok, tx_hash} =
+               Ethers.deploy(EventMixedIndexContract,
+                 encoded_constructor: encoded_constructor,
+                 from: @from
+               )
+
       assert {:ok, address} = Ethers.deployed_address(tx_hash)
 
       EventMixedIndexContract.transfer(100, @from, true, @from)

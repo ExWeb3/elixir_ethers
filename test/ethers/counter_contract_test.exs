@@ -15,8 +15,14 @@ defmodule Ethers.CounterContractTest do
 
   describe "contract deployment" do
     test "Can deploy a contract on blockchain" do
-      init_params = CounterContract.constructor(100)
-      assert {:ok, tx_hash} = Ethers.deploy(CounterContract, init_params, %{from: @from})
+      encoded_constructor = CounterContract.constructor(100)
+
+      assert {:ok, tx_hash} =
+               Ethers.deploy(CounterContract,
+                 encoded_constructor: encoded_constructor,
+                 from: @from
+               )
+
       assert {:ok, _address} = Ethers.deployed_address(tx_hash)
     end
   end
@@ -273,8 +279,11 @@ defmodule Ethers.CounterContractTest do
   end
 
   defp deploy_counter_contract(_ctx) do
-    init_params = CounterContract.constructor(100)
-    assert {:ok, tx_hash} = Ethers.deploy(CounterContract, init_params, %{from: @from})
+    encoded_constructor = CounterContract.constructor(100)
+
+    assert {:ok, tx_hash} =
+             Ethers.deploy(CounterContract, encoded_constructor: encoded_constructor, from: @from)
+
     assert {:ok, address} = Ethers.deployed_address(tx_hash)
 
     [address: address]

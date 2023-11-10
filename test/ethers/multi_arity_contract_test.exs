@@ -12,8 +12,14 @@ defmodule Ethers.MultiArityContractTest do
 
   describe "next function" do
     test "can override RPC client" do
-      init_params = MultiArityContract.constructor()
-      assert {:ok, tx_hash} = Ethers.deploy(MultiArityContract, init_params, %{from: @from})
+      encoded_constructor = MultiArityContract.constructor()
+
+      assert {:ok, tx_hash} =
+               Ethers.deploy(MultiArityContract,
+                 encoded_constructor: encoded_constructor,
+                 from: @from
+               )
+
       assert {:ok, address} = Ethers.deployed_address(tx_hash)
 
       assert {:ok, 0} = MultiArityContract.next() |> Ethers.call(to: address)

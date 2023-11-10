@@ -33,9 +33,7 @@ defmodule Ethers do
   Returns the current gas price from the RPC API
   """
   @spec current_gas_price(Keyword.t()) :: {:ok, non_neg_integer()}
-  def current_gas_price(overrides \\ []) do
-    {opts, _overrides} = Keyword.split(overrides, @option_keys)
-
+  def current_gas_price(opts \\ []) do
     {rpc_client, rpc_opts} = get_rpc_client(opts)
 
     rpc_client.eth_gas_price(rpc_opts)
@@ -46,9 +44,7 @@ defmodule Ethers do
   Returns the current block number of the blockchain.
   """
   @spec current_block_number(Keyword.t()) :: {:ok, non_neg_integer()} | {:error, term()}
-  def current_block_number(overrides \\ []) do
-    {opts, _overrides} = Keyword.split(overrides, @option_keys)
-
+  def current_block_number(opts \\ []) do
     {rpc_client, rpc_opts} = get_rpc_client(opts)
 
     rpc_client.eth_block_number(rpc_opts)

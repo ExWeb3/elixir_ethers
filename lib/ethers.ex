@@ -115,19 +115,8 @@ defmodule Ethers do
   def deployed_address(tx_hash, opts \\ []) when is_binary(tx_hash) do
     {rpc_client, rpc_opts} = get_rpc_client(opts)
 
-    case rpc_client.eth_get_transaction_receipt(tx_hash, rpc_opts) do
-      {:ok, %{"contractAddress" => contract_address}} when not is_nil(contract_address) ->
-        {:ok, contract_address}
-
-      {:ok, nil} ->
-        {:error, :transaction_not_found}
-
-      {:ok, _} ->
-        {:error, :no_contract_address}
-
-      {:error, reason} ->
-        {:error, reason}
-    end
+    rpc_client.eth_get_transaction_receipt(tx_hash, rpc_opts)
+    |> post_process(tx_hash, :deployed_address)
   end
 
   @doc """
@@ -375,6 +364,16 @@ defmodule Ethers do
   defp post_process({:ok, resp}, _event_filter, :get_logs) do
     {:ok, resp}
   end
+
+  defp post_process({:ok, %{"contractAddress" => contract_address}}, _tx_hash, :deployed_address)
+       when not is_nil(contract_address),
+       do: {:ok, contract_address}
+
+  defp post_process({:ok, nil}, _tx_hash, :deployed_address),
+    do: {:error, :transaction_not_found}
+
+  defp post_process({:ok, _}, _tx_hash, :deployed_address),
+    do: {:error, :no_contract_address}
 
   defp post_process({:ok, _}, _tx_data, _action),
     do: {:error, :unknown}

@@ -1,13 +1,16 @@
 defmodule Ethers.Multicall do
   @moduledoc """
-  High-level module providing convenient utilities and an easy-to-use API for interecting with
-  `Multicall3` (more info https://www.multicall3.com).
+  This module offers convenient utilities and a user-friendly API for interacting with
+  `Multicall3` (for more information, visit https://www.multicall3.com).
 
-  This module aggregates multiple **read-only** Ethereum contract calls into a single eth_call
-  which can be passed to `Ethers.call/2`. The response can then be passed to
-  `Ethers.Multicall.decode/2` for decoding responses returned by the `Multicall3` contract.
+  The primary function of this module is to aggregate multiple Ethereum contract calls
+  into a single operation. This aggregated call can be subsequently submitted using `Ethers.call/2`
+  or `Ethers.send/2` (If you know what you are doing!).
 
-  ## Examples
+  Upon receiving the response, it can be decoded using `Ethers.Multicall.decode/2` to interpret the
+  results returned by the `Multicall3` contract.
+
+  ## How to use
   ```elixir
   calls = [
     ContractA.foo(),
@@ -15,7 +18,7 @@ defmodule Ethers.Multicall do
   ]
 
   calls
-  |> Ethers.Multicall.aggregate3() # Or can use `Ethers.Multicall.aggregate2/1`
+  |> Ethers.Multicall.aggregate3() # Or `Ethers.Multicall.aggregate2/1`
   |> Ethers.call!()
   |> Ethers.Multicall.decode(calls)
   ```
@@ -30,32 +33,33 @@ defmodule Ethers.Multicall do
   @typep aggregate2_options :: [to: Ethers.Types.t_address()]
 
   @doc """
-  Aggregate calls, ensuring each returns success if required. Returns an
-  `Ethers.TxData` which can be passed to `Ethers.call/2`.
-  More info at: https://github.com/mds1/multicall#batch-contract-reads
+  Aggregates calls, ensuring each returns success if required, and returns a `Ethers.TxData` struct,
+  which can be passed to `Ethers.call/2`.
+
+  For more details, refer to: https://github.com/mds1/multicall#batch-contract-reads
 
   ## Parameters
-  - data: A list of `TxData` structs or `{%TxData{...}, options}` tuples. The options can include:
-    - allow_failure: If false the execution will revert. Defaults to true.
-    - to: Overrides the `default_address` (if any) for the respective function call.
+  - `data`: A list of `Ethers.TxData` structs or `{%Ethers.TxData{...}, options}` tuples. The options
+  can include:
+    - `allow_failure`: If set to `false`, the execution will revert. Defaults to `true`.
+    - `to`: Overrides the `default_address` (if any) for the respective function call.
 
   ## Examples
   ```elixir
-  [
+  Ethers.Multicall.aggregate3([
     ContractA.foo(), # <-- Assumes `default_address` in ContractA is defined.
-    { ContractA.foo() }, # <-- Equivalent to the above.
     { ContractB.bar(), to: "0x..." }, # <-- ContractB.bar() will call `to`.
     { ContractC.baz(), allow_failure: false, to: "0x..." }
     # ^^^ -> ContractC.baz() will call `to` and will revert on failure.
     { ContractD.foo(), allow_failure: false } # <-- ContractD.foo() will revert on failure.
-  ] |> aggregate3()
+  ])
   #Ethers.TxData<
-  function aggregate3(
-    (address,bool,bytes)[] calls [...]
-  ) payable returns (
-    (bool,bytes)[] returnData
-  )
-  default_address: "0xcA11bde05977b3631167028862bE2a173976CA11"
+    function aggregate3(
+      (address,bool,bytes)[] calls [...]
+    ) payable returns (
+      (bool,bytes)[] returnData
+    )
+    default_address: "0xcA11bde05977b3631167028862bE2a173976CA11"
   >
   ```
   """
@@ -70,10 +74,11 @@ defmodule Ethers.Multicall do
   end
 
   @doc """
-  Encodes a function call with optional options into a solidity compatible (address,bool,bytes).
+  Encodes a function call with optional options into a multicall3 compatible (address,bool,bytes)
+  tuple.
 
   ## Parameters
-  - data: A function call with optional options
+  - data: A `Ethers.TxData` struct or `{%Ethers.TxData{...}, options}`. The options can include:
     - allow_failure: If false the execution will revert. Defaults to true.
     - to: Overrides the `default_address` (if any) for the respective function call.
 
@@ -88,7 +93,6 @@ defmodule Ethers.Multicall do
   """
   @spec aggregate3_encode_data(
           Ethers.TxData.t()
-          | {Ethers.TxData.t()}
           | {Ethers.TxData.t(), aggregate3_options}
         ) :: {Ethers.Types.t_address(), boolean(), binary()}
   def aggregate3_encode_data(data)
@@ -102,11 +106,6 @@ defmodule Ethers.Multicall do
     {Keyword.fetch!(opts, :to), Keyword.get(opts, :allow_failure, true), hex_decode!(data)}
   end
 
-  def aggregate3_encode_data({%TxData{data: data, default_address: address}})
-      when not is_nil(address) do
-    {address, true, hex_decode!(data)}
-  end
-
   def aggregate3_encode_data(%TxData{data: data, default_address: address})
       when not is_nil(address) do
     {address, true, hex_decode!(data)}
@@ -114,8 +113,9 @@ defmodule Ethers.Multicall do
 
   @doc """
   Aggregate calls, returning the executed block number and will revert if any
-  call fails. Returns an `Ethers.TxData` which can be passed to `Ethers.call/2`.
-  More info at: https://github.com/mds1/multicall#batch-contract-reads
+  call fails. Returns a `Ethers.TxData` struct which can be passed to `Ethers.call/2`.
+
+  For more information refer to https://github.com/mds1/multicall#batch-contract-reads
 
   ## Parameters
   - data: A list of `TxData` structs or `{%TxData{...}, options}` tuples. The options can include:
@@ -123,25 +123,23 @@ defmodule Ethers.Multicall do
 
   ## Examples
   ```elixir
-  [
+  Ethers.Multicall.aggregate2([
     ContractA.foo(), # <-- Assumes `default_address` in ContractA is defined.
-    { ContractA.foo() }, # <-- Equivalent to the above.
     { ContractB.bar(), to: "0x..." }, # <-- ContractB.bar() will call `to`.
-  ] |> aggregate2()
+  ])
   #Ethers.TxData<
-  function aggregate(
-    (address,bytes)[] calls [...]
-  ) payable returns (
-    uint256 blockNumber,
-    bytes[] returnData
-  )
-  default_address: "0xcA11bde05977b3631167028862bE2a173976CA11"
+    function aggregate(
+      (address,bytes)[] calls [...]
+    ) payable returns (
+      uint256 blockNumber,
+      bytes[] returnData
+    )
+    default_address: "0xcA11bde05977b3631167028862bE2a173976CA11"
   >
   ```
   """
   @spec aggregate2([
           Ethers.TxData.t()
-          | {Ethers.TxData.t()}
           | {Ethers.TxData.t(), aggregate2_options}
         ]) :: Ethers.TxData.t()
   def aggregate2(data) when is_list(data) do
@@ -168,7 +166,6 @@ defmodule Ethers.Multicall do
   """
   @spec aggregate2_encode_data(
           Ethers.TxData.t()
-          | {Ethers.TxData.t()}
           | {Ethers.TxData.t(), aggregate2_options}
         ) :: {Ethers.Types.t_address(), binary()}
   def aggregate2_encode_data(data)
@@ -177,22 +174,18 @@ defmodule Ethers.Multicall do
     {Keyword.fetch!(opts, :to), hex_decode!(data)}
   end
 
-  def aggregate2_encode_data({%TxData{data: data, default_address: address}})
-      when not is_nil(address) do
-    {address, hex_decode!(data)}
-  end
-
   def aggregate2_encode_data(%TxData{data: data, default_address: address})
       when not is_nil(address) do
     {address, hex_decode!(data)}
   end
 
   @doc """
-  Decodes a `Multicall3` response from `Ethers.call/2`.`
+  Decodes a `Multicall3` response from `Ethers.call/2`.
 
   ## Parameters
-  - resps: The response from `Ethers.call/2`.
-  - calls: A list of the function calls or signatures passed to `aggregate3/2` or `aggregate2/2`.
+  - resps: List of results returned by aggregate call (The response from `Ethers.call/2`).
+  - calls: List of the function calls or signatures passed to `aggregate3/2` or `aggregate2/2`.
+    (used for decoding)
 
   ## Examples
   ```elixir

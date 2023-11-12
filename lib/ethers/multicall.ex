@@ -64,9 +64,9 @@ defmodule Ethers.Multicall do
   ```
   """
   @spec aggregate3([
-          Ethers.TxData.t()
-          | {Ethers.TxData.t(), aggregate3_options}
-        ]) :: Ethers.TxData.t()
+          TxData.t()
+          | {TxData.t(), aggregate3_options}
+        ]) :: TxData.t()
   def aggregate3(data) when is_list(data) do
     data
     |> Enum.map(&aggregate3_encode_data/1)
@@ -92,24 +92,16 @@ defmodule Ethers.Multicall do
   ```
   """
   @spec aggregate3_encode_data(
-          Ethers.TxData.t()
-          | {Ethers.TxData.t(), aggregate3_options}
-        ) :: {Ethers.Types.t_address(), boolean(), binary()}
+          TxData.t()
+          | {TxData.t(), aggregate3_options}
+        ) :: {Types.t_address(), boolean(), binary()}
   def aggregate3_encode_data(data)
 
-  def aggregate3_encode_data({%TxData{data: data, default_address: address}, opts})
-      when not is_nil(address) do
-    {address, Keyword.get(opts, :allow_failure, true), hex_decode!(data)}
+  def aggregate3_encode_data({%TxData{data: data} = tx_data, opts}) do
+    {fetch_address!(tx_data, opts), Keyword.get(opts, :allow_failure, true), hex_decode!(data)}
   end
 
-  def aggregate3_encode_data({%TxData{data: data}, opts}) do
-    {Keyword.fetch!(opts, :to), Keyword.get(opts, :allow_failure, true), hex_decode!(data)}
-  end
-
-  def aggregate3_encode_data(%TxData{data: data, default_address: address})
-      when not is_nil(address) do
-    {address, true, hex_decode!(data)}
-  end
+  def aggregate3_encode_data(%TxData{} = tx_data), do: aggregate3_encode_data({tx_data, []})
 
   @doc """
   Aggregate calls, returning the executed block number and will revert if any
@@ -139,9 +131,9 @@ defmodule Ethers.Multicall do
   ```
   """
   @spec aggregate2([
-          Ethers.TxData.t()
-          | {Ethers.TxData.t(), aggregate2_options}
-        ]) :: Ethers.TxData.t()
+          TxData.t()
+          | {TxData.t(), aggregate2_options}
+        ]) :: TxData.t()
   def aggregate2(data) when is_list(data) do
     data
     |> Enum.map(&aggregate2_encode_data/1)
@@ -165,19 +157,16 @@ defmodule Ethers.Multicall do
   ```
   """
   @spec aggregate2_encode_data(
-          Ethers.TxData.t()
-          | {Ethers.TxData.t(), aggregate2_options}
+          TxData.t()
+          | {TxData.t(), aggregate2_options}
         ) :: {Ethers.Types.t_address(), binary()}
   def aggregate2_encode_data(data)
 
-  def aggregate2_encode_data({%TxData{data: data}, opts}) do
-    {Keyword.fetch!(opts, :to), hex_decode!(data)}
+  def aggregate2_encode_data({%TxData{data: data} = tx_data, opts}) do
+    {fetch_address!(tx_data, opts), hex_decode!(data)}
   end
 
-  def aggregate2_encode_data(%TxData{data: data, default_address: address})
-      when not is_nil(address) do
-    {address, hex_decode!(data)}
-  end
+  def aggregate2_encode_data(%TxData{} = tx_data), do: aggregate2_encode_data({tx_data, []})
 
   @doc """
   Decodes a `Multicall3` response from `Ethers.call/2`.
@@ -200,7 +189,7 @@ defmodule Ethers.Multicall do
   """
   @spec decode(
           [%{(true | false) => any()}] | [integer() | [...]],
-          [Ethers.TxData.t() | binary()]
+          [TxData.t() | binary()]
         ) :: [%{(true | false) => any()}] | [integer() | [...]]
   def decode(resps, calls)
 
@@ -292,4 +281,9 @@ defmodule Ethers.Multicall do
   defp decode_call({%TxData{selector: selector}}), do: selector
   defp decode_call(%TxData{selector: selector}), do: selector
   defp decode_call(function_signature), do: function_signature
+
+  defp fetch_address!(%TxData{default_address: nil}, opts), do: Keyword.fetch!(opts, :to)
+
+  defp fetch_address!(%TxData{default_address: default_address}, opts),
+    do: Keyword.get(opts, :to, default_address)
 end

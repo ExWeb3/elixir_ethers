@@ -7,14 +7,71 @@ defmodule Ethers do
   fetching current gas prices, and querying event logs.
 
   ## Execution Options
-  These can be specified contract functions using `Ethers.call/2`, `Ethers.send/2` or `Ethers.estimate_gas/2`
-  or their equivalent bang functions.
 
-  - `to`: The address of the recipient contract. If the contract module has a default, this will override it. Must be in `"0x..."` format.
-  - `from`: The address of the wallet making this transaction. The private key should be loaded in the rpc server. Must be in `"0x..."` format.
+  These can be specified contract functions using `Ethers.call/2`, `Ethers.send/2` or
+  `Ethers.estimate_gas/2` or their equivalent bang functions.
+
+  - `to`: The address of the recipient contract. If the contract module has a default, this will
+    override it. Must be in `"0x..."` format.
+  - `from`: The address of the wallet making this transaction. The private key should be loaded in
+    the rpc server. Must be in `"0x..."` format.
   - `gas`: The gas limit for your transaction.
-  - `rpc_client`: The RPC module implementing Ethereum JSON RPC functions. Defaults to `Ethereumex.HttpClient`
+  - `rpc_client`: The RPC module implementing Ethereum JSON RPC functions. Defaults to
+    `Ethereumex.HttpClient`
   - `rpc_opts`: Options to pass to the RCP client e.g. `:url`.
+
+  ## Batching Requests
+
+  Often you would find yourself executing different actions without dependency. These actions can
+  be combined together in one JSON RPC call. This will save on the number of round trips and
+  improves latency.
+
+  Before continuing, please note that batching JSON RPC requests and using `Ethers.Multicall` are
+  two different things. As a rule of thumb:
+
+  - Use `Ethers.Multicall` if you need to make multiple contract calls and get the result
+    *on the same block*.
+  - Use `Ethers.batch/2` if you need to make multiple JSON RPC operations which may or may not run
+    on the same block (or even be related to any specific block e.g. eth_gas_price)
+
+  ### Make batch requests
+
+  `Ethers.batch/2` supports all operations which the RPC module (`Ethereumex` by default)
+  implements. Although some actions support pre and post processing and some are just forwarded
+  to the RPC module.
+
+  Every request passed to `Ethers.batch/2` can be in one of the following formats
+
+  - `action_name_atom`: This only works with requests which do not require any additional data.
+    e.g. `:current_gas_price` or `:net_version`.
+  - `{action_name_atom, data}`: This works with all other actions which accept input data.
+    e.g. `:call`, `:send` or `:get_logs`.
+  - `{action_name_atom, data, overrides_keyword_list}`: Use this to override or add attributes
+    to the action data. This is only accepted for these actions and will through error on others.
+    - `:call`: data should be a Ethers.TxData struct and overrides are accepted.
+    - `:estimate_gas`: data should be a Ethers.TxData struct or a map and overrides are accepted.
+    - `:get_logs`: data should be a Ethers.EventFilter struct and overrides are accepted.
+    - `:send`: data should be a Ethers.TxData struct and overrides are accepted.
+
+
+  ### Example
+
+  ```elixir
+  Ethers.batch([
+    :current_block_number,
+    :current_gas_price,
+    {:call, Ethers.Contracts.ERC20.name(), to: "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"},
+    {:send, MyContract.ping(), from: "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045"},
+    {:get_logs, Ethers.Contracts.ERC20.EventFilters.approval(nil, nil)} # <- can have add overrides
+  ])
+  {:ok, [
+    {:ok, 18539069},
+    {:ok, 21221},
+    {:ok, "Wrapped Ether"},
+    {:ok, "0xed67b1aafdc823077166c8ee9da13c6a621d19f4d7a24a80353219c09bdac87f"},
+    {:ok, [%Ethers.EventFilter{}]}
+  ]}
+  ```
   """
 
   alias Ethers.Event
@@ -34,6 +91,8 @@ defmodule Ethers do
     get_logs: :eth_get_logs,
     send: :eth_send_transaction
   }
+
+  @typep t_batch_request :: atom() | {atom, term()} | {atom, term(), Keyword.t()}
 
   defguardp valid_result(bin) when bin != "0x"
 
@@ -281,8 +340,10 @@ defmodule Ethers do
   Each action will have an entry in the results. Each entry is again a tuple and either
   `{:ok, result}` or `{:error, reason}` in case of action failure.
 
+  Checkout `Batching Requests` sections in `Ethers` module for more examples.
+
   ## Parameters
-  - actions: A list of actions to run.
+  - requests: A list of requests to execute.
   - opts: RPC related options. (No account and block options are accepted in batch)
 
   ### Action
@@ -304,17 +365,18 @@ defmodule Ethers do
   {:ok, [ok: "Weapped Ethereum", ok: "WETH", ok: "0xhash...", ok: 182394532]}
   ```
   """
-  @spec batch(list(), Keyword.t()) :: {:ok, [{:ok, term()} | {:error, term()}]} | {:error, term()}
-  def batch(actions, opts \\ []) do
+  @spec batch([t_batch_request()], Keyword.t()) ::
+          {:ok, [{:ok, term()} | {:error, term()}]} | {:error, term()}
+  def batch(requests, opts \\ []) do
     {rpc_client, rpc_opts} = get_rpc_client(opts)
 
-    actions = prepare_actions(actions)
+    requests = prepare_requests(requests)
 
-    with requests when is_list(requests) <- prepare_batch_requests(actions, opts),
-         {:ok, responses} <- rpc_client.batch_request(requests, rpc_opts) do
+    with rpc_requests when is_list(rpc_requests) <- prepare_batch_requests(requests, opts),
+         {:ok, responses} <- rpc_client.batch_request(rpc_requests, rpc_opts) do
       results =
         responses
-        |> Stream.zip(actions)
+        |> Stream.zip(requests)
         |> Stream.map(fn {result, {action, data, _overrides}} ->
           post_process(result, data, action)
         end)
@@ -415,6 +477,8 @@ defmodule Ethers do
 
   defp pre_process([], [], _action, _opts), do: :ok
 
+  defp pre_process(data, [], _action, _opts), do: {:ok, data}
+
   defp post_process({:ok, resp}, tx_data, :call) when valid_result(resp) do
     tx_data.selector
     |> ABI.decode(Ethers.Utils.hex_decode!(resp), :output)
@@ -470,16 +534,16 @@ defmodule Ethers do
     end
   end
 
-  defp prepare_actions(actions) do
-    Enum.map(actions, fn
+  defp prepare_requests(requests) do
+    Enum.map(requests, fn
       {action, data} -> {action, data, []}
       {action, data, overrides} -> {action, data, overrides}
       action when is_atom(action) -> {action, [], []}
     end)
   end
 
-  defp prepare_batch_requests(actions, opts) do
-    actions
+  defp prepare_batch_requests(requests, opts) do
+    requests
     |> Enum.reduce_while([], fn {action, data, overrides}, acc ->
       rpc_action = Map.get(@rpc_actions_map, action, action)
 
@@ -488,7 +552,7 @@ defmodule Ethers do
           {:cont, [{rpc_action, []} | acc]}
 
         {:ok, params} ->
-          {:cont, [{rpc_action, [params]} | acc]}
+          {:cont, [{rpc_action, List.wrap(params)} | acc]}
 
         {:ok, params, block} ->
           {:cont, [{rpc_action, [params, block]} | acc]}

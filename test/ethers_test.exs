@@ -214,7 +214,8 @@ defmodule EthersTest do
                  {:estimate_gas, HelloWorldContract.say_hello(), to: address},
                  {:get_logs, HelloWorldContract.EventFilters.hello_set(), address: address},
                  :current_block_number,
-                 :current_gas_price
+                 :current_gas_price,
+                 {:eth_call, [%{}, "latest"]}
                ])
 
       assert [
@@ -224,7 +225,8 @@ defmodule EthersTest do
                ok: gas_estimate,
                ok: [%Ethers.Event{}],
                ok: block_number,
-               ok: gas_price
+               ok: gas_price,
+               ok: "0x"
              ] = results
 
       assert is_integer(gas_estimate)

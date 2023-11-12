@@ -18,6 +18,7 @@
  * Add return names in documentations and TxData inspection
  * Added an interface for `Multicall3` through `Ethers.Contracts.Multicall3`
  * Added `Ethers.Multicall` as an abstraction for `Ethers.Contracts.Multicall3`
+ * Added batching functionality using `Ethers.batch/2`
 
 ### Breaking Changes
 

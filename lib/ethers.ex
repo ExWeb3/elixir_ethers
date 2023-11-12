@@ -26,6 +26,14 @@ defmodule Ethers do
 
   @option_keys [:rpc_client, :rpc_opts]
   @hex_decode_post_process [:estimate_gas, :current_gas_price, :current_block_number]
+  @rpc_actions_map %{
+    call: :eth_call,
+    current_block_number: :eth_block_number,
+    current_gas_price: :eth_gas_price,
+    estimate_gas: :eth_estimate_gas,
+    get_logs: :eth_get_logs,
+    send: :eth_send_transaction
+  }
 
   defguardp valid_result(bin) when bin != "0x"
 
@@ -234,7 +242,7 @@ defmodule Ethers do
   end
 
   @doc """
-  Returns the event logs with the given filter
+  Fetches the event logs with the given filter.
 
   ## Overrides and Options
 
@@ -254,10 +262,75 @@ defmodule Ethers do
     end
   end
 
+  @doc """
+  Same as `Ethers.get_logs/2` but raises on error.
+  """
   @spec get_logs!(map(), Keyword.t()) :: [Event.t()] | no_return
   def get_logs!(params, overrides \\ []) do
     case get_logs(params, overrides) do
       {:ok, logs} -> logs
+      {:error, reason} -> raise ExecutionError, reason
+    end
+  end
+
+  @doc """
+  Combines multiple requests and make a batch json RPC request.
+
+  It returns `{:ok, results}` in case of success or `{:error, reason}` in case of RPC failure.
+
+  Each action will have an entry in the results. Each entry is again a tuple and either
+  `{:ok, result}` or `{:error, reason}` in case of action failure.
+
+  ## Parameters
+  - actions: A list of actions to run.
+  - opts: RPC related options. (No account and block options are accepted in batch)
+
+  ### Action
+  An action can be in either of the following formats.
+
+  - `{action_name_atom, action_data, action_overrides}`
+  - `{action_name_atom, action_data}`
+  - `action_name_atom`
+
+  ## Examples
+
+  ```elixir
+  Ethers.batch([
+    {:call, WETH.name()},
+    {:call, WETH.symbol(), to: "[WETH ADDRESS]"},
+    {:send, WETH.transfer("[RECEIVER]", 1000), from: "[SENDER]"},
+    :current_block_number
+  ])
+  {:ok, [ok: "Weapped Ethereum", ok: "WETH", ok: "0xhash...", ok: 182394532]}
+  ```
+  """
+  @spec batch(list(), Keyword.t()) :: {:ok, [{:ok, term()} | {:error, term()}]} | {:error, term()}
+  def batch(actions, opts \\ []) do
+    {rpc_client, rpc_opts} = get_rpc_client(opts)
+
+    actions = prepare_actions(actions)
+
+    with requests when is_list(requests) <- prepare_batch_requests(actions, opts),
+         {:ok, responses} <- rpc_client.batch_request(requests, rpc_opts) do
+      results =
+        responses
+        |> Stream.zip(actions)
+        |> Stream.map(fn {result, {action, data, _overrides}} ->
+          post_process(result, data, action)
+        end)
+        |> Enum.to_list()
+
+      {:ok, results}
+    end
+  end
+
+  @doc """
+  Same as `Ethers.batch/2` but raises on error.
+  """
+  @spec batch(list(), Keyword.t()) :: [{:ok, term()} | {:error, term()}]
+  def batch!(actions, opts \\ []) do
+    case batch(actions, opts) do
+      {:ok, results} -> results
       {:error, reason} -> raise ExecutionError, reason
     end
   end
@@ -340,6 +413,8 @@ defmodule Ethers do
     {:ok, log_params}
   end
 
+  defp pre_process([], [], _action, _opts), do: :ok
+
   defp post_process({:ok, resp}, tx_data, :call) when valid_result(resp) do
     tx_data.selector
     |> ABI.decode(Ethers.Utils.hex_decode!(resp), :output)
@@ -382,8 +457,8 @@ defmodule Ethers do
   defp post_process({:ok, _}, _tx_hash, :deployed_address),
     do: {:error, :no_contract_address}
 
-  defp post_process({:ok, _}, _tx_data, _action),
-    do: {:error, :unknown}
+  defp post_process({:ok, result}, _tx_data, _action),
+    do: {:ok, result}
 
   defp post_process({:error, cause}, _tx_data, _action),
     do: {:error, cause}
@@ -392,6 +467,39 @@ defmodule Ethers do
     case Map.get(params, key) do
       v when is_integer(v) -> %{params | key => Utils.integer_to_hex(v)}
       _ -> params
+    end
+  end
+
+  defp prepare_actions(actions) do
+    Enum.map(actions, fn
+      {action, data} -> {action, data, []}
+      {action, data, overrides} -> {action, data, overrides}
+      action when is_atom(action) -> {action, [], []}
+    end)
+  end
+
+  defp prepare_batch_requests(actions, opts) do
+    actions
+    |> Enum.reduce_while([], fn {action, data, overrides}, acc ->
+      rpc_action = Map.get(@rpc_actions_map, action, action)
+
+      case pre_process(data, overrides, action, opts) do
+        :ok ->
+          {:cont, [{rpc_action, []} | acc]}
+
+        {:ok, params} ->
+          {:cont, [{rpc_action, [params]} | acc]}
+
+        {:ok, params, block} ->
+          {:cont, [{rpc_action, [params, block]} | acc]}
+
+        {:error, err} ->
+          {:halt, {:error, err}}
+      end
+    end)
+    |> case do
+      {:error, err} -> {:error, err}
+      list -> Enum.reverse(list)
     end
   end
 

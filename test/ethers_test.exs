@@ -16,6 +16,7 @@ defmodule EthersTest do
 
   alias Ethers.Contract.Test.HelloWorldContract
   alias Ethers.Contract.Test.HelloWorldWithDefaultAddressContract
+  alias Ethers.ExecutionError
 
   @from "0x90f8bf6a479f320ead074411a4b0e7944ea8c9c1"
 
@@ -42,7 +43,7 @@ defmodule EthersTest do
 
   describe "contract deployment" do
     test "can deploy a contract given a module which has the binary" do
-      assert {:ok, tx} = Ethers.deploy(HelloWorldContract, "", %{from: @from})
+      assert {:ok, tx} = Ethers.deploy(HelloWorldContract, from: @from)
       assert {:ok, contract_address} = Ethers.deployed_address(tx)
 
       assert HelloWorldContract.say_hello() |> Ethers.call!(to: contract_address) ==
@@ -51,7 +52,7 @@ defmodule EthersTest do
 
     test "can deploy a contract given the contract binary" do
       bin = HelloWorldContract.__contract_binary__()
-      assert {:ok, tx} = Ethers.deploy(bin, "", %{from: @from})
+      assert {:ok, tx} = Ethers.deploy(bin, from: @from)
       assert {:ok, contract_address} = Ethers.deployed_address(tx)
 
       assert HelloWorldContract.say_hello() |> Ethers.call!(to: contract_address) ==
@@ -60,7 +61,7 @@ defmodule EthersTest do
 
     test "can deploy a contract given the contract binary prefixed with 0x" do
       bin = HelloWorldContract.__contract_binary__()
-      assert {:ok, tx} = Ethers.deploy("0x" <> bin, "", %{from: @from})
+      assert {:ok, tx} = Ethers.deploy("0x" <> bin, from: @from)
       assert {:ok, contract_address} = Ethers.deployed_address(tx)
 
       assert HelloWorldContract.say_hello() |> Ethers.call!(to: contract_address) ==
@@ -68,10 +69,10 @@ defmodule EthersTest do
     end
 
     test "returns error if the module does not include the binary" do
-      assert {:error, :binary_not_found} = Ethers.deploy(NotFoundContract, "", %{from: @from})
+      assert {:error, :binary_not_found} = Ethers.deploy(NotFoundContract, from: @from)
 
       assert {:error, :binary_not_found} =
-               Ethers.deploy(Ethers.Contracts.ERC20, "", %{from: @from})
+               Ethers.deploy(Ethers.Contracts.ERC20, from: @from)
     end
 
     test "getting the deployed address of a non existing (not yet validated) transaction" do
@@ -80,7 +81,7 @@ defmodule EthersTest do
     end
 
     test "getting the deployed address of a non contract creation transaction" do
-      {:ok, tx} = Ethers.deploy(HelloWorldContract, "", %{from: @from})
+      {:ok, tx} = Ethers.deploy(HelloWorldContract, from: @from)
       {:ok, contract_address} = Ethers.deployed_address(tx)
 
       {:ok, tx_hash} =
@@ -194,6 +195,64 @@ defmodule EthersTest do
                },
                default_address: nil
              } == HelloWorldContract.EventFilters.hello_set()
+    end
+  end
+
+  describe "batch/2" do
+    test "Can batch multiple requests" do
+      assert {:ok, tx} = Ethers.deploy(HelloWorldContract, from: @from)
+      assert {:ok, address} = Ethers.deployed_address(tx)
+
+      HelloWorldContract.set_hello("Hello Batch!")
+      |> Ethers.send!(to: address, from: @from)
+
+      assert {:ok, results} =
+               Ethers.batch([
+                 {:call, HelloWorldContract.say_hello(), to: address},
+                 {:send, HelloWorldContract.set_hello("hi"), from: @from, to: address},
+                 :net_version,
+                 {:estimate_gas, HelloWorldContract.say_hello(), to: address},
+                 {:get_logs, HelloWorldContract.EventFilters.hello_set(), address: address},
+                 :current_block_number,
+                 :current_gas_price,
+                 {:eth_call, [%{}, "latest"]}
+               ])
+
+      assert [
+               ok: "Hello Batch!",
+               ok: "0x" <> _hash,
+               ok: <<_net_version::binary>>,
+               ok: gas_estimate,
+               ok: [%Ethers.Event{}],
+               ok: block_number,
+               ok: gas_price,
+               ok: "0x"
+             ] = results
+
+      assert is_integer(gas_estimate)
+      assert is_integer(block_number)
+      assert is_integer(gas_price)
+    end
+
+    test "returns error for invalid action" do
+      assert {:error, :no_to_address} = Ethers.batch([{:call, HelloWorldContract.say_hello()}])
+    end
+  end
+
+  describe "batch!/2" do
+    test "returns the correct result" do
+      assert {:ok, tx} = Ethers.deploy(HelloWorldContract, from: @from)
+      assert {:ok, address} = Ethers.deployed_address(tx)
+
+      assert [ok: "Hello World!", ok: _] =
+               Ethers.batch!([
+                 {:call, HelloWorldContract.say_hello(), to: address},
+                 :current_block_number
+               ])
+
+      assert_raise ExecutionError, "Unexpected error: no_to_address", fn ->
+        Ethers.batch!([{:call, HelloWorldContract.say_hello()}])
+      end
     end
   end
 end

@@ -7,14 +7,71 @@ defmodule Ethers do
   fetching current gas prices, and querying event logs.
 
   ## Execution Options
-  These can be specified contract functions using `Ethers.call/2`, `Ethers.send/2` or `Ethers.estimate_gas/2`
-  or their equivalent bang functions.
 
-  - `to`: The address of the recipient contract. If the contract module has a default, this will override it. Must be in `"0x..."` format.
-  - `from`: The address of the wallet making this transaction. The private key should be loaded in the rpc server. Must be in `"0x..."` format.
+  These can be specified contract functions using `Ethers.call/2`, `Ethers.send/2` or
+  `Ethers.estimate_gas/2` or their equivalent bang functions.
+
+  - `to`: The address of the recipient contract. If the contract module has a default, this will
+    override it. Must be in `"0x..."` format.
+  - `from`: The address of the wallet making this transaction. The private key should be loaded in
+    the rpc server. Must be in `"0x..."` format.
   - `gas`: The gas limit for your transaction.
-  - `rpc_client`: The RPC module implementing Ethereum JSON RPC functions. Defaults to `Ethereumex.HttpClient`
+  - `rpc_client`: The RPC module implementing Ethereum JSON RPC functions. Defaults to
+    `Ethereumex.HttpClient`
   - `rpc_opts`: Options to pass to the RCP client e.g. `:url`.
+
+  ## Batching Requests
+
+  Often you would find yourself executing different actions without dependency. These actions can
+  be combined together in one JSON RPC call. This will save on the number of round trips and
+  improves latency.
+
+  Before continuing, please note that batching JSON RPC requests and using `Ethers.Multicall` are
+  two different things. As a rule of thumb:
+
+  - Use `Ethers.Multicall` if you need to make multiple contract calls and get the result
+    *on the same block*.
+  - Use `Ethers.batch/2` if you need to make multiple JSON RPC operations which may or may not run
+    on the same block (or even be related to any specific block e.g. eth_gas_price)
+
+  ### Make batch requests
+
+  `Ethers.batch/2` supports all operations which the RPC module (`Ethereumex` by default)
+  implements. Although some actions support pre and post processing and some are just forwarded
+  to the RPC module.
+
+  Every request passed to `Ethers.batch/2` can be in one of the following formats
+
+  - `action_name_atom`: This only works with requests which do not require any additional data.
+    e.g. `:current_gas_price` or `:net_version`.
+  - `{action_name_atom, data}`: This works with all other actions which accept input data.
+    e.g. `:call`, `:send` or `:get_logs`.
+  - `{action_name_atom, data, overrides_keyword_list}`: Use this to override or add attributes
+    to the action data. This is only accepted for these actions and will through error on others.
+    - `:call`: data should be a Ethers.TxData struct and overrides are accepted.
+    - `:estimate_gas`: data should be a Ethers.TxData struct or a map and overrides are accepted.
+    - `:get_logs`: data should be a Ethers.EventFilter struct and overrides are accepted.
+    - `:send`: data should be a Ethers.TxData struct and overrides are accepted.
+
+
+  ### Example
+
+  ```elixir
+  Ethers.batch([
+    :current_block_number,
+    :current_gas_price,
+    {:call, Ethers.Contracts.ERC20.name(), to: "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"},
+    {:send, MyContract.ping(), from: "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045"},
+    {:get_logs, Ethers.Contracts.ERC20.EventFilters.approval(nil, nil)} # <- can have add overrides
+  ])
+  {:ok, [
+    {:ok, 18539069},
+    {:ok, 21221},
+    {:ok, "Wrapped Ether"},
+    {:ok, "0xed67b1aafdc823077166c8ee9da13c6a621d19f4d7a24a80353219c09bdac87f"},
+    {:ok, [%Ethers.EventFilter{}]}
+  ]}
+  ```
   """
 
   alias Ethers.Event
@@ -24,7 +81,18 @@ defmodule Ethers do
   alias Ethers.Types
   alias Ethers.Utils
 
-  @option_keys [:rpc_client, :rpc_opts, :block]
+  @option_keys [:rpc_client, :rpc_opts]
+  @hex_decode_post_process [:estimate_gas, :current_gas_price, :current_block_number]
+  @rpc_actions_map %{
+    call: :eth_call,
+    current_block_number: :eth_block_number,
+    current_gas_price: :eth_gas_price,
+    estimate_gas: :eth_estimate_gas,
+    get_logs: :eth_get_logs,
+    send: :eth_send_transaction
+  }
+
+  @typep t_batch_request :: atom() | {atom, term()} | {atom, term(), Keyword.t()}
 
   defguardp valid_result(bin) when bin != "0x"
 
@@ -35,9 +103,8 @@ defmodule Ethers do
   def current_gas_price(opts \\ []) do
     {rpc_client, rpc_opts} = get_rpc_client(opts)
 
-    with {:ok, price_hex} <- rpc_client.eth_gas_price(rpc_opts) do
-      Ethers.Utils.hex_to_integer(price_hex)
-    end
+    rpc_client.eth_gas_price(rpc_opts)
+    |> post_process(nil, :current_gas_price)
   end
 
   @doc """
@@ -47,9 +114,8 @@ defmodule Ethers do
   def current_block_number(opts \\ []) do
     {rpc_client, rpc_opts} = get_rpc_client(opts)
 
-    with {:ok, block_number} <- rpc_client.eth_block_number(rpc_opts) do
-      Ethers.Utils.hex_to_integer(block_number)
-    end
+    rpc_client.eth_block_number(rpc_opts)
+    |> post_process(nil, :current_block_number)
   end
 
   @doc """
@@ -62,40 +128,38 @@ defmodule Ethers do
   File you have or as a separate file.
 
   ## Parameters
-  - contract_module_or_binary: Either the contract module which was already loaded or the compiled binary of the contract. The binary MUST be hex encoded.
-  - contract_init: Constructor value for contract deployment. Use `CONTRACT_MODULE.constructor` function's output. If your contract does not have a constructor, you can pass an empty binary here.
-  - params: Parameters for the transaction creating the contract.
-  - opts: RPC and account options.
+  - contract_module_or_binary: Either the contract module which was already loaded or the compiled
+  binary of the contract. The binary MUST be hex encoded.
+  - overrides: A keyword list containing options and overrides.
+    - `encoded_constructor`: Hex encoded value for constructor parameters. (Optional)
+    - Any other account or RPC related options
   """
-  @spec deploy(atom() | binary(), binary(), Keyword.t(), Keyword.t()) ::
-          {:ok, Types.t_hash()} | {:error, atom()}
-  def deploy(contract_module_or_binary, contract_init, params, opts \\ [])
+  @spec deploy(atom() | binary(), Keyword.t()) ::
+          {:ok, Types.t_hash()} | {:error, term()}
+  def deploy(contract_module_or_binary, overrides \\ [])
 
-  def deploy(contract_module, contract_init, params, opts) when is_atom(contract_module) do
+  def deploy(contract_module, overrides) when is_atom(contract_module) do
     with true <- function_exported?(contract_module, :__contract_binary__, 0),
          bin when not is_nil(bin) <- contract_module.__contract_binary__() do
-      deploy(bin, contract_init, params, opts)
+      deploy(bin, overrides)
     else
       _error ->
         {:error, :binary_not_found}
     end
   end
 
-  def deploy("0x" <> contract_binary, contract_init, params, opts) do
-    deploy(contract_binary, contract_init, params, opts)
+  def deploy("0x" <> contract_binary, overrides) do
+    deploy(contract_binary, overrides)
   end
 
-  def deploy(contract_binary, contract_init, params, opts) when is_binary(contract_binary) do
-    params =
-      Enum.into(params, %{
-        data: "0x#{contract_binary}#{contract_init}",
-        to: nil
-      })
+  def deploy(contract_binary, overrides) when is_binary(contract_binary) do
+    {opts, overrides} = Keyword.split(overrides, @option_keys)
 
     {rpc_client, rpc_opts} = get_rpc_client(opts)
 
-    with {:ok, params} <- Utils.maybe_add_gas_limit(params, opts) do
-      rpc_client.eth_send_transaction(params, rpc_opts)
+    with {:ok, tx_params} <- pre_process(contract_binary, overrides, :deploy, opts) do
+      rpc_client.eth_send_transaction(tx_params, rpc_opts)
+      |> post_process(tx_params, :deploy)
     end
   end
 
@@ -108,23 +172,12 @@ defmodule Ethers do
   """
   @spec deployed_address(binary, Keyword.t()) ::
           {:ok, Types.t_address()}
-          | {:error, :no_contract_address | :transaction_not_found | atom()}
+          | {:error, :no_contract_address | :transaction_not_found | term()}
   def deployed_address(tx_hash, opts \\ []) when is_binary(tx_hash) do
     {rpc_client, rpc_opts} = get_rpc_client(opts)
 
-    case rpc_client.eth_get_transaction_receipt(tx_hash, rpc_opts) do
-      {:ok, %{"contractAddress" => contract_address}} when not is_nil(contract_address) ->
-        {:ok, contract_address}
-
-      {:ok, nil} ->
-        {:error, :transaction_not_found}
-
-      {:ok, _} ->
-        {:error, :no_contract_address}
-
-      {:error, reason} ->
-        {:error, reason}
-    end
+    rpc_client.eth_get_transaction_receipt(tx_hash, rpc_opts)
+    |> post_process(tx_hash, :deployed_address)
   end
 
   @doc """
@@ -148,42 +201,14 @@ defmodule Ethers do
   @spec call(TxData.t(), Keyword.t()) :: {:ok, any()} | {:error, term()}
   def call(params, overrides \\ [])
 
-  def call(%TxData{selector: selector} = tx_data, overrides) do
+  def call(tx_data, overrides) do
     {opts, overrides} = Keyword.split(overrides, @option_keys)
 
     {rpc_client, rpc_opts} = get_rpc_client(opts)
 
-    block =
-      case Keyword.get(opts, :block, "latest") do
-        number when is_integer(number) -> Utils.integer_to_hex(number)
-        v -> v
-      end
-
-    tx_params = TxData.to_map(tx_data, overrides)
-
-    with :ok <- check_params(tx_params, :call) do
-      case rpc_client.eth_call(tx_params, block, rpc_opts) do
-        {:ok, resp} when valid_result(resp) ->
-          returns =
-            selector
-            |> ABI.decode(Ethers.Utils.hex_decode!(resp), :output)
-            |> Enum.zip(selector.returns)
-            |> Enum.map(fn {return, type} -> Utils.human_arg(return, type) end)
-
-          case returns do
-            [element] -> {:ok, element}
-            _ -> {:ok, returns}
-          end
-
-        {:ok, "0x"} ->
-          {:error, :unknown}
-
-        :error ->
-          {:error, :hex_decode_error}
-
-        {:error, cause} ->
-          {:error, cause}
-      end
+    with {:ok, tx_params, block} <- pre_process(tx_data, overrides, :call, opts) do
+      rpc_client.eth_call(tx_params, block, rpc_opts)
+      |> post_process(tx_data, :call)
     end
   end
 
@@ -216,25 +241,14 @@ defmodule Ethers do
   ```
   """
   @spec send(map() | TxData.t(), Keyword.t()) :: {:ok, String.t()} | {:error, term()}
-  def send(tx_data, overrides \\ [])
-
-  def send(tx_data, overrides) do
+  def send(tx_data, overrides \\ []) do
     {opts, overrides} = Keyword.split(overrides, @option_keys)
-
-    tx_params = TxData.to_map(tx_data, overrides)
 
     {rpc_client, rpc_opts} = get_rpc_client(opts)
 
-    with :ok <- check_params(tx_params, :send),
-         {:ok, tx_params} <- Utils.maybe_add_gas_limit(tx_params, opts),
-         {:ok, tx} when valid_result(tx) <- rpc_client.eth_send_transaction(tx_params, rpc_opts) do
-      {:ok, tx}
-    else
-      {:ok, "0x"} ->
-        {:error, :unknown}
-
-      {:error, cause} ->
-        {:error, cause}
+    with {:ok, tx_params} <- pre_process(tx_data, overrides, :send, opts) do
+      rpc_client.eth_send_transaction(tx_params, rpc_opts)
+      |> post_process(tx_data, :send)
     end
   end
 
@@ -267,13 +281,11 @@ defmodule Ethers do
   def estimate_gas(tx_data, overrides \\ []) do
     {opts, overrides} = Keyword.split(overrides, @option_keys)
 
-    tx_params = TxData.to_map(tx_data, overrides)
-
     {rpc_client, rpc_opts} = get_rpc_client(opts)
 
-    with :ok <- check_params(tx_params, :estimate_gas),
-         {:ok, gas_hex} <- rpc_client.eth_estimate_gas(tx_params, rpc_opts) do
-      Utils.hex_to_integer(gas_hex)
+    with {:ok, tx_params} <- pre_process(tx_data, overrides, :estimate_gas, opts) do
+      rpc_client.eth_estimate_gas(tx_params, rpc_opts)
+      |> post_process(tx_data, :estimate_gas)
     end
   end
 
@@ -289,7 +301,7 @@ defmodule Ethers do
   end
 
   @doc """
-  Returns the event logs with the given filter
+  Fetches the event logs with the given filter.
 
   ## Overrides and Options
 
@@ -298,28 +310,89 @@ defmodule Ethers do
   - `:rpc_opts`: Extra options to pass to rpc_client. (Like timeout, Server URL, etc.)
   """
   @spec get_logs(map(), Keyword.t()) :: {:ok, [Event.t()]} | {:error, atom()}
-  def get_logs(%{selector: selector} = tx_data, overrides \\ []) do
+  def get_logs(event_filter, overrides \\ []) do
     {opts, overrides} = Keyword.split(overrides, @option_keys)
-
-    log_params =
-      tx_data
-      |> EventFilter.to_map(overrides)
-      |> ensure_hex_value(:fromBlock)
-      |> ensure_hex_value(:toBlock)
 
     {rpc_client, rpc_opts} = get_rpc_client(opts)
 
-    with {:ok, resp} when is_list(resp) <- rpc_client.eth_get_logs(log_params, rpc_opts) do
-      logs = Enum.map(resp, &Event.decode(&1, selector))
-
-      {:ok, logs}
+    with {:ok, log_params} <- pre_process(event_filter, overrides, :get_logs, opts) do
+      rpc_client.eth_get_logs(log_params, rpc_opts)
+      |> post_process(event_filter, :get_logs)
     end
   end
 
+  @doc """
+  Same as `Ethers.get_logs/2` but raises on error.
+  """
   @spec get_logs!(map(), Keyword.t()) :: [Event.t()] | no_return
   def get_logs!(params, overrides \\ []) do
     case get_logs(params, overrides) do
       {:ok, logs} -> logs
+      {:error, reason} -> raise ExecutionError, reason
+    end
+  end
+
+  @doc """
+  Combines multiple requests and make a batch json RPC request.
+
+  It returns `{:ok, results}` in case of success or `{:error, reason}` in case of RPC failure.
+
+  Each action will have an entry in the results. Each entry is again a tuple and either
+  `{:ok, result}` or `{:error, reason}` in case of action failure.
+
+  Checkout `Batching Requests` sections in `Ethers` module for more examples.
+
+  ## Parameters
+  - requests: A list of requests to execute.
+  - opts: RPC related options. (No account and block options are accepted in batch)
+
+  ### Action
+  An action can be in either of the following formats.
+
+  - `{action_name_atom, action_data, action_overrides}`
+  - `{action_name_atom, action_data}`
+  - `action_name_atom`
+
+  ## Examples
+
+  ```elixir
+  Ethers.batch([
+    {:call, WETH.name()},
+    {:call, WETH.symbol(), to: "[WETH ADDRESS]"},
+    {:send, WETH.transfer("[RECEIVER]", 1000), from: "[SENDER]"},
+    :current_block_number
+  ])
+  {:ok, [ok: "Weapped Ethereum", ok: "WETH", ok: "0xhash...", ok: 182394532]}
+  ```
+  """
+  @spec batch([t_batch_request()], Keyword.t()) ::
+          {:ok, [{:ok, term()} | {:error, term()}]} | {:error, term()}
+  def batch(requests, opts \\ []) do
+    {rpc_client, rpc_opts} = get_rpc_client(opts)
+
+    requests = prepare_requests(requests)
+
+    with rpc_requests when is_list(rpc_requests) <- prepare_batch_requests(requests, opts),
+         {:ok, responses} <- rpc_client.batch_request(rpc_requests, rpc_opts) do
+      results =
+        responses
+        |> Stream.zip(requests)
+        |> Stream.map(fn {result, {action, data, _overrides}} ->
+          post_process(result, data, action)
+        end)
+        |> Enum.to_list()
+
+      {:ok, results}
+    end
+  end
+
+  @doc """
+  Same as `Ethers.batch/2` but raises on error.
+  """
+  @spec batch(list(), Keyword.t()) :: [{:ok, term()} | {:error, term()}]
+  def batch!(actions, opts \\ []) do
+    case batch(actions, opts) do
+      {:ok, results} -> results
       {:error, reason} -> raise ExecutionError, reason
     end
   end
@@ -348,10 +421,149 @@ defmodule Ethers do
     {module, Keyword.get(opts, :rpc_opts, [])}
   end
 
+  defp pre_process(tx_data, overrides, :call = _action, _opts) do
+    {block, overrides} = Keyword.pop(overrides, :block, "latest")
+
+    block =
+      case block do
+        number when is_integer(number) -> Utils.integer_to_hex(number)
+        v -> v
+      end
+
+    tx_params = TxData.to_map(tx_data, overrides)
+
+    case check_params(tx_params, :call) do
+      :ok -> {:ok, tx_params, block}
+      err -> err
+    end
+  end
+
+  defp pre_process(contract_binary, overrides, :deploy = _action, opts) do
+    {encoded_constructor, overrides} = Keyword.pop(overrides, :encoded_constructor)
+
+    overrides
+    |> Enum.into(%{
+      data: "0x#{contract_binary}#{encoded_constructor}",
+      to: nil
+    })
+    |> Utils.maybe_add_gas_limit(opts)
+  end
+
+  defp pre_process(tx_data, overrides, :send = action, opts) do
+    tx_params = TxData.to_map(tx_data, overrides)
+
+    with :ok <- check_params(tx_params, action) do
+      Utils.maybe_add_gas_limit(tx_params, opts)
+    end
+  end
+
+  defp pre_process(tx_data, overrides, :estimate_gas = action, _opts) do
+    tx_params = TxData.to_map(tx_data, overrides)
+
+    with :ok <- check_params(tx_params, action) do
+      {:ok, tx_params}
+    end
+  end
+
+  defp pre_process(event_filter, overrides, :get_logs, _opts) do
+    log_params =
+      event_filter
+      |> EventFilter.to_map(overrides)
+      |> ensure_hex_value(:fromBlock)
+      |> ensure_hex_value(:toBlock)
+
+    {:ok, log_params}
+  end
+
+  defp pre_process([], [], _action, _opts), do: :ok
+
+  defp pre_process(data, [], _action, _opts), do: {:ok, data}
+
+  defp post_process({:ok, resp}, tx_data, :call) when valid_result(resp) do
+    tx_data.selector
+    |> ABI.decode(Ethers.Utils.hex_decode!(resp), :output)
+    |> Enum.zip(tx_data.selector.returns)
+    |> Enum.map(fn {return, type} -> Utils.human_arg(return, type) end)
+    |> case do
+      [element] -> {:ok, element}
+      elements -> {:ok, elements}
+    end
+  end
+
+  defp post_process({:ok, tx_hash}, _tx_data, _action = :send) when valid_result(tx_hash),
+    do: {:ok, tx_hash}
+
+  defp post_process({:ok, tx_hash}, _tx_params, _action = :deploy) when valid_result(tx_hash),
+    do: {:ok, tx_hash}
+
+  defp post_process({:ok, gas_hex}, _tx_data, action)
+       when valid_result(gas_hex) and action in @hex_decode_post_process do
+    Utils.hex_to_integer(gas_hex)
+  end
+
+  defp post_process({:ok, resp}, event_filter, :get_logs) when is_list(resp) do
+    logs = Enum.map(resp, &Event.decode(&1, event_filter.selector))
+
+    {:ok, logs}
+  end
+
+  defp post_process({:ok, resp}, _event_filter, :get_logs) do
+    {:ok, resp}
+  end
+
+  defp post_process({:ok, %{"contractAddress" => contract_address}}, _tx_hash, :deployed_address)
+       when not is_nil(contract_address),
+       do: {:ok, contract_address}
+
+  defp post_process({:ok, nil}, _tx_hash, :deployed_address),
+    do: {:error, :transaction_not_found}
+
+  defp post_process({:ok, _}, _tx_hash, :deployed_address),
+    do: {:error, :no_contract_address}
+
+  defp post_process({:ok, result}, _tx_data, _action),
+    do: {:ok, result}
+
+  defp post_process({:error, cause}, _tx_data, _action),
+    do: {:error, cause}
+
   defp ensure_hex_value(params, key) do
     case Map.get(params, key) do
       v when is_integer(v) -> %{params | key => Utils.integer_to_hex(v)}
       _ -> params
+    end
+  end
+
+  defp prepare_requests(requests) do
+    Enum.map(requests, fn
+      {action, data} -> {action, data, []}
+      {action, data, overrides} -> {action, data, overrides}
+      action when is_atom(action) -> {action, [], []}
+    end)
+  end
+
+  defp prepare_batch_requests(requests, opts) do
+    requests
+    |> Enum.reduce_while([], fn {action, data, overrides}, acc ->
+      rpc_action = Map.get(@rpc_actions_map, action, action)
+
+      case pre_process(data, overrides, action, opts) do
+        :ok ->
+          {:cont, [{rpc_action, []} | acc]}
+
+        {:ok, params} ->
+          {:cont, [{rpc_action, List.wrap(params)} | acc]}
+
+        {:ok, params, block} ->
+          {:cont, [{rpc_action, [params, block]} | acc]}
+
+        {:error, err} ->
+          {:halt, {:error, err}}
+      end
+    end)
+    |> case do
+      {:error, err} -> {:error, err}
+      list -> Enum.reverse(list)
     end
   end
 

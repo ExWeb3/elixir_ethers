@@ -18,6 +18,7 @@
  * Add return names in documentations and TxData inspection
  * Added an interface for `Multicall3` through `Ethers.Contracts.Multicall3`
  * Added `Ethers.Multicall` as an abstraction for `Ethers.Contracts.Multicall3`
+ * Added batching functionality using `Ethers.batch/2`
 
 ### Breaking Changes
 
@@ -29,6 +30,7 @@
  * Removal of `Ethers.RPC` module
  * Remove `Ethers.Types.dynamically_sized_types/0` function
  * `Ethers.call/2` response is not always a list
+ * `Ethers.deploy/4` is now removed and replaced with `Ethers.deploy/2` 
 
 ### Bug fixes
 

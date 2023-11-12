@@ -12,8 +12,14 @@ defmodule Ethers.RevertContractTest do
 
   describe "next function" do
     test "can override RPC client" do
-      init_params = RevertContract.constructor()
-      assert {:ok, tx_hash} = Ethers.deploy(RevertContract, init_params, %{from: @from})
+      encoded_constructor = RevertContract.constructor()
+
+      assert {:ok, tx_hash} =
+               Ethers.deploy(RevertContract,
+                 encoded_constructor: encoded_constructor,
+                 from: @from
+               )
+
       assert {:ok, address} = Ethers.deployed_address(tx_hash)
 
       assert {:ok, true} = RevertContract.get(true) |> Ethers.call(to: address, from: @from)

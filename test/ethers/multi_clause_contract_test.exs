@@ -123,8 +123,14 @@ defmodule Ethers.MultiClauseContractTest do
   end
 
   defp deploy_multi_clause_contract(_ctx) do
-    init_params = MultiClauseContract.constructor()
-    assert {:ok, tx_hash} = Ethers.deploy(MultiClauseContract, init_params, %{from: @from})
+    encoded_constructor = MultiClauseContract.constructor()
+
+    assert {:ok, tx_hash} =
+             Ethers.deploy(MultiClauseContract,
+               encoded_constructor: encoded_constructor,
+               from: @from
+             )
+
     assert {:ok, address} = Ethers.deployed_address(tx_hash)
 
     [address: address]

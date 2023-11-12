@@ -25,8 +25,14 @@ defmodule Ethers.PayEtherContractTest do
   end
 
   def deploy_pay_ether_contract(_ctx) do
-    init_params = PayEtherContract.constructor()
-    assert {:ok, tx_hash} = Ethers.deploy(PayEtherContract, init_params, %{from: @from})
+    encoded_constructor = PayEtherContract.constructor()
+
+    assert {:ok, tx_hash} =
+             Ethers.deploy(PayEtherContract,
+               encoded_constructor: encoded_constructor,
+               from: @from
+             )
+
     assert {:ok, address} = Ethers.deployed_address(tx_hash)
 
     [address: address]

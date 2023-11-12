@@ -94,7 +94,7 @@ defmodule Ethers.Multicall do
   @spec aggregate3_encode_data(
           TxData.t()
           | {TxData.t(), aggregate3_options}
-        ) :: {Types.t_address(), boolean(), binary()}
+        ) :: {Ethers.Types.t_address(), boolean(), binary()}
   def aggregate3_encode_data(data)
 
   def aggregate3_encode_data({%TxData{data: data} = tx_data, opts}) do

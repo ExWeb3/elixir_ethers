@@ -143,9 +143,10 @@ defmodule Ethers.Contract do
 
     quote context: mod, location: :keep do
       @doc """
-      Prepares contract constructor values.
+      Prepares contract constructor values for deployment.
 
-      To deploy a contracts see `Ethers.deploy/2`.
+      To deploy a contracts use `Ethers.deploy/2` and pass the result of this function as
+      `:encoded_constructor` option.
 
       ## Parameters
       #{unquote(document_types(selector.types, selector.input_names))}
@@ -179,7 +180,7 @@ defmodule Ethers.Contract do
 
     quote context: mod, location: :keep do
       @doc """
-      Executes `#{unquote(human_signature(abi.selectors))}` on the contract.
+      Prepares `#{unquote(human_signature(abi.selectors))}` call parameters on the contract.
 
       #{unquote(document_help_message(abi.selectors))}
 

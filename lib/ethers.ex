@@ -131,7 +131,8 @@ defmodule Ethers do
   - contract_module_or_binary: Either the contract module which was already loaded or the compiled
   binary of the contract. The binary MUST be hex encoded.
   - overrides: A keyword list containing options and overrides.
-    - `encoded_constructor`: Hex encoded value for constructor parameters. (Optional)
+    - `:encoded_constructor`: Hex encoded value for constructor parameters. (See `constructor`
+      function of the contract module)
     - Any other account or RPC related options
   """
   @spec deploy(atom() | binary(), Keyword.t()) ::

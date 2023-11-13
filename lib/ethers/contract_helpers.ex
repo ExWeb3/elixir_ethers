@@ -67,7 +67,7 @@ defmodule Ethers.ContractHelpers do
         :payable ->
           """
           This function can be used for a transaction or additionally called for results (Use `Ethers.send/2`)."
-          It also supports receiving ether from the transaction origin. 
+          It also supports receiving ether from the transaction origin.
           """
       end
 
@@ -166,7 +166,7 @@ defmodule Ethers.ContractHelpers do
   end
 
   defp document_state_mutabilities(state_mutabilities) do
-    Enum.join(state_mutabilities, " OR ")
+    Enum.map_join(state_mutabilities, " OR ", &"`#{&1}`")
   end
 
   def human_signature(%ABI.FunctionSelector{

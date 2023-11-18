@@ -188,9 +188,9 @@ defmodule Ethers.Multicall do
   ```
   """
   @spec decode(
-          [%{(true | false) => any()}] | [integer() | [...]],
+          [%{(true | false) => term()}] | [integer() | [...]],
           [TxData.t() | binary()]
-        ) :: [%{(true | false) => any()}] | [integer() | [...]]
+        ) :: [%{(true | false) => term()}] | [integer() | [...]]
   def decode(resps, calls)
 
   def decode([block, resps], calls) when is_integer(block) do
@@ -218,8 +218,8 @@ defmodule Ethers.Multicall do
   [ true: "bar", true: "baz" ]
   ```
   """
-  @spec aggregate3_decode([%{(true | false) => any()}], [TxData.t()] | [binary()]) :: [
-          %{(true | false) => any()}
+  @spec aggregate3_decode([%{(true | false) => term()}], [TxData.t()] | [binary()]) :: [
+          %{(true | false) => term()}
         ]
   def aggregate3_decode(resps, calls) when length(resps) == length(calls) do
     decode_calls(calls)

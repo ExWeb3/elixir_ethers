@@ -6,8 +6,19 @@ defmodule Ethers.Contract do
   You can simply create a new module and call `use Ethers.Contract` in it with the desired parameters.
 
   ```elixir
+  # Using an ABI file
   defmodule MyProject.Contract do
     use Ethers.Contract, abi_file: "path/to/abi.json"
+  end
+
+  # Providing a default address
+  defmodule MyProject.Contract do
+    use Ethers.Contract, abi_file: "path/to/abi.json", default_address: "0x1234...999"
+  end
+
+  # Using an ABI directly
+  defmodule MyProject.Contract do
+    use Ethers.Contract, abi: [%{"inputs" => [], "type" => "constructor"}, ...]
   end
   ```
 
@@ -21,7 +32,7 @@ defmodule Ethers.Contract do
   ```
 
   ## Valid `use` options
-  - `abi`: Used to pass in the encoded/decoded json ABI of contract.
+  - `abi`: Used to pass in the decoded (or even encoded json binay) ABI of contract.
   - `abi_file`: Used to pass in the file path to the json ABI of contract.
   - `default_address`: Default contract deployed address to include in the parameters. (Optional)
   """
@@ -143,9 +154,10 @@ defmodule Ethers.Contract do
 
     quote context: mod, location: :keep do
       @doc """
-      Prepares contract constructor values.
+      Prepares contract constructor values for deployment.
 
-      To deploy a contracts see `Ethers.deploy/2`.
+      To deploy a contracts use `Ethers.deploy/2` and pass the result of this function as
+      `:encoded_constructor` option.
 
       ## Parameters
       #{unquote(document_types(selector.types, selector.input_names))}
@@ -179,7 +191,7 @@ defmodule Ethers.Contract do
 
     quote context: mod, location: :keep do
       @doc """
-      Executes `#{unquote(human_signature(abi.selectors))}` on the contract.
+      Prepares `#{unquote(human_signature(abi.selectors))}` call parameters on the contract.
 
       #{unquote(document_help_message(abi.selectors))}
 

@@ -6,20 +6,6 @@ defmodule Ethers do
   This module offers a simple API for common Ethereum operations such as deploying contracts,
   fetching current gas prices, and querying event logs.
 
-  ## Execution Options
-
-  These can be specified contract functions using `Ethers.call/2`, `Ethers.send/2` or
-  `Ethers.estimate_gas/2` or their equivalent bang functions.
-
-  - `to`: The address of the recipient contract. If the contract module has a default, this will
-    override it. Must be in `"0x..."` format.
-  - `from`: The address of the wallet making this transaction. The private key should be loaded in
-    the rpc server. Must be in `"0x..."` format.
-  - `gas`: The gas limit for your transaction.
-  - `rpc_client`: The RPC module implementing Ethereum JSON RPC functions. Defaults to
-    `Ethereumex.HttpClient`
-  - `rpc_opts`: Options to pass to the RCP client e.g. `:url`.
-
   ## Batching Requests
 
   Often you would find yourself executing different actions without dependency. These actions can
@@ -182,15 +168,25 @@ defmodule Ethers do
   end
 
   @doc """
-  Makes an eth_call to with the given data and overrides then parses
-  the response using the selector in the params
+  Makes an eth_call to with the given `Ethers.TxData` struct and overrides. It then parses
+  the response using the selector in the TxData struct.
 
   ## Overrides and Options
+
+  Other than what stated below, any other option given in the overrides keyword list will be merged
+  with the map that the RPC client will receive.
 
   - `:to`: Indicates recepient address. (Contract address in this case)
   - `:block`: The block number or block alias. Defaults to `latest`
   - `:rpc_client`: The RPC Client to use. It should implement ethereum jsonRPC API. default: Ethereumex.HttpClient
   - `:rpc_opts`: Extra options to pass to rpc_client. (Like timeout, Server URL, etc.)
+
+  ## Return structure
+
+  For contract functions which return a single value (e.g. `function test() returns (uint)`) this
+  returns `{:ok, value}` and for the functions which return multiple values it will return
+  `{:ok, [value0, value1]}` (A list).
+
 
   ## Examples
 
@@ -199,7 +195,7 @@ defmodule Ethers do
   {:ok, 100000000000000}
   ```
   """
-  @spec call(TxData.t(), Keyword.t()) :: {:ok, any()} | {:error, term()}
+  @spec call(TxData.t(), Keyword.t()) :: {:ok, [term()]} | {:ok, term()} | {:error, term()}
   def call(params, overrides \\ [])
 
   def call(tx_data, overrides) do
@@ -216,7 +212,7 @@ defmodule Ethers do
   @doc """
   Same as `Ethers.call/2` but raises on error.
   """
-  @spec call!(TxData.t(), Keyword.t()) :: any() | no_return()
+  @spec call!(TxData.t(), Keyword.t()) :: term() | no_return()
   def call!(params, overrides \\ []) do
     case call(params, overrides) do
       {:ok, result} -> result
@@ -230,7 +226,12 @@ defmodule Ethers do
 
   ## Overrides and Options
 
+  Other than what stated below, any other option given in the overrides keyword list will be merged
+  with the map that the RPC client will receive.
+
   - `:to`: Indicates recepient address. (Contract address in this case)
+  - `:gas`: Gas limit for execution. (If not provided, will get filled using
+    `Ethers.Utils.maybe_add_gas_limit/2` function)
   - `:rpc_client`: The RPC Client to use. It should implement ethereum jsonRPC API. default: Ethereumex.HttpClient
   - `:rpc_opts`: Extra options to pass to rpc_client. (Like timeout, Server URL, etc.)
 

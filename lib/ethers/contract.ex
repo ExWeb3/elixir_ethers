@@ -6,8 +6,19 @@ defmodule Ethers.Contract do
   You can simply create a new module and call `use Ethers.Contract` in it with the desired parameters.
 
   ```elixir
+  # Using an ABI file
   defmodule MyProject.Contract do
     use Ethers.Contract, abi_file: "path/to/abi.json"
+  end
+
+  # Providing a default address
+  defmodule MyProject.Contract do
+    use Ethers.Contract, abi_file: "path/to/abi.json", default_address: "0x1234...999"
+  end
+
+  # Using an ABI directly
+  defmodule MyProject.Contract do
+    use Ethers.Contract, abi: [%{"inputs" => [], "type" => "constructor"}, ...]
   end
   ```
 
@@ -21,7 +32,7 @@ defmodule Ethers.Contract do
   ```
 
   ## Valid `use` options
-  - `abi`: Used to pass in the encoded/decoded json ABI of contract.
+  - `abi`: Used to pass in the decoded (or even encoded json binay) ABI of contract.
   - `abi_file`: Used to pass in the file path to the json ABI of contract.
   - `default_address`: Default contract deployed address to include in the parameters. (Optional)
   """

@@ -16,7 +16,7 @@ defmodule Ethers.NameService do
   - name: Domain name to resolve. (Example: `foo.eth`)
   - opts: Resolve options.
     - to: Resolver contract address. Defaults to ENS
-    - Accepts all other __Execution options__ from `Ethers.Contract`.
+    - Accepts all other Execution options from `Ethers.call/2`.
 
   ## Examples
 
@@ -61,7 +61,7 @@ defmodule Ethers.NameService do
   See https://docs.ens.domains/contract-api-reference/name-processing
 
   ## Examples
-      
+
       iex> Ethers.NameService.name_hash("foo.eth")
       Ethers.Utils.hex_decode!("0xde9b09fd7c5f901e23a3f19fecc54828e9c848539801e86591bd9801b019f84f")
 

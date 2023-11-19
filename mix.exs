@@ -42,7 +42,7 @@ defmodule Ethers.MixProject do
       licenses: ["Apache-2.0"],
       links: %{"GitHub" => @source_url},
       maintainers: ["Alisina Bahadori"],
-      files: ["lib", "priv", "mix.exs", "README*", "LICENSE*"]
+      files: ["lib", "priv", "mix.exs", "README*", "LICENSE*", "CHANGELOG*"]
     ]
   end
 

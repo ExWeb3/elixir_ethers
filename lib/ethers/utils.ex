@@ -39,7 +39,7 @@ defmodule Ethers.Utils do
   def hex_decode(encoded), do: Base.decode16(encoded, case: :mixed)
 
   @doc """
-  Same as `hex_decode/1` but raises on error 
+  Same as `hex_decode/1` but raises on error
 
   ## Examples
 
@@ -121,9 +121,15 @@ defmodule Ethers.Utils do
 
       iex> Ethers.Utils.to_wei(3.14)
       3140000000000000000
+
+      iex> Ethers.Utils.to_wei(0)
+      0
+
+      iex> Ethers.Utils.to_wei(-10)
+      -10000000000000000000
   """
-  @spec to_wei(number()) :: non_neg_integer()
-  def to_wei(number) when number > 0 do
+  @spec to_wei(number()) :: integer()
+  def to_wei(number) do
     trunc(number * @wei_multiplier)
   end
 
@@ -137,9 +143,12 @@ defmodule Ethers.Utils do
 
       iex> Ethers.Utils.from_wei(3140000000000000000)
       3.14
+
+      iex> Ethers.Utils.from_wei(-10000000000000000000)
+      -10.0
   """
-  @spec from_wei(non_neg_integer()) :: float()
-  def from_wei(number) when is_integer(number) and number > 0 do
+  @spec from_wei(integer()) :: float()
+  def from_wei(number) when is_integer(number) do
     number / @wei_multiplier
   end
 
@@ -171,7 +180,7 @@ defmodule Ethers.Utils do
 
   ## Examples
       iex> Ethers.Utils.prepare_arg("0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2", :address)
-      <<192, 42, 170, 57, 178, 35, 254, 141, 10, 14, 92, 79, 39, 234, 217, 8, 60, 117, 108, 194>> 
+      <<192, 42, 170, 57, 178, 35, 254, 141, 10, 14, 92, 79, 39, 234, 217, 8, 60, 117, 108, 194>>
   """
   @spec prepare_arg(term(), ABI.FunctionSelector.type()) :: term()
   def prepare_arg("0x" <> _ = argument, :address), do: hex_decode!(argument)
@@ -192,12 +201,12 @@ defmodule Ethers.Utils do
   Reverse of `prepare_arg/2`
 
   ## Examples
-      iex> Ethers.Utils.human_arg(<<192, 42, 170, 57, 178, 35, 254, 141, 10, 14, 92, 79, 39, 
+      iex> Ethers.Utils.human_arg(<<192, 42, 170, 57, 178, 35, 254, 141, 10, 14, 92, 79, 39,
       ...> 234, 217, 8, 60, 117, 108, 194>>, :address)
-      "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2" 
+      "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
 
       iex> Ethers.Utils.human_arg("0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2", :address)
-      "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2" 
+      "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
   """
   @spec human_arg(term(), ABI.FunctionSelector.type()) :: term()
   def human_arg("0x" <> _ = argument, :address), do: argument

@@ -127,6 +127,13 @@ defmodule Ethers.Contract do
         end
       end
 
+    default_address_type =
+      if default_address do
+        quote do: Ethers.Types.t_address()
+      else
+        quote do: nil
+      end
+
     extra_ast =
       quote context: module do
         def __contract_binary__, do: unquote(contract_binary)
@@ -136,7 +143,7 @@ defmodule Ethers.Contract do
 
         To specify a default address see `Ethers.Contract`
         """
-        @spec __default_address__() :: Ethers.Types.t_address() | nil
+        @spec __default_address__() :: unquote(default_address_type)
         def __default_address__, do: unquote(default_address)
       end
 

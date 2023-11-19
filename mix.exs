@@ -24,7 +24,8 @@ defmodule Ethers.MixProject do
       description: "Ethereum/Web3 client for easy interaction with EVM based smart contracts",
       package: package(),
       docs: docs(),
-      aliases: aliases()
+      aliases: aliases(),
+      dialyzer: dialyzer()
     ]
   end
 
@@ -71,6 +72,10 @@ defmodule Ethers.MixProject do
       logo: "assets/exdoc_logo.png",
       markdown_processor: {ExDoc.Markdown.Earmark, footnotes: true}
     ]
+  end
+
+  def dialyzer do
+    [flags: [:error_handling, :extra_return, :underspecs, :unknown, :unmatched_returns]]
   end
 
   # Specifies which paths to compile per environment.

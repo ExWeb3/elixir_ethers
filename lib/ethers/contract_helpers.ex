@@ -66,7 +66,7 @@ defmodule Ethers.ContractHelpers do
 
         :payable ->
           """
-          This function can be used for a transaction or additionally called for results (Use `Ethers.send/2`)."
+          This function can be used for a transaction or additionally called for results (Use `Ethers.send/2`).
           It also supports receiving ether from the transaction origin.
           """
       end

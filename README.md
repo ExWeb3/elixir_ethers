@@ -1,4 +1,3 @@
-
 <img height="120" align="left" src="https://github.com/alisinabh/elixir_ethers/raw/main/assets/ethers_logo.png" alt="Ethers Elixir">
 
 # Elixir Ethers
@@ -12,18 +11,18 @@
 
 Ethers is a comprehensive Web3 library for interacting with smart contracts on the Ethereum (Or any EVM based blockchain) using Elixir.
 
-Inspired by [ethers.js](https://github.com/ethers-io/ethers.js/) and [web3.js](https://web3js.readthedocs.io/), Ethers leverages 
+Inspired by [ethers.js](https://github.com/ethers-io/ethers.js/) and [web3.js](https://web3js.readthedocs.io/), Ethers leverages
 Elixir's amazing meta-programming capabilities to generate Elixir modules for give smart contracts from their ABI.
 It also generates beautiful documentation for those modules which can further help developers.
 
 ## Installation
 
-You can install the package by adding `ethers` to the list of dependencies in your `mix.exs` file::
+You can install the package by adding `ethers` to the list of dependencies in your `mix.exs` file:
 
 ```elixir
 def deps do
   [
-    {:ethers, "~> 0.0.6"}
+    {:ethers, "~> 0.1.0"}
   ]
 end
 ```
@@ -35,7 +34,6 @@ The complete documentation is available on [hexdocs](https://hexdocs.pm/ethers).
 To use Elixir Ethers, ensure you have a configured JSON-RPC endpoint.
 Configure the endpoint using the following configuration parameter.
 
-
 ```elixir
 # config.exs
 config :ethers,
@@ -44,94 +42,45 @@ config :ethers,
   json_module: Jason # Defaults to: Jason
 
 # If using Ethereumex, you need to specify a JSON-RPC server url here
-config :ethereumex, url: "[URL_HERE]"
+config :ethereumex,
+  url: "[URL_HERE]",
+  http_headers: [{"Content-Type", "application/json"}]
 ```
 
-You can use [Cloudflare's Ethereum Gateway](https://developers.cloudflare.com/web3/ethereum-gateway/reference/supported-networks/) `https://cloudflare-eth.com/v1/mainnet` for the RPC URL.
+You can use one of the RPC URLs for your chain/wallet of choice or try out one of them from
+[chainlist.org](https://chainlist.org/).
 
-For more configuration options, refer to [ethereumex](https://github.com/mana-ethereum/ethereumex#configuration).
+For more configuration options, refer to
+[ethereumex](https://github.com/mana-ethereum/ethereumex#configuration).
 
-To send transactions, you need a wallet client capable of signing transactions and exposing a JSON-RPC endpoint.
+To send transactions, you need a wallet client capable of signing transactions and exposing a
+JSON-RPC endpoint.
 
 ## Usage
 
-To use Elixir Ethers, you must have your contract's ABI in json format, which can be obtained from [etherscan.io](https://etherscan.io). 
-This library also contains standard contract interfaces such as `ERC20`, `ERC721` and some more by default (refer to built-in contracts in hex-doc).
+To use Elixir Ethers, you must have your contract's ABI in json format, which can be obtained from
+[etherscan.io](https://etherscan.io). This library also contains standard contract interfaces such
+as `ERC20`, `ERC721` and some more by default (refer to built-in contracts in
+[hexdocs](https://hexdocs.pm/ethers)).
 
 Create a module for your contract as follows:
 
 ```elixir
 defmodule MyERC20Token do
-  use Ethers.Contract, 
-    abi_file: "path/to/abi.json", 
-    default_address: "[Token address here (optional)]"
+  use Ethers.Contract,
+    abi_file: "path/to/abi.json",
+    default_address: "[Contract address here (optional)]"
 
   # You can also add more code here in this module if you wish
 end
 ```
 
-### Generated documentation for functions and event filters
-
-Ethers generates documentation for all the functions and event filters based on the ABI data.
-To get the documentation you can either use the `h/1` IEx helper function or generate HTML/epub docs using ExDoc.
-
-#### Get the documentation of a contract function
-
-```elixir
-iex(3)> h MyERC20Token.balance_of
-
-                             def balance_of(owner)
-
-  @spec balance_of(Ethers.Types.t_address()) ::
-          Ethers.Contract.t_function_output()
-
-Executes balanceOf(address _owner) on the contract.
-
-This function should only be called for result and never in a transaction on
-its own. (Use Ethers.call/2)
-
-State mutability: view
-
-## Function Parameter Types
-
-  • _owner: `:address`
-
-## Return Types (when called with `Ethers.call/2`)
-
-  • {:uint, 256}
-```
-
-#### Get the documentation of a event filter
-
-```elixir
-iex(4)> h MyERC20Token.EventFilters.transfer
-
-                             def transfer(from, to)
-
-  @spec transfer(Ethers.Types.t_address(), Ethers.Types.t_address()) ::
-          Ethers.Contract.t_event_output()
-
-Create event filter for Transfer(address from, address to, uint256 value)
-
-For each indexed parameter you can either pass in the value you want to filter
-or nil if you don't want to filter.
-
-## Parameter Types (Event indexed topics)
-
-  • from: :address
-  • to: :address
-
-## Event `data` Types (when called with `Ethers.get_logs/2`)
-
-These are non-indexed topics (often referred to as data) of the event log.
-
-  • value: {:uint, 256}
-```
-
 ### Calling contract functions
 
 After defining the module, all the functions can be called like any other Elixir module.
-To make a call (eth_call) to the blockchain, you can use [`Ethers.call/2`](https://hexdocs.pm/ethers/Ethers.html#call/2) function.
+
+To fetch the results (return value(s)) of a function you can pass your function result to the
+[`Ethers.call/2`](https://hexdocs.pm/ethers/Ethers.html#call/2) function.
 
 ```elixir
 # Calling functions on the blockchain
@@ -139,28 +88,38 @@ iex> MyERC20Token.balance_of("0x[Address]") |> Ethers.call()
 {:ok, 654294510138460920346}
 ```
 
+Refer to [Ethers.call/2](https://hexdocs.pm/ethers/Ethers.html#call/2) for more information.
+
 ### Sending transaction
 
-To send transaction (eth_sendTransaction) to the blockchain, you can use the [`Ethers.send/2`](https://hexdocs.pm/ethers/Ethers.html#send/2) function.
-Ensure that you specify a `from` option to inform your client which account to use:
+To send transaction (eth_sendTransaction) to the blockchain, you can use the
+[`Ethers.send/2`](https://hexdocs.pm/ethers/Ethers.html#send/2) function.
+
+Ensure that you specify a `from` option to inform your client which account to use as the signer:
 
 ```elixir
 iex> MyERC20Token.transfer("0x[Recipient]", 1000) |> Ethers.send(from: "0x[Sender]")
 {:ok, "0xf313ff7ff54c6db80ad44c3ad58f72ff0fea7ce88e5e9304991ebd35a6e76000"}
 ```
 
+Refer to [Ethers.send/2](https://hexdocs.pm/ethers/Ethers.html#send/2) for more information.
+
 ### Getting Logs (Events)
 
-Elixir Ethers provides functionality for creating event filters and fetching events from the RPC endpoint using `eth_getLogs`. 
-Each contract in Ethers generates an `EventFilters` module (e.g. `MyERC20Token.EventFilter`s) that can be used to create filters for events.
+Ethers provides functionality for creating event filters and fetching related events from the
+blockchain. Each contract generated by Ethers also will have `EventFilters` module
+(e.g. `MyERC20Token.EventFilter`s) that can be used to create filters for events.
 
-To create an event filter and use the [`Ethers.get_logs/2`](https://hexdocs.pm/ethers/Ethers.html#get_logs/2) function, follow this example:
+To create an event filter and then use
+[`Ethers.get_logs/2`](https://hexdocs.pm/ethers/Ethers.html#get_logs/2) function like the below
+example.
 
 ```elixir
+# Create The Event Filter
+# (`nil` can be used for a parameter in EventFilters functions to indicate no filtering)
 iex> filter = MyERC20Token.EventFilters.transfer("0x[From Address Here]", nil)
 
-# Also `nil` can be used for a parameter in EventFilters functions to show that it should not be filtered.
-# Then you can simply list the logs.
+# Then you can simply list the logs using `Ethers.get_logs/2`
 
 iex> Ethers.get_logs(filter)
 {:ok,
@@ -188,37 +147,112 @@ iex> Ethers.get_logs(filter)
 
 ### Resolving Ethereum names (ENS domains) using Ethers
 
-To resolve ENS or any other name service provider in the blockchain
-you can simply use the [`Ethers.NameService`](https://hexdocs.pm/ethers/Ethers.NameService.html) module.
+To resolve ENS or any other name service provider (which are ENS compatible) in the blockchain
+you can simply use [`Ethers.NameService`](https://hexdocs.pm/ethers/Ethers.NameService.html) module.
 
 ```elixir
 iex> Ethers.NameService.resolve("vitalik.eth")
 {:ok, "0xd8da6bf26964af9d7eed9e03e53415d37aa96045"}
 ```
 
-### Built-in contract interfaces
+### Built-in contract interfaces in Ethers
 
-Ethers already includes some of the well-known contract interface standards for you to use. Here is a list of them.
+Ethers already includes some of the well-known contract interface standards for you to use.
+Here is a list of them.
 
- - [ERC20](https://hexdocs.pm/ethers/Ethers.Contracts.ERC20.html) - The well know fungible token standard
- - [ERC721](https://hexdocs.pm/ethers/Ethers.Contracts.ERC721.html) - Non-Fungible tokens (NFTs) standard
- - [ERC777](https://hexdocs.pm/ethers/Ethers.Contracts.ERC777.html) - Improved fungible token standard
- - [ERC1155](https://hexdocs.pm/ethers/Ethers.Contracts.ERC1155.html) - Multi-Token standard (Fungible, Non-Fungible or Semi-Fungible)
+- [ERC20](https://hexdocs.pm/ethers/Ethers.Contracts.ERC20.html) - The well know fungible token standard
+- [ERC721](https://hexdocs.pm/ethers/Ethers.Contracts.ERC721.html) - Non-Fungible tokens (NFTs) standard
+- [ERC777](https://hexdocs.pm/ethers/Ethers.Contracts.ERC777.html) - Improved fungible token standard
+- [ERC1155](https://hexdocs.pm/ethers/Ethers.Contracts.ERC1155.html) - Multi-Token standard (Fungible, Non-Fungible or Semi-Fungible)
+- [Multicall](https://hexdocs.pm/ethers/Ethers.Multicall.html) - [Multicall3](https://www.multicall3.com/)
 
-To use them you just need to specify the target contract address (`:to` option) of your token and call the functions. e.g.
+To use them you just need to specify the target contract address (`:to` option) of your token and
+call the functions. Example:
 
 ```elixir
-iex> Ethers.Contracts.ERC20.balance_of("0xWALLET_ADDRESS", to: "0xTOKEN_ADDRESS")
+iex> tx_data = Ethers.Contracts.ERC20.balance_of("0x[Holder Address]")
+#Ethers.TxData<
+  function balanceOf(
+    address _owner "0x[Holder Address]"
+  ) view returns (
+    uint256 balance
+  )
+>
+
+iex> Ethers.call(tx_data, to: "0x[Token Address]")
+{:ok, 123456}
 ```
 
 ## Documentation
 
 For a detailed documentation visit [Ethers hexdocs page](https://hexdocs.pm/ethers).
 
+### Generated documentation for functions and event filters
+
+Ethers generates documentation for all the functions and event filters based on the ABI data.
+To get the documentation you can either use the `h/1` IEx helper function or generate HTML/epub
+docs using ExDoc.
+
+#### Get the documentation of a contract function
+
+```elixir
+iex(3)> h MyERC20Token.balance_of
+
+                             def balance_of(owner)
+
+  @spec balance_of(Ethers.Types.t_address()) :: Ethers.TxData.t()
+
+Prepares balanceOf(address _owner) call parameters on the contract.
+
+This function should only be called for result and never in a transaction on
+its own. (Use Ethers.call/2)
+
+State mutability: view
+
+## Function Parameter Types
+
+  • _owner: `:address`
+
+## Return Types (when called with `Ethers.call/2`)
+
+  • balance: {:uint, 256}
+```
+
+#### Inspecting TxData and EventFilter structs
+
+One cool and potentially useful feature of Ethers is how you can inspect the call
+
+#### Get the documentation of a event filter
+
+```elixir
+iex(4)> h MyERC20Token.EventFilters.transfer
+
+                             def transfer(from, to)
+
+  @spec transfer(Ethers.Types.t_address(), Ethers.Types.t_address()) ::
+          Ethers.EventFilter.t()
+
+Create event filter for Transfer(address from, address to, uint256 value)
+
+For each indexed parameter you can either pass in the value you want to filter
+or nil if you don't want to filter.
+
+## Parameter Types (Event indexed topics)
+
+  • from: :address
+  • to: :address
+
+## Event `data` Types (when called with `Ethers.get_logs/2`)
+
+These are non-indexed topics (often referred to as data) of the event log.
+
+  • value: {:uint, 256}
+```
+
 ## Contributing
 
-All contributions to this project are very welcome. Please feel free to open issues and push PRs and even share your
-suggestions.
+All contributions are very welcome (as simple as fixing typos). Please feel free to open issues and
+push Pull Requests. Just remember to be respectful to everyone!
 
 To run the tests locally, you need to run [ganache](https://github.com/trufflesuite/ganache).
 After installing ganache, just run the following in a new window the you can run the tests on
@@ -232,9 +266,9 @@ the same machine.
 
 Ethers was possible to make thanks to the great contributors of the following libraries.
 
- - [ABI](https://github.com/poanetwork/ex_abi)
- - [Ethereumex](https://github.com/mana-ethereum/ethereumex)
- - [ExKeccak](https://github.com/tzumby/ex_keccak)
+- [ABI](https://github.com/poanetwork/ex_abi)
+- [Ethereumex](https://github.com/mana-ethereum/ethereumex)
+- [ExKeccak](https://github.com/tzumby/ex_keccak)
 
 And also all the people who contributed to this project in any ways.
 

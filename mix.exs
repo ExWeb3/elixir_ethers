@@ -1,7 +1,7 @@
 defmodule Ethers.MixProject do
   use Mix.Project
 
-  @version "0.1.0-dev"
+  @version "0.1.0"
   @source_url "https://github.com/alisinabh/elixir_ethers"
 
   def project do
@@ -21,7 +21,8 @@ defmodule Ethers.MixProject do
         "coveralls.post": :test,
         "coveralls.html": :test
       ],
-      description: "Ethereum/Web3 client for easy interaction with EVM based smart contracts",
+      description:
+        "A comprehensive Web3 library for interacting with smart contracts on Ethereum using Elixir.",
       package: package(),
       docs: docs(),
       aliases: aliases(),

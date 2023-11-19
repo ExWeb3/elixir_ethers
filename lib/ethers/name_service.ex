@@ -30,10 +30,9 @@ defmodule Ethers.NameService do
   def resolve(name, opts \\ []) do
     name_hash = name_hash(name)
 
-    with {:ok, resolver} <- get_resolver(name_hash, opts),
-         opts = Keyword.put(opts, :to, resolver),
-         {:ok, address} <- Ethers.call(ENS.Resolver.addr(name_hash), opts) do
-      {:ok, address}
+    with {:ok, resolver} <- get_resolver(name_hash, opts) do
+      opts = Keyword.put(opts, :to, resolver)
+      Ethers.call(ENS.Resolver.addr(name_hash), opts)
     end
   end
 

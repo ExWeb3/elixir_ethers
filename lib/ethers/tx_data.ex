@@ -113,6 +113,23 @@ defmodule Ethers.TxData do
             ]
         end
 
+      arguments_doc =
+        case arguments_doc do
+          [] ->
+            [
+              color("(", :operator, opts),
+              color(")", :operator, opts)
+            ]
+
+          _ ->
+            [
+              color("(", :operator, opts),
+              nest(concat([break("") | arguments_doc]), 2),
+              break(""),
+              color(")", :operator, opts)
+            ]
+        end
+
       inner =
         concat(
           [
@@ -120,10 +137,7 @@ defmodule Ethers.TxData do
             color("function", :atom, opts),
             " ",
             color(selector.function, :call, opts),
-            color("(", :operator, opts),
-            nest(concat([break("") | arguments_doc]), 2),
-            break(""),
-            color(")", :call, opts),
+            concat(arguments_doc),
             " ",
             state_mutability(selector, opts)
           ] ++ returns_doc ++ default_address

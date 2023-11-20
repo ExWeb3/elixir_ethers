@@ -69,18 +69,31 @@ defmodule Ethers.EventFilter do
             ]
         end
 
+      argument_doc =
+        case argument_doc(selector, topics, opts) do
+          [] ->
+            [
+              color("(", :operator, opts),
+              color(")", :operator, opts)
+            ]
+
+          argument_doc ->
+            [
+              color("(", :operator, opts),
+              nest(concat([break("") | argument_doc]), 2),
+              break(""),
+              color(")", :operator, opts)
+            ]
+        end
+
       inner =
         concat(
           [
             break(""),
             color("event", :atom, opts),
             " ",
-            color(selector.function, :call, opts),
-            color("(", :operator, opts),
-            nest(concat([break("") | argument_doc(selector, topics, opts)]), 2),
-            break(""),
-            color(")", :call, opts)
-          ] ++ default_address
+            color(selector.function, :call, opts)
+          ] ++ argument_doc ++ default_address
         )
 
       concat([

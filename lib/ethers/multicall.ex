@@ -258,20 +258,15 @@ defmodule Ethers.Multicall do
     ]
   end
 
-  defp decode_resp(selector, resp) do
-    case resp do
-      # NOTE: ABI.decode/2 will fail on empty result
-      "" ->
-        ""
+  defp decode_resp(_selector, ""), do: nil
 
-      _ ->
-        selector
-        |> ABI.decode(resp, :output)
-        # Unpack one element lists
-        |> case do
-          [element] -> element
-          list -> list
-        end
+  defp decode_resp(selector, resp) do
+    selector
+    |> ABI.decode(resp, :output)
+    # Unpack one element lists
+    |> case do
+      [element] -> element
+      list -> list
     end
   end
 

@@ -40,13 +40,13 @@ defmodule Ethers.MulticallTest do
           HelloWorldWithDefaultAddressContract.say_hello()
         ]
 
-      [true: "", true: ""] =
+      [true: nil, true: nil] =
         calls
         |> Multicall.aggregate3()
         |> Ethers.call!()
         |> Multicall.aggregate3_decode(calls)
 
-      [true: "", true: ""] =
+      [true: nil, true: nil] =
         calls
         |> Multicall.aggregate3()
         |> Ethers.call!()
@@ -108,7 +108,7 @@ defmodule Ethers.MulticallTest do
     end
 
     test "aggregate2 with default address" do
-      [block, ["", ""]] =
+      [block, [nil, nil]] =
         [
           {HelloWorldWithDefaultAddressContract.say_hello(), []},
           HelloWorldWithDefaultAddressContract.say_hello()

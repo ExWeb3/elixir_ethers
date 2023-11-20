@@ -64,7 +64,7 @@ defmodule Ethers.TxData do
             " ",
             if(name, do: color(name, :variable, opts)),
             if(name, do: " "),
-            human_arg(arg, type)
+            human_arg(arg, type, opts)
           ]
           |> Enum.reject(&is_nil/1)
           |> concat()
@@ -173,6 +173,6 @@ defmodule Ethers.TxData do
       color(Atom.to_string(state_mutability), :string, opts)
     end
 
-    defp human_arg(arg, type), do: inspect(Utils.human_arg(arg, type))
+    defp human_arg(arg, type, opts), do: Inspect.inspect(Utils.human_arg(arg, type), opts)
   end
 end

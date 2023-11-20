@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Bug fixes
+
+- Multicall: aggregate_3 decoder returns `nil` in case of failure
+- Multicall: Feed decoded results through `Utils.human_arg/2`
+
 ## v0.1.0 (2023-11-19)
 
 ### New Features

@@ -24,7 +24,7 @@ defmodule Ethers.Multicall do
   ```
   """
 
-  import Ethers.Utils, only: [hex_decode!: 1]
+  import Ethers.Utils, only: [hex_decode!: 1, human_arg: 2]
 
   alias Ethers.Contracts.Multicall3
   alias Ethers.TxData
@@ -263,10 +263,11 @@ defmodule Ethers.Multicall do
   defp decode_resp(selector, resp) do
     selector
     |> ABI.decode(resp, :output)
-    # Unpack one element lists
+    |> Enum.zip(selector.returns)
+    |> Enum.map(fn {return, type} -> human_arg(return, type) end)
     |> case do
       [element] -> element
-      list -> list
+      elements -> elements
     end
   end
 

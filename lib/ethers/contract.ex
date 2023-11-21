@@ -27,7 +27,7 @@ defmodule Ethers.Contract do
   data = MyProject.Contract.example_function(...)
 
   # Use data to handle eth_call
-  Ethers.Contract.call(data, to: "0xADDRESS", from: "0xADDRESS")
+  Ethers.call(data, to: "0xADDRESS", from: "0xADDRESS")
   {:ok, [...]}
   ```
 

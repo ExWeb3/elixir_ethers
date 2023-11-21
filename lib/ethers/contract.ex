@@ -27,9 +27,6 @@ defmodule Ethers.Contract do
   data = MyProject.Contract.example_function(...)
 
   # Use data to handle eth_call
-  # Note that Ethers.call/2 requires a JSON_RPC_URL configured in your config.exs as below
-  # config :ethereumex, :url, "https://ethereum-sepolia.publicnode.com"
-
   Ethers.call(data, to: "0xADDRESS", from: "0xADDRESS")
   {:ok, [...]}
   ```

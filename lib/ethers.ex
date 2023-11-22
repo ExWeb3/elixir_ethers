@@ -78,7 +78,7 @@ defmodule Ethers do
     send: :eth_send_transaction
   }
 
-  @typep t_batch_request :: atom() | {atom, term()} | {atom, term(), Keyword.t()}
+  @type t_batch_request :: atom() | {atom, term()} | {atom, term(), Keyword.t()}
 
   defguardp valid_result(bin) when bin != "0x"
 

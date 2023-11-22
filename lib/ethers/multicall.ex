@@ -29,8 +29,8 @@ defmodule Ethers.Multicall do
   alias Ethers.Contracts.Multicall3
   alias Ethers.TxData
 
-  @typep aggregate3_options :: [to: Ethers.Types.t_address(), allow_failure: boolean()]
-  @typep aggregate2_options :: [to: Ethers.Types.t_address()]
+  @type aggregate3_options :: [to: Ethers.Types.t_address(), allow_failure: boolean()]
+  @type aggregate2_options :: [to: Ethers.Types.t_address()]
 
   @doc """
   Aggregates calls, ensuring each returns success if required, and returns a `Ethers.TxData` struct,

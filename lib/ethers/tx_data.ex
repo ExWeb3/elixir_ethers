@@ -37,7 +37,11 @@ defmodule Ethers.TxData do
   end
 
   def to_map(tx_map, overrides) when is_map(tx_map) do
-    Enum.into(overrides, tx_map)
+    Enum.map(overrides, fn
+      {k, v} when is_integer(v) -> {k, Ethers.Utils.integer_to_hex(v)}
+      kv -> kv
+    end)
+    |> Enum.into(tx_map)
   end
 
   defp get_tx_map(%{selector: %{type: :function}} = tx_data) do

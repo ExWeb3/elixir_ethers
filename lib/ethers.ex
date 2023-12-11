@@ -60,6 +60,7 @@ defmodule Ethers do
   ```
   """
 
+  alias Ethers.Transaction
   alias Ethers.Event
   alias Ethers.EventFilter
   alias Ethers.ExecutionError
@@ -67,14 +68,17 @@ defmodule Ethers do
   alias Ethers.Types
   alias Ethers.Utils
 
-  @option_keys [:rpc_client, :rpc_opts]
+  @option_keys [:rpc_client, :rpc_opts, :signer, :signer_opts, :tx_type]
   @hex_decode_post_process [:estimate_gas, :current_gas_price, :current_block_number]
   @rpc_actions_map %{
     call: :eth_call,
+    chain_id: :eth_chain_id,
     current_block_number: :eth_block_number,
     current_gas_price: :eth_gas_price,
     estimate_gas: :eth_estimate_gas,
+    gas_price: :eth_gas_price,
     get_logs: :eth_get_logs,
+    get_transaction_count: :eth_get_transaction_count,
     send: :eth_send_transaction
   }
 
@@ -248,8 +252,8 @@ defmodule Ethers do
 
     {rpc_client, rpc_opts} = get_rpc_client(opts)
 
-    with {:ok, tx_params} <- pre_process(tx_data, overrides, :send, opts) do
-      rpc_client.eth_send_transaction(tx_params, rpc_opts)
+    with {:ok, tx_params, action} <- pre_process(tx_data, overrides, :send, opts) do
+      apply(rpc_client, action, [tx_params, rpc_opts])
       |> post_process(tx_data, :send)
     end
   end
@@ -408,6 +412,10 @@ defmodule Ethers do
   def json_module, do: Application.get_env(:ethers, :json_module, Jason)
 
   @doc false
+  @spec secp256k1_module() :: atom()
+  def secp256k1_module, do: Application.get_env(:ethers, :secp256k1_module, ExSecp256k1)
+
+  @doc false
   @spec rpc_client() :: atom()
   def rpc_client, do: Application.get_env(:ethers, :rpc_client, Ethereumex.HttpClient)
 
@@ -454,8 +462,9 @@ defmodule Ethers do
   defp pre_process(tx_data, overrides, :send = action, opts) do
     tx_params = TxData.to_map(tx_data, overrides)
 
-    with :ok <- check_params(tx_params, action) do
-      Utils.maybe_add_gas_limit(tx_params, opts)
+    with :ok <- check_params(tx_params, action),
+         {:ok, tx_params} <- Utils.maybe_add_gas_limit(tx_params, opts) do
+      maybe_use_signer(tx_params, opts)
     end
   end
 
@@ -549,12 +558,18 @@ defmodule Ethers do
     |> Enum.reduce_while([], fn {action, data, overrides}, acc ->
       rpc_action = Map.get(@rpc_actions_map, action, action)
 
+      {sub_opts, overrides} = Keyword.split(overrides, @option_keys)
+      opts = Keyword.merge(opts, sub_opts)
+
       case pre_process(data, overrides, action, opts) do
         :ok ->
           {:cont, [{rpc_action, []} | acc]}
 
         {:ok, params} ->
           {:cont, [{rpc_action, List.wrap(params)} | acc]}
+
+        {:ok, params, action} when action in [:eth_send_transaction, :eth_send_raw_transaction] ->
+          {:cont, [{action, [params]} | acc]}
 
         {:ok, params, block} ->
           {:cont, [{rpc_action, [params, block]} | acc]}
@@ -566,6 +581,35 @@ defmodule Ethers do
     |> case do
       {:error, err} -> {:error, err}
       list -> Enum.reverse(list)
+    end
+  end
+
+  defp maybe_use_signer(tx_params, opts) do
+    case Keyword.get(opts, :signer) do
+      nil ->
+        {:ok, tx_params, :eth_send_transaction}
+
+      signer ->
+        signer_opts = Keyword.get(opts, :signer_opts, [])
+        tx_type = Keyword.get(opts, :tx_type, :eip1559)
+
+        with {:ok, tx_params} <- ensure_from_address(tx_params, signer, signer_opts),
+             {:ok, tx} <-
+               Transaction.new(tx_params, tx_type) |> Transaction.fill_with_defaults(opts),
+             {:ok, signed_tx} <-
+               apply(signer, :sign_transaction, [tx, signer_opts]) do
+          {:ok, signed_tx, :eth_send_raw_transaction}
+        end
+    end
+  end
+
+  defp ensure_from_address(%{from: from} = tx_params, _signer, _signer_opts)
+       when not is_nil(from),
+       do: {:ok, tx_params}
+
+  defp ensure_from_address(tx_params, signer, signer_opts) do
+    with {:ok, address} <- apply(signer, :address, [signer_opts]) do
+      {:ok, Map.put(tx_params, :from, address)}
     end
   end
 

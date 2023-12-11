@@ -13,6 +13,14 @@ defmodule Ethers.Types do
   @type t_address :: <<_::336>> | <<_::160>>
 
   @typedoc """
+  Public key either in its uncompressed format (64 bytes prefixed with 0x04) or its
+  compressed format (32 bytes prefixed with 0x02)
+
+  Public key is only in binary format. If required can be converted to hex using `hex_encode/1`.
+  """
+  @type t_pub_key :: <<_::520>> | <<_::264>>
+
+  @typedoc """
   keccak hash in its hex format with 0x
 
   ## Examples

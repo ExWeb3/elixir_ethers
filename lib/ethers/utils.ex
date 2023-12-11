@@ -283,6 +283,32 @@ defmodule Ethers.Utils do
   end
 
   @doc """
+  Calculates address of a given public key.
+  """
+  @spec public_key_to_address(Ethers.Types.t_pub_key()) :: Ethers.Types.t_address()
+  def public_key_to_address(<<public_key::binary-64>>) do
+    Ethers.keccak_module().hash_256(public_key)
+    |> :binary.part(32 - 20, 20)
+    |> hex_encode()
+    |> to_checksum_address()
+  end
+
+  def public_key_to_address(<<compressed::binary-32>>) do
+    case Ethers.secp256k1_module().public_key_decompress(compressed) do
+      {:ok, public_key} -> public_key_to_address(public_key)
+      error -> raise ArgumentError, "Invalid compressed public key #{inspect(error)}"
+    end
+  end
+
+  def public_key_to_address(<<4, public_key::binary-64>>) do
+    public_key_to_address(public_key)
+  end
+
+  def public_key_to_address(<<x, compressed::binary-32>>) when x in [2, 3] do
+    public_key_to_address(compressed)
+  end
+
+  @doc """
   Returns the timestamp for a given block number.
 
   The block_number parameter can be a non negative integer or the hex encoded value of that integer.

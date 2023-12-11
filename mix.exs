@@ -90,7 +90,7 @@ defmodule Ethers.MixProject do
       {:dialyxir, "~> 1.3", only: [:dev, :test], runtime: false},
       {:ethereumex, "~> 0.10.3"},
       {:ex_abi, "~> 0.6.0"},
-      {:ex_doc, "~> 0.30.1", only: :dev, runtime: false},
+      {:ex_doc, "~> 0.31.0", only: :dev, runtime: false},
       {:excoveralls, "~> 0.10", only: :test},
       {:idna, "~> 6.1"},
       {:jason, "~> 1.4"}

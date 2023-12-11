@@ -91,6 +91,7 @@ defmodule Ethers.MixProject do
       {:ethereumex, "~> 0.10.6"},
       {:ex_abi, "~> 0.6.0"},
       {:ex_doc, "~> 0.31.0", only: :dev, runtime: false},
+      {:ex_rlp, "~> 0.6.0"},
       {:excoveralls, "~> 0.10", only: :test},
       {:idna, "~> 6.1"},
       {:jason, "~> 1.4"}

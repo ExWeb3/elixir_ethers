@@ -1,11 +1,11 @@
 # Changelog
 
-## Unreleased
+## v0.1.2 (2023-12-12)
 
 ### Breaking Changes
 
 - `TxData.to_map/2` now returns hex values for all integers.
-- `Utils.maybe_add_gas_limit/2` now adds hex gas limit value.
+- `Utils.maybe_add_gas_limit/2` now adds hex gas limit value instead of integer.
 
 ## v0.1.1 (2023-11-22)
 

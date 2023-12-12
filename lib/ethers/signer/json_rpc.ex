@@ -19,5 +19,9 @@ defmodule Ethers.Signer.JsonRpc do
     rpc_module.request("eth_signTransaction", [tx_map], opts)
   end
 
-  def address(_opts), do: {:error, :not_supported}
+  def accounts(opts) do
+    {rpc_module, opts} = Keyword.pop(opts, :rpc_module, Ethereumex.HttpClient)
+
+    rpc_module.request("eth_accounts", [], opts)
+  end
 end

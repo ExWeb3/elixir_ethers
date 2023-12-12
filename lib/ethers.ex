@@ -608,8 +608,11 @@ defmodule Ethers do
        do: {:ok, tx_params}
 
   defp ensure_from_address(tx_params, signer, signer_opts) do
-    with {:ok, address} <- signer.address(signer_opts) do
-      {:ok, Map.put(tx_params, :from, address)}
+    case signer.accounts(signer_opts) do
+      {:ok, [address]} -> {:ok, Map.put(tx_params, :from, address)}
+      {:ok, []} -> {:error, :no_accounts_available}
+      {:ok, _accounts} -> {:error, :no_from_address}
+      error -> error
     end
   end
 

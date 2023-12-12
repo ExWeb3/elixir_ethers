@@ -21,7 +21,7 @@ defmodule Ethers.Signer do
               {:ok, encoded_signed_transaction :: binary()} | {:error, reason :: term()}
 
   @doc """
-  Returns the address for signing.
+  Returns the available signer account addresses.
 
   This method might not be supported by all signers. If a signer does not support this function
   it should return `{:error, :not_supported}`.
@@ -29,6 +29,6 @@ defmodule Ethers.Signer do
   ## Parameters
    - opts: Other options passed to the signer as `signer_opts`
   """
-  @callback address(opts :: Keyword.t()) ::
-              {:ok, Types.t_address()} | {:error, reason :: :not_supported | term()}
+  @callback accounts(opts :: Keyword.t()) ::
+              {:ok, [Types.t_address()]} | {:error, reason :: :not_supported | term()}
 end

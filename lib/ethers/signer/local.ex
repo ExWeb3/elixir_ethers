@@ -31,9 +31,10 @@ defmodule Ethers.Signer.Local do
     end
   end
 
-  def address(opts) do
-    with {:ok, private_key} <- private_key(opts) do
-      do_get_address(private_key)
+  def accounts(opts) do
+    with {:ok, private_key} <- private_key(opts),
+         {:ok, address} <- do_get_address(private_key) do
+      {:ok, [address]}
     end
   end
 

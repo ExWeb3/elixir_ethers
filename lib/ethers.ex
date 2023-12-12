@@ -60,10 +60,10 @@ defmodule Ethers do
   ```
   """
 
-  alias Ethers.Transaction
   alias Ethers.Event
   alias Ethers.EventFilter
   alias Ethers.ExecutionError
+  alias Ethers.Transaction
   alias Ethers.TxData
   alias Ethers.Types
   alias Ethers.Utils
@@ -597,7 +597,7 @@ defmodule Ethers do
              {:ok, tx} <-
                Transaction.new(tx_params, tx_type) |> Transaction.fill_with_defaults(opts),
              {:ok, signed_tx} <-
-               apply(signer, :sign_transaction, [tx, signer_opts]) do
+               signer.sign_transaction(tx, signer_opts) do
           {:ok, signed_tx, :eth_send_raw_transaction}
         end
     end
@@ -608,7 +608,7 @@ defmodule Ethers do
        do: {:ok, tx_params}
 
   defp ensure_from_address(tx_params, signer, signer_opts) do
-    with {:ok, address} <- apply(signer, :address, [signer_opts]) do
+    with {:ok, address} <- signer.address(signer_opts) do
       {:ok, Map.put(tx_params, :from, address)}
     end
   end

@@ -10,6 +10,11 @@ defmodule Ethers.Signer.Local do
   alias Ethers.Transaction
   alias Ethers.Utils
 
+  unless Code.ensure_loaded?(Ethers.secp256k1_module()) do
+    def sign_transaction(_tx, _opts), do: {:error, :secp256k1_module_not_loaded}
+    def address(_opts), do: {:error, :secp256k1_module_not_loaded}
+  end
+
   def sign_transaction(%Transaction{} = tx, opts) do
     with {:ok, private_key} <- private_key(opts),
          :ok <- validate_private_key(private_key, tx.from),

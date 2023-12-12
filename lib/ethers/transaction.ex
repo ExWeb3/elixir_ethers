@@ -1,7 +1,10 @@
 defmodule Ethers.Transaction do
-  @moduledoc false
-  alias Ethers.Utils
+  @moduledoc """
+  Transaction struct and helper functions
+  """
+
   alias Ethers.Types
+  alias Ethers.Utils
 
   @enforce_keys [:type]
   defstruct [
@@ -25,16 +28,16 @@ defmodule Ethers.Transaction do
   @type t_transaction_type :: :legacy | :eip1559
   @type t :: %__MODULE__{
           type: t_transaction_type(),
-          chain_id: non_neg_integer() | nil,
-          nonce: non_neg_integer() | nil,
-          gas: non_neg_integer() | nil,
+          chain_id: binary() | nil,
+          nonce: binary() | nil,
+          gas: binary() | nil,
           from: Types.t_address() | nil,
           to: Types.t_address() | nil,
-          value: non_neg_integer(),
+          value: binary(),
           data: binary(),
-          gas_price: non_neg_integer() | nil,
-          max_fee_per_gas: non_neg_integer() | nil,
-          max_priority_fee_per_gas: non_neg_integer(),
+          gas_price: binary() | nil,
+          max_fee_per_gas: binary() | nil,
+          max_priority_fee_per_gas: binary(),
           access_list: [{binary(), [binary()]}],
           signature_r: binary() | nil,
           signature_s: binary() | nil,

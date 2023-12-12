@@ -6,6 +6,10 @@ defmodule Ethers.Utils do
   @wei_multiplier trunc(:math.pow(10, 18))
   @default_sample_size 10_000
   @default_acceptable_drift 2 * 60
+  # Safety margin is the percentage to add to gas when no gas
+  # limit is provided by the user to prevent out-of-gas errors.
+  # Default is 10% (=110)
+  @gas_safety_margin 110
 
   @doc """
   Encode to hex with 0x prefix.
@@ -166,8 +170,7 @@ defmodule Ethers.Utils do
 
   def maybe_add_gas_limit(params, opts) do
     with {:ok, gas} <- Ethers.estimate_gas(params, opts) do
-      mult = (opts[:mult] || 100) + 1000
-      gas = div(mult * gas, 1000)
+      gas = div(@gas_safety_margin * gas, 100) |> integer_to_hex()
       {:ok, Map.put(params, :gas, gas)}
     end
   end

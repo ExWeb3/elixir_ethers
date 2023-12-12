@@ -64,10 +64,10 @@ defmodule Ethers.MixProject do
       source_ref: source_ref,
       groups_for_modules: [
         "Builtin Contracts": [
-          ~r/Contracts\.\w+$/
+          ~r/^Ethers\.Contracts\.(?:(?!EventFilters$).)*$/
         ],
         "Builtin EventFilters": [
-          ~r/Contracts\.\w+\.EventFilters/
+          ~r/^Ethers\.Contracts\.[A-Za-z0-9.]+\.EventFilters$/
         ]
       ],
       logo: "assets/exdoc_logo.png",

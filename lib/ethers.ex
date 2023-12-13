@@ -233,11 +233,24 @@ defmodule Ethers do
   Other than what stated below, any other option given in the overrides keyword list will be merged
   with the map that the RPC client will receive.
 
-  - `:to`: Indicates recepient address. (Contract address in this case)
-  - `:gas`: Gas limit for execution. (If not provided, will get filled using
-    `Ethers.Utils.maybe_add_gas_limit/2` function)
+  ### Required Options
+  - `:from`: The address of the account to sign the transaction with.
+
+  ### Optional Options
+  - `:access_list`: List of storage slots that this transaction accesses (optional)
+  - `:chain_id`: Chain id for the transaction (defaults to chain id from RPC server).
+  - `:gas_price`: (legacy only) max price willing to pay for each gas.
+  - `:gas`: Gas limit for execution of this transaction.
+  - `:max_fee_per_gas`: (EIP-1559 only) max fee per gas (defaults to 120% current gas price estimate).
+  - `:max_priority_fee_per_gas`: (EIP-1559 only) max priority fee per gas or validator tip. (defaults to zero)
+  - `:nonce`: Nonce of the transaction. (defaults to number of transactions of from address)
   - `:rpc_client`: The RPC Client to use. It should implement ethereum jsonRPC API. default: Ethereumex.HttpClient
   - `:rpc_opts`: Extra options to pass to rpc_client. (Like timeout, Server URL, etc.)
+  - `:signer`: The signer module to use for signing transaction. Default is nil and will rely on the RPC server for signing.
+  - `:signer_opts`: Options for signer module. See your signer docs for more details.
+  - `:tx_type`: Transaction type. Either `:eip1559` (default) or `:legacy`.
+  - `:to`: Address of the contract or a receiver of this transaction. (required if TxData does not have default_address)
+  - `:value`: Ether value to send with the transaction to the receiver (`from => to`).
 
   ## Examples
 
@@ -265,6 +278,32 @@ defmodule Ethers do
   def send!(tx_data, overrides \\ []) do
     case Ethers.send(tx_data, overrides) do
       {:ok, tx_hash} -> tx_hash
+      {:error, reason} -> raise ExecutionError, reason
+    end
+  end
+
+  @doc """
+  Signs a transaction and returns the encoded signed transaction hex.
+
+  ## Parameters
+  Accepts same parameters as `Ethers.send/2`.
+  """
+  @spec sign_transaction(map(), Keyword.t()) :: {:ok, binary()} | {:error, term()}
+  def sign_transaction(tx_data, overrides \\ []) do
+    {opts, overrides} = Keyword.split(overrides, @option_keys)
+
+    with {:ok, tx_params} <- pre_process(tx_data, overrides, :sign_transaction, opts) do
+      {:ok, tx_params}
+    end
+  end
+
+  @doc """
+  Same as `Ethers.sign_transaction/2` but raises on error.
+  """
+  @spec sign_transaction!(map(), Keyword.t()) :: binary() | no_return()
+  def sign_transaction!(tx_data, overrides \\ []) do
+    case sign_transaction(tx_data, overrides) do
+      {:ok, signed_transaction} -> signed_transaction
       {:error, reason} -> raise ExecutionError, reason
     end
   end
@@ -468,6 +507,17 @@ defmodule Ethers do
     end
   end
 
+  defp pre_process(tx_data, overrides, :sign_transaction = action, opts) do
+    tx_params = TxData.to_map(tx_data, overrides)
+
+    with :ok <- check_params(tx_params, action),
+         {:ok, tx_params} <- Utils.maybe_add_gas_limit(tx_params, opts),
+         signer = Keyword.fetch!(opts, :signer),
+         {:ok, signed_transaction, _action} <- use_signer(tx_params, signer, opts) do
+      {:ok, signed_transaction}
+    end
+  end
+
   defp pre_process(tx_data, overrides, :estimate_gas = action, _opts) do
     tx_params = TxData.to_map(tx_data, overrides)
 
@@ -590,16 +640,20 @@ defmodule Ethers do
         {:ok, tx_params, :eth_send_transaction}
 
       signer ->
-        signer_opts = Keyword.get(opts, :signer_opts, [])
-        tx_type = Keyword.get(opts, :tx_type, :eip1559)
+        use_signer(tx_params, signer, opts)
+    end
+  end
 
-        with {:ok, tx_params} <- ensure_from_address(tx_params, signer, signer_opts),
-             {:ok, tx} <-
-               Transaction.new(tx_params, tx_type) |> Transaction.fill_with_defaults(opts),
-             {:ok, signed_tx} <-
-               signer.sign_transaction(tx, signer_opts) do
-          {:ok, signed_tx, :eth_send_raw_transaction}
-        end
+  defp use_signer(tx_params, signer, opts) do
+    signer_opts = Keyword.get(opts, :signer_opts, [])
+    tx_type = Keyword.get(opts, :tx_type, :eip1559)
+
+    with {:ok, tx_params} <- ensure_from_address(tx_params, signer, signer_opts),
+         {:ok, tx} <-
+           Transaction.new(tx_params, tx_type) |> Transaction.fill_with_defaults(opts),
+         {:ok, signed_tx} <-
+           signer.sign_transaction(tx, signer_opts) do
+      {:ok, signed_tx, :eth_send_raw_transaction}
     end
   end
 

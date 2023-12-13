@@ -512,7 +512,7 @@ defmodule Ethers do
 
     with :ok <- check_params(tx_params, action),
          {:ok, tx_params} <- Utils.maybe_add_gas_limit(tx_params, opts),
-         signer = Keyword.fetch!(opts, :signer),
+         {:ok, signer} <- get_signer(opts),
          {:ok, signed_transaction, _action} <- use_signer(tx_params, signer, opts) do
       {:ok, signed_transaction}
     end
@@ -635,17 +635,32 @@ defmodule Ethers do
   end
 
   defp maybe_use_signer(tx_params, opts) do
-    case Keyword.get(opts, :signer) do
-      nil ->
-        {:ok, tx_params, :eth_send_transaction}
-
-      signer ->
+    case get_signer(opts) do
+      {:ok, signer} ->
         use_signer(tx_params, signer, opts)
+
+      {:error, :no_signer} ->
+        {:ok, tx_params, :eth_send_transaction}
     end
   end
 
+  defp get_signer(opts) do
+    case Keyword.get(opts, :signer) || default_signer() do
+      nil -> {:error, :no_signer}
+      signer -> {:ok, signer}
+    end
+  end
+
+  defp default_signer do
+    Application.get_env(:ethers, :default_signer)
+  end
+
+  defp default_signer_opts do
+    Application.get_env(:ethers, :default_signer_opts, [])
+  end
+
   defp use_signer(tx_params, signer, opts) do
-    signer_opts = Keyword.get(opts, :signer_opts, [])
+    signer_opts = Keyword.get(opts, :signer_opts) || default_signer_opts()
     tx_type = Keyword.get(opts, :tx_type, :eip1559)
 
     with {:ok, tx_params} <- ensure_from_address(tx_params, signer, signer_opts),

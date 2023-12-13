@@ -39,7 +39,9 @@ Configure the endpoint using the following configuration parameter.
 config :ethers,
   rpc_client: Ethereumex.HttpClient, # Defaults to: Ethereumex.HttpClient
   keccak_module: ExKeccak, # Defaults to: ExKeccak
-  json_module: Jason # Defaults to: Jason
+  json_module: Jason, # Defaults to: Jason
+  default_signer: nil, # Defaults to: nil, see Ethers.Signer for more info
+  default_signer_opts: [], # Defaults to: []
 
 # If using Ethereumex, you can specify a default JSON-RPC server url here for all requests.
 config :ethereumex, url: "[URL_HERE]"

@@ -645,7 +645,7 @@ defmodule Ethers do
   end
 
   defp get_signer(opts) do
-    case Keyword.get(opts, :signer) || default_signer() do
+    case Keyword.get(opts, :signer, default_signer()) do
       nil -> {:error, :no_signer}
       signer -> {:ok, signer}
     end

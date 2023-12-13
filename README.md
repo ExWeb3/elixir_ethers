@@ -41,10 +41,8 @@ config :ethers,
   keccak_module: ExKeccak, # Defaults to: ExKeccak
   json_module: Jason # Defaults to: Jason
 
-# If using Ethereumex, you need to specify a JSON-RPC server url here
-config :ethereumex,
-  url: "[URL_HERE]",
-  http_headers: [{"Content-Type", "application/json"}]
+# If using Ethereumex, you can specify a default JSON-RPC server url here for all requests.
+config :ethereumex, url: "[URL_HERE]"
 ```
 
 You can use one of the RPC URLs for your chain/wallet of choice or try out one of them from

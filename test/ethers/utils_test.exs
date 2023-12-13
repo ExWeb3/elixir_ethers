@@ -36,13 +36,17 @@ defmodule Ethers.UtilsTest do
                  rpc_opts: [timestamp: 111, block: "0x3E9"]
                )
 
-      assert {:ok, 1_693_699_060} =
+      assert {:ok, 1_693_699_010} =
                Utils.date_to_block_number(
                  ~D[2023-09-03],
                  nil,
                  rpc_client: Ethers.TestRPCModule,
-                 rpc_opts: [timestamp: 123, block: "0x1"]
+                 rpc_opts: [timestamp: 123, block: "0x11e8fba"]
                )
+    end
+
+    test "returns error for non existing blocks" do
+      assert {:error, :no_block_found} = Utils.date_to_block_number(~D[2001-01-13])
     end
   end
 

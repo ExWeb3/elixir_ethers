@@ -4,8 +4,10 @@ defmodule Ethers.Utils do
   """
 
   @wei_multiplier trunc(:math.pow(10, 18))
-  @default_sample_size 10_000
-  @default_acceptable_drift 2 * 60
+  # Use 5 thousand blocks to determine the average block time
+  @default_sample_size 5_000
+  # Default acceptable drift for datetime to blocknumber is 10 ethereum mainnet blocks (12s)
+  @default_acceptable_drift 12 * 10
   # Safety margin is the percentage to add to gas when no gas
   # limit is provided by the user to prevent out-of-gas errors.
   # Default is 10% (=110)
@@ -69,7 +71,8 @@ defmodule Ethers.Utils do
       iex> Ethers.Utils.hex_to_integer("0x11111")
       {:ok, 69905}
   """
-  @spec hex_to_integer(String.t()) :: {:ok, integer()} | {:error, :invalid_hex}
+  @spec hex_to_integer(String.t()) :: {:ok, non_neg_integer()} | {:error, :invalid_hex}
+  def hex_to_integer(<<"0x", "-", _::binary>>), do: {:error, :invalid_hex}
   def hex_to_integer(<<"0x", encoded::binary>>), do: hex_to_integer(encoded)
 
   def hex_to_integer(encoded) do
@@ -90,7 +93,7 @@ defmodule Ethers.Utils do
       iex> Ethers.Utils.hex_to_integer!("0x11111")
       69905
   """
-  @spec hex_to_integer!(String.t()) :: integer() | no_return()
+  @spec hex_to_integer!(String.t()) :: non_neg_integer() | no_return()
   def hex_to_integer!(encoded) do
     case hex_to_integer(encoded) do
       {:ok, integer} ->
@@ -110,8 +113,8 @@ defmodule Ethers.Utils do
       iex> Ethers.Utils.integer_to_hex(69905)
       "0x11111"
   """
-  @spec integer_to_hex(integer()) :: String.t()
-  def integer_to_hex(integer) when is_integer(integer) do
+  @spec integer_to_hex(non_neg_integer()) :: String.t()
+  def integer_to_hex(integer) when is_integer(integer) and integer >= 0 do
     "0x" <> Integer.to_string(integer, 16)
   end
 
@@ -286,11 +289,14 @@ defmodule Ethers.Utils do
   (The hex encoding *must* start with 0x prefix)
   """
   @spec get_block_timestamp(non_neg_integer() | String.t(), Keyword.t()) ::
-          {:ok, non_neg_integer()} | {:error, term()}
+          {:ok, non_neg_integer()} | {:error, :negative_block_number | term()}
   def get_block_timestamp(block_number, opts \\ [])
 
-  def get_block_timestamp(block_number, opts) when is_integer(block_number),
+  def get_block_timestamp(block_number, opts) when is_integer(block_number) and block_number >= 0,
     do: get_block_timestamp(integer_to_hex(block_number), opts)
+
+  def get_block_timestamp(block_number, _opts) when is_integer(block_number),
+    do: {:error, :negative_block_number}
 
   def get_block_timestamp("0x" <> _ = block_number, opts) do
     {rpc_client, rpc_opts} = Ethers.get_rpc_client(opts)
@@ -305,9 +311,11 @@ defmodule Ethers.Utils do
 
   ## Parameters
   - date_or_date_time: Can be a `Date`, `DateTime` or an integer unix timestamp.
-  - ref_block_number: A block number of reference. Can help faster search time if given.
+  - ref_block_number: A block number of reference which is closer to the target block.
+    Can make search time faster if given. (Defaults to current block number)
   - opts: Optional extra options.
-    - acceptable_drift: Can be set to override the default acceptable_drift of #{@default_acceptable_drift} seconds.
+    - acceptable_drift: Can be set to override the default acceptable_drift of
+      #{@default_acceptable_drift} seconds. This value can be reduced for more accurate results.
     - sample_size: Can be set to override the default sample_size of #{@default_sample_size} blocks.
   """
   @spec date_to_block_number(
@@ -335,6 +343,18 @@ defmodule Ethers.Utils do
     end
   end
 
+  def date_to_block_number(datetime, block_number, opts) when block_number <= 0 do
+    acceptable_drift = opts[:acceptable_drift] || @default_acceptable_drift
+
+    with {:ok, current_timestamp} <- get_block_timestamp(0, opts) do
+      if abs(datetime - current_timestamp) <= acceptable_drift do
+        {:ok, 0}
+      else
+        {:error, :no_block_found}
+      end
+    end
+  end
+
   def date_to_block_number(datetime, ref_block_number, opts) when is_integer(datetime) do
     acceptable_drift = opts[:acceptable_drift] || @default_acceptable_drift
 
@@ -349,11 +369,13 @@ defmodule Ethers.Utils do
 
   defp find_and_try_next_block_number(datetime, ref_block_number, current_timestamp, opts) do
     sample_size = opts[:sample_size] || @default_sample_size
+    sample_start_block_number = max(ref_block_number - sample_size, 0)
 
-    with {:ok, old_timestamp} <- get_block_timestamp(ref_block_number - sample_size, opts) do
+    with {:ok, old_timestamp} <- get_block_timestamp(sample_start_block_number, opts) do
       avg_time = (current_timestamp - old_timestamp) / (sample_size + 1)
 
       new_block_number = ref_block_number - round((current_timestamp - datetime) / avg_time)
+      new_block_number = if sample_start_block_number > 0, do: max(new_block_number, 0), else: 0
 
       date_to_block_number(datetime, new_block_number, opts)
     end

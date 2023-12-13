@@ -686,7 +686,11 @@ defmodule Ethers do
   end
 
   defp check_to_address(%{to: to_address}, _action) when is_binary(to_address), do: :ok
-  defp check_to_address(%{to: nil}, action) when action in [:send, :estimate_gas], do: :ok
+
+  defp check_to_address(%{to: nil}, action)
+       when action in [:send, :sign_transaction, :estimate_gas],
+       do: :ok
+
   defp check_to_address(_params, _action), do: {:error, :no_to_address}
 
   defp check_params(params, action) do

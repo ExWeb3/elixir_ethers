@@ -81,6 +81,7 @@ defmodule Ethers.Transaction do
       tx.value,
       tx.data
     ]
+    |> Enum.map(&(&1 || ""))
     |> maybe_add_signature(tx)
     |> convert_to_binary()
     |> ExRLP.encode()
@@ -98,6 +99,7 @@ defmodule Ethers.Transaction do
       tx.data,
       tx.access_list
     ]
+    |> Enum.map(&(&1 || ""))
     |> maybe_add_signature(tx)
     |> convert_to_binary()
     |> ExRLP.encode()

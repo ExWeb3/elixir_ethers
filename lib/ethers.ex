@@ -666,25 +666,11 @@ defmodule Ethers do
     signer_opts = Keyword.get(opts, :signer_opts) || default_signer_opts()
     tx_type = Keyword.get(opts, :tx_type, :eip1559)
 
-    with {:ok, tx_params} <- ensure_from_address(tx_params, signer, signer_opts),
-         {:ok, tx} <-
+    with {:ok, tx} <-
            Transaction.new(tx_params, tx_type) |> Transaction.fill_with_defaults(opts),
          {:ok, signed_tx} <-
            signer.sign_transaction(tx, signer_opts) do
       {:ok, signed_tx, :eth_send_raw_transaction}
-    end
-  end
-
-  defp ensure_from_address(%{from: from} = tx_params, _signer, _signer_opts)
-       when not is_nil(from),
-       do: {:ok, tx_params}
-
-  defp ensure_from_address(tx_params, signer, signer_opts) do
-    case signer.accounts(signer_opts) do
-      {:ok, [address]} -> {:ok, Map.put(tx_params, :from, address)}
-      {:ok, []} -> {:error, :no_accounts_available}
-      {:ok, _accounts} -> {:error, :no_from_address}
-      error -> error
     end
   end
 
@@ -696,7 +682,17 @@ defmodule Ethers do
 
   defp check_to_address(_params, _action), do: {:error, :no_to_address}
 
+  defp check_from_address(%{from: from}, _action) when not is_nil(from), do: :ok
+
+  defp check_from_address(_tx_params, action)
+       when action in [:send, :sign_transaction],
+       do: {:error, :no_from_address}
+
+  defp check_from_address(_tx_params, _action), do: :ok
+
   defp check_params(params, action) do
-    check_to_address(params, action)
+    with :ok <- check_to_address(params, action) do
+      check_from_address(params, action)
+    end
   end
 end

@@ -123,7 +123,7 @@ defmodule Ethers do
   - overrides: A keyword list containing options and overrides.
     - `:encoded_constructor`: Hex encoded value for constructor parameters. (See `constructor`
       function of the contract module)
-    - Any other account or RPC related options
+    - All other options from `Ethers.send/2`
   """
   @spec deploy(atom() | binary(), Keyword.t()) ::
           {:ok, Types.t_hash()} | {:error, term()}
@@ -148,8 +148,8 @@ defmodule Ethers do
 
     {rpc_client, rpc_opts} = get_rpc_client(opts)
 
-    with {:ok, tx_params} <- pre_process(contract_binary, overrides, :deploy, opts) do
-      rpc_client.eth_send_transaction(tx_params, rpc_opts)
+    with {:ok, tx_params, action} <- pre_process(contract_binary, overrides, :deploy, opts) do
+      apply(rpc_client, action, [tx_params, rpc_opts])
       |> post_process(tx_params, :deploy)
     end
   end
@@ -490,12 +490,15 @@ defmodule Ethers do
   defp pre_process(contract_binary, overrides, :deploy = _action, opts) do
     {encoded_constructor, overrides} = Keyword.pop(overrides, :encoded_constructor)
 
-    overrides
-    |> Enum.into(%{
-      data: "0x#{contract_binary}#{encoded_constructor}",
-      to: nil
-    })
-    |> Utils.maybe_add_gas_limit(opts)
+    tx_params =
+      Enum.into(overrides, %{
+        data: "0x#{contract_binary}#{encoded_constructor}",
+        to: nil
+      })
+
+    with {:ok, tx_params} <- Utils.maybe_add_gas_limit(tx_params, opts) do
+      maybe_use_signer(tx_params, opts)
+    end
   end
 
   defp pre_process(tx_data, overrides, :send = action, opts) do

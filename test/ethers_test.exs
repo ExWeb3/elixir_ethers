@@ -255,4 +255,91 @@ defmodule EthersTest do
       end
     end
   end
+
+  describe "sign_transaction/2" do
+    test "returns the signed eip1559 transaction and is valid" do
+      assert {:ok, tx} = Ethers.deploy(HelloWorldContract, from: @from)
+      assert {:ok, address} = Ethers.deployed_address(tx)
+
+      assert {:ok, "0x02" <> _ = signed} =
+               HelloWorldContract.set_hello("hi signed")
+               |> Ethers.sign_transaction(
+                 from: @from,
+                 to: address,
+                 signer: Ethers.Signer.JsonRPC,
+                 tx_type: :eip1559
+               )
+
+      assert {:ok, _tx_hash} = Ethers.rpc_client().eth_send_raw_transaction(signed)
+
+      assert {:ok, "hi signed"} = Ethers.call(HelloWorldContract.say_hello(), to: address)
+    end
+
+    test "returns the signed legacy transaction and is valid" do
+      assert {:ok, tx} = Ethers.deploy(HelloWorldContract, from: @from)
+      assert {:ok, address} = Ethers.deployed_address(tx)
+
+      assert {:ok, signed} =
+               HelloWorldContract.set_hello("hi signed")
+               |> Ethers.sign_transaction(
+                 from: @from,
+                 to: address,
+                 signer: Ethers.Signer.JsonRPC,
+                 tx_type: :legacy
+               )
+
+      refute String.starts_with?(signed, "0x02")
+
+      assert {:ok, _tx_hash} = Ethers.rpc_client().eth_send_raw_transaction(signed)
+
+      assert {:ok, "hi signed"} = Ethers.call(HelloWorldContract.say_hello(), to: address)
+    end
+
+    test "requires from address" do
+      assert {:error, :no_from_address} =
+               HelloWorldContract.set_hello("hi signed")
+               |> Ethers.sign_transaction(
+                 to: "0x95cED938F7991cd0dFcb48F0a06a40FA1aF46EBC",
+                 signer: Ethers.Signer.JsonRPC
+               )
+    end
+
+    test "requires signer" do
+      assert {:error, :no_signer} =
+               HelloWorldContract.set_hello("hi signed")
+               |> Ethers.sign_transaction(
+                 from: @from,
+                 to: "0x95cED938F7991cd0dFcb48F0a06a40FA1aF46EBC"
+               )
+    end
+  end
+
+  describe "sign_transaction!/2" do
+    test "returns signed transaction" do
+      signed =
+        HelloWorldContract.set_hello("hi signed")
+        |> Ethers.sign_transaction!(
+          from: @from,
+          gas: 10000,
+          max_fee_per_gas: 123_123_123,
+          chain_id: 1337,
+          nonce: 100,
+          to: "0x95cED938F7991cd0dFcb48F0a06a40FA1aF46EBC",
+          signer: Ethers.Signer.JsonRPC
+        )
+
+      assert signed ==
+               "0x02f8cd8205396480840756b5b38227109495ced938f7991cd0dfcb48f0a06a40fa1af46ebc80b864435ffe94000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000096869207369676e65640000000000000000000000000000000000000000000000c001a002692d6fb9c645a9c16759ad577511d132c6976eacfaeca52f564771e4b80ddea075bcae22afa255d44387ef43fc6b005cc86529c6e99364e065736804f16c1bfc"
+    end
+
+    test "raises in case of error" do
+      assert_raise Ethers.ExecutionError, "Unexpected error: no_from_address", fn ->
+        HelloWorldContract.set_hello("hi signed")
+        |> Ethers.sign_transaction!(
+          to: "0x95cED938F7991cd0dFcb48F0a06a40FA1aF46EBC",
+          signer: Ethers.Signer.JsonRPC
+        )
+      end
+    end
+  end
 end

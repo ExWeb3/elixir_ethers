@@ -1,4 +1,4 @@
-defmodule Ethers.Signer.JsonRpc do
+defmodule Ethers.Signer.JsonRPC do
   @moduledoc """
   Signer capable of signing transactions with a JSON RPC server
   capable of `eth_signTransaction` and `eth_accounts` RPC functions.

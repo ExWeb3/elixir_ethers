@@ -1,4 +1,4 @@
-defmodule Ethers.Signer.JsonRpcTest do
+defmodule Ethers.Signer.JsonRPCTest do
   use ExUnit.Case
 
   alias Ethers.Signer
@@ -21,7 +21,7 @@ defmodule Ethers.Signer.JsonRpcTest do
 
       assert {:ok,
               "0x02f86f820539820b6680851448baf2f5825a8294ffcf8fdee72ac11b5c542428b35eef5769c409f0808406fdde03c001a064b0b82fe12d59f11993ea978ef8595a4e21e1c2bb811b083ccb6eed230059fca025e4f674692eb3bbd57505d35a328855d4de4abef31fe26ab2e8eb543cfea285"} ==
-               Signer.JsonRpc.sign_transaction(transaction, [])
+               Signer.JsonRPC.sign_transaction(transaction, [])
     end
 
     test "fails signing transaction without from address" do
@@ -40,7 +40,7 @@ defmodule Ethers.Signer.JsonRpcTest do
       }
 
       assert {:error, error} =
-               Signer.JsonRpc.sign_transaction(transaction, [])
+               Signer.JsonRPC.sign_transaction(transaction, [])
 
       assert error["message"] =~ "from not found"
     end

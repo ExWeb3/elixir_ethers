@@ -7,7 +7,7 @@ defmodule Ethers.Signer do
   ## Builtin Signers
   Ethers ships with some default signers that you can use.
 
-  - `Ethers.Signer.JsonRpc`: Can be used with most wallets, geth, web3signer or any other platform
+  - `Ethers.Signer.JsonRPC`: Can be used with most wallets, geth, web3signer or any other platform
     which exposes a JsonRPC endpoint and implements `eth_signTransaction` and `eth_accounts`
     functions.
   - `Ethers.Signer.Local`: This signs transactions locally but is highly discouraged to use in
@@ -25,7 +25,7 @@ defmodule Ethers.Signer do
 
   ```elixir
   config :ethers,
-    default_signer: Ethers.Signer.JsonRpc,
+    default_signer: Ethers.Signer.JsonRPC,
     default_signer_opts: [url: "..."]
   ```
   """

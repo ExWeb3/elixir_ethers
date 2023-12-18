@@ -256,6 +256,59 @@ defmodule EthersTest do
     end
   end
 
+  describe "send/2" do
+    test "accepts signer and signer_opts" do
+      assert {:error, :no_private_key} =
+               HelloWorldContract.set_hello("hello")
+               |> Ethers.send(
+                 from: @from,
+                 to: "0x95cED938F7991cd0dFcb48F0a06a40FA1aF46EBC",
+                 signer: Ethers.Signer.Local
+               )
+    end
+
+    test "signs and sends an eip1559 transaction using a signer" do
+      assert {:ok, tx} = Ethers.deploy(HelloWorldContract, from: @from)
+      assert {:ok, address} = Ethers.deployed_address(tx)
+
+      assert {:ok, _tx_hash} =
+               HelloWorldContract.set_hello("hello local signer")
+               |> Ethers.send(
+                 from: @from,
+                 to: address,
+                 signer: Ethers.Signer.Local,
+                 signer_opts: [
+                   private_key:
+                     "0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d"
+                 ]
+               )
+
+      assert {:ok, "hello local signer"} =
+               Ethers.call(HelloWorldContract.say_hello(), to: address)
+    end
+
+    test "signs and sends a legacy transaction using a signer" do
+      assert {:ok, tx} = Ethers.deploy(HelloWorldContract, from: @from)
+      assert {:ok, address} = Ethers.deployed_address(tx)
+
+      assert {:ok, _tx_hash} =
+               HelloWorldContract.set_hello("hello local signer")
+               |> Ethers.send(
+                 from: @from,
+                 to: address,
+                 tx_type: :legacy,
+                 signer: Ethers.Signer.Local,
+                 signer_opts: [
+                   private_key:
+                     "0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d"
+                 ]
+               )
+
+      assert {:ok, "hello local signer"} =
+               Ethers.call(HelloWorldContract.say_hello(), to: address)
+    end
+  end
+
   describe "sign_transaction/2" do
     test "returns the signed eip1559 transaction and is valid" do
       assert {:ok, tx} = Ethers.deploy(HelloWorldContract, from: @from)

@@ -2,6 +2,14 @@ defmodule Ethers.Signer.JsonRPC do
   @moduledoc """
   Signer capable of signing transactions with a JSON RPC server
   capable of `eth_signTransaction` and `eth_accounts` RPC functions.
+
+  ## Signer Options
+
+  - `:rpc_module`: The RPC Module to use. (Optional, Defaults to `Ethereumex.HttpClient`)
+  - `:url`: The RPC URL to use. (Optional)
+
+  ** All other options will be passed to the RPC module `request/3` function in
+  the third argument **
   """
 
   @behaviour Ethers.Signer

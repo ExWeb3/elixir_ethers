@@ -249,6 +249,30 @@ These are non-indexed topics (often referred to as data) of the event log.
   • value: {:uint, 256}
 ```
 
+## Signing Transactions
+
+By default, Ethers will rely on the default blockchain endpoint to handle the signing (using `eth_sendTransaction` RPC function). Obviously public endpoints cannot help you with signing the transactions since they do not hold your private keys.
+
+To sign transactions on Ethers, You can specify a `signer` module when sending/signing transactions. A signer module is a module which implements the [Ethers.Signer](lib/ethers/signer.ex) behaviour.
+
+Ethers has these built-in signers to use:
+
+- `Ethers.Signer.Local`\*: A local signer which loads a private key from `signer_opts` and signs the transactions.
+- `Ethers.Signer.JsonRPC`: Uses `eth_signTransaction` Json RPC function to sign transactions. (Using services like [Consensys/web3signer](https://github.com/Consensys/web3signer) or [geth](https://geth.ethereum.org/))
+
+For more information on signers, visit [hexdocs](https://hexdocs.pm/ethers/Ethers.Signer.html).
+
+### Example
+
+```elixir
+MyERC20Token.transfer("0x[Recipient]", 1000)
+|> Ethers.send(
+  from: "0x[Sender]",
+  signer: Ethers.Signer.Local,
+  signer_opts: [private_key: "0x..."]
+)
+```
+
 ## Contributing
 
 All contributions are very welcome (as simple as fixing typos). Please feel free to open issues and

@@ -1,6 +1,14 @@
 defmodule Ethers.Signer.Local do
   @moduledoc """
-  Local signer works with a private key
+  Local signer works with a private key.
+
+  IMPORTANT: Please note that using this signer is discouraged in production
+  environment since handling private keys in those environment can be challenging
+  if you don't know what you are doing.
+
+  ## Signer Options
+
+  - `:private_key`: The private key to use for signing and calculating account address.
   """
 
   @behaviour Ethers.Signer

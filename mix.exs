@@ -68,6 +68,10 @@ defmodule Ethers.MixProject do
         ],
         "Builtin EventFilters": [
           ~r/^Ethers\.Contracts\.[A-Za-z0-9.]+\.EventFilters$/
+        ],
+        Signer: [
+          ~r/^Ethers\.Signer\.[A-Za-z0-9.]+$/,
+          ~r/^Ethers\.Signer$/
         ]
       ],
       logo: "assets/exdoc_logo.png",

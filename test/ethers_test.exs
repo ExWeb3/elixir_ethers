@@ -380,7 +380,7 @@ defmodule EthersTest do
         HelloWorldContract.set_hello("hi signed")
         |> Ethers.sign_transaction!(
           from: @from,
-          gas: 10000,
+          gas: 10_000,
           max_fee_per_gas: 123_123_123,
           chain_id: 1337,
           nonce: 100,

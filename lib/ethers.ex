@@ -292,9 +292,7 @@ defmodule Ethers do
   def sign_transaction(tx_data, overrides \\ []) do
     {opts, overrides} = Keyword.split(overrides, @option_keys)
 
-    with {:ok, tx_params} <- pre_process(tx_data, overrides, :sign_transaction, opts) do
-      {:ok, tx_params}
-    end
+    pre_process(tx_data, overrides, :sign_transaction, opts)
   end
 
   @doc """

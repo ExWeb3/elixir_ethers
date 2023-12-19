@@ -18,7 +18,7 @@ defmodule Ethers.Types do
 
   Public key is only in binary format. If required can be converted to hex using `hex_encode/1`.
   """
-  @type t_pub_key :: <<_::520>> | <<_::264>>
+  @type t_pub_key :: <<_::520>> | <<_::512>> | <<_::264>> | <<_::256>>
 
   @typedoc """
   keccak hash in its hex format with 0x

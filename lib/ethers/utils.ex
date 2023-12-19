@@ -293,6 +293,10 @@ defmodule Ethers.Utils do
     |> to_checksum_address()
   end
 
+  unless Code.ensure_loaded?(Ethers.secp256k1_module()) do
+    def public_key_to_address(<<compressed::binary-32>>), do: raise("secp256k1 module not loaded")
+  end
+
   def public_key_to_address(<<compressed::binary-32>>) do
     case Ethers.secp256k1_module().public_key_decompress(compressed) do
       {:ok, public_key} -> public_key_to_address(public_key)

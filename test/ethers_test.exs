@@ -256,6 +256,13 @@ defmodule EthersTest do
     end
   end
 
+  describe "deploy/2" do
+    test "accepts signer and signer_opts" do
+      assert {:error, :no_private_key} =
+               Ethers.deploy(HelloWorldContract, from: @from, signer: Ethers.Signer.Local)
+    end
+  end
+
   describe "send/2" do
     test "accepts signer and signer_opts" do
       assert {:error, :no_private_key} =

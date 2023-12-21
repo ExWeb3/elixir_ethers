@@ -44,18 +44,21 @@ defmodule Ethers.Transaction do
           signature_recovery_id: 0 | 1 | nil
         }
 
-  @integer_default_params [:chain_id, :gas_price, :nonce]
-  @fillable_params [:chain_id, :gas_price, :nonce, :max_fee_per_gas]
+  @common_fillable_params [:chain_id, :nonce]
+  @type_fillable_params %{
+    legacy: [:gas_price],
+    eip1559: [:max_fee_per_gas]
+  }
 
   def new(params, type \\ :eip1559) do
     struct!(__MODULE__, Map.put(params, :type, type))
   end
 
-  def fill_with_defaults(%__MODULE__{} = tx, opts) do
+  def fill_with_defaults(%__MODULE__{type: type} = tx, opts) do
     {keys, actions} =
       tx
       |> Map.from_struct()
-      |> Map.take(@fillable_params)
+      |> Map.take(@common_fillable_params ++ Map.fetch!(@type_fillable_params, type))
       |> Enum.filter(fn {_k, v} -> is_nil(v) end)
       |> Enum.map(&elem(&1, 0))
       |> Enum.map(&{&1, fill_action(&1, tx)})
@@ -184,7 +187,7 @@ defmodule Ethers.Transaction do
     end
   end
 
-  defp do_post_process(key, {:ok, v_hex}) when key in @integer_default_params do
+  defp do_post_process(key, {:ok, v_hex}) do
     {:ok, {key, v_hex}}
   end
 

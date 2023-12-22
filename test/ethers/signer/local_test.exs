@@ -90,6 +90,11 @@ defmodule Ethers.Signer.LocalTest do
                Signer.Local.accounts(
                  private_key: "0x829e924fdf021ba3dbbc4225edfece9aca04b929d6e75613329ca6f1d31c0bb4"
                )
+
+      assert {:ok, ["0xACa94ef8bD5ffEE41947b4585a84BdA5a3d3DA6E"]} ==
+               Signer.Local.accounts(
+                 private_key: "829e924fdf021ba3dbbc4225edfece9aca04b929d6e75613329ca6f1d31c0bb4"
+               )
     end
 
     test "fails if private key is not given" do

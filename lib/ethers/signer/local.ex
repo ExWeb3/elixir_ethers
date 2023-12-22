@@ -9,6 +9,8 @@ defmodule Ethers.Signer.Local do
   ## Signer Options
 
   - `:private_key`: The private key to use for signing and calculating account address.
+     Private key can either be in binary format (32 bytes) or it's hex encoded format with or
+     without `0x` prefix.
   """
 
   @behaviour Ethers.Signer
@@ -78,6 +80,7 @@ defmodule Ethers.Signer.Local do
     case Keyword.get(opts, :private_key) do
       <<key::binary-32>> -> {:ok, key}
       <<"0x", _::binary-64>> = key -> Ethers.Utils.hex_decode(key)
+      <<key::binary-64>> -> Ethers.Utils.hex_decode(key)
       nil -> {:error, :no_private_key}
       _ -> {:error, :invalid_private_key}
     end

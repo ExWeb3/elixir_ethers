@@ -22,7 +22,7 @@ You can install the package by adding `ethers` to the list of dependencies in yo
 ```elixir
 def deps do
   [
-    {:ethers, "~> 0.1.2"}
+    {:ethers, "~> 0.1.3"}
   ]
 end
 ```

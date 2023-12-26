@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.1.3 (2023-12-26)
+
+## Bug fixes
+
+- unsized integer encoding to hex will now raise if given negative numbers.
+- `Utils.date_to_block_number/3` going to negative block numbers issue fixed.
+
 ## v0.1.2 (2023-12-12)
 
 ### Breaking Changes

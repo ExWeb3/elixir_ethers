@@ -17,12 +17,15 @@ It also generates beautiful documentation for those modules which can further he
 
 ## Installation
 
-You can install the package by adding `ethers` to the list of dependencies in your `mix.exs` file:
+You can install the package by adding `ethers` (and optionally `ex_secp256k1`) to the list of
+dependencies in your `mix.exs` file:
 
 ```elixir
 def deps do
   [
-    {:ethers, "~> 0.1.3"}
+    {:ethers, "~> 0.1.3"},
+    # Uncomment next line if you want to use local signers
+    # {:ex_secp256k1, "~> 0.7.2"}
   ]
 end
 ```
@@ -39,7 +42,10 @@ Configure the endpoint using the following configuration parameter.
 config :ethers,
   rpc_client: Ethereumex.HttpClient, # Defaults to: Ethereumex.HttpClient
   keccak_module: ExKeccak, # Defaults to: ExKeccak
-  json_module: Jason # Defaults to: Jason
+  json_module: Jason, # Defaults to: Jason
+  secp256k1_module: ExSecp256k1, # Defaults to: ExSecp256k1
+  default_signer: nil, # Defaults to: nil, see Ethers.Signer for more info
+  default_signer_opts: [] # Defaults to: []
 
 # If using Ethereumex, you can specify a default JSON-RPC server url here for all requests.
 config :ethereumex, url: "[URL_HERE]"
@@ -245,6 +251,30 @@ or nil if you don't want to filter.
 These are non-indexed topics (often referred to as data) of the event log.
 
   • value: {:uint, 256}
+```
+
+## Signing Transactions
+
+By default, Ethers will rely on the default blockchain endpoint to handle the signing (using `eth_sendTransaction` RPC function). Obviously public endpoints cannot help you with signing the transactions since they do not hold your private keys.
+
+To sign transactions on Ethers, You can specify a `signer` module when sending/signing transactions. A signer module is a module which implements the [Ethers.Signer](lib/ethers/signer.ex) behaviour.
+
+Ethers has these built-in signers to use:
+
+- `Ethers.Signer.Local`\*: A local signer which loads a private key from `signer_opts` and signs the transactions.
+- `Ethers.Signer.JsonRPC`: Uses `eth_signTransaction` Json RPC function to sign transactions. (Using services like [Consensys/web3signer](https://github.com/Consensys/web3signer) or [geth](https://geth.ethereum.org/))
+
+For more information on signers, visit [hexdocs](https://hexdocs.pm/ethers/Ethers.Signer.html).
+
+### Example
+
+```elixir
+MyERC20Token.transfer("0x[Recipient]", 1000)
+|> Ethers.send(
+  from: "0x[Sender]",
+  signer: Ethers.Signer.Local,
+  signer_opts: [private_key: "0x..."]
+)
 ```
 
 ## Contributing

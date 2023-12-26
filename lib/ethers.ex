@@ -63,18 +63,22 @@ defmodule Ethers do
   alias Ethers.Event
   alias Ethers.EventFilter
   alias Ethers.ExecutionError
+  alias Ethers.Transaction
   alias Ethers.TxData
   alias Ethers.Types
   alias Ethers.Utils
 
-  @option_keys [:rpc_client, :rpc_opts]
+  @option_keys [:rpc_client, :rpc_opts, :signer, :signer_opts, :tx_type]
   @hex_decode_post_process [:estimate_gas, :current_gas_price, :current_block_number]
   @rpc_actions_map %{
     call: :eth_call,
+    chain_id: :eth_chain_id,
     current_block_number: :eth_block_number,
     current_gas_price: :eth_gas_price,
     estimate_gas: :eth_estimate_gas,
+    gas_price: :eth_gas_price,
     get_logs: :eth_get_logs,
+    get_transaction_count: :eth_get_transaction_count,
     send: :eth_send_transaction
   }
 
@@ -119,7 +123,7 @@ defmodule Ethers do
   - overrides: A keyword list containing options and overrides.
     - `:encoded_constructor`: Hex encoded value for constructor parameters. (See `constructor`
       function of the contract module)
-    - Any other account or RPC related options
+    - All other options from `Ethers.send/2`
   """
   @spec deploy(atom() | binary(), Keyword.t()) ::
           {:ok, Types.t_hash()} | {:error, term()}
@@ -144,8 +148,8 @@ defmodule Ethers do
 
     {rpc_client, rpc_opts} = get_rpc_client(opts)
 
-    with {:ok, tx_params} <- pre_process(contract_binary, overrides, :deploy, opts) do
-      rpc_client.eth_send_transaction(tx_params, rpc_opts)
+    with {:ok, tx_params, action} <- pre_process(contract_binary, overrides, :deploy, opts) do
+      apply(rpc_client, action, [tx_params, rpc_opts])
       |> post_process(tx_params, :deploy)
     end
   end
@@ -229,11 +233,24 @@ defmodule Ethers do
   Other than what stated below, any other option given in the overrides keyword list will be merged
   with the map that the RPC client will receive.
 
-  - `:to`: Indicates recepient address. (Contract address in this case)
-  - `:gas`: Gas limit for execution. (If not provided, will get filled using
-    `Ethers.Utils.maybe_add_gas_limit/2` function)
+  ### Required Options
+  - `:from`: The address of the account to sign the transaction with.
+
+  ### Optional Options
+  - `:access_list`: List of storage slots that this transaction accesses (optional)
+  - `:chain_id`: Chain id for the transaction (defaults to chain id from RPC server).
+  - `:gas_price`: (legacy only) max price willing to pay for each gas.
+  - `:gas`: Gas limit for execution of this transaction.
+  - `:max_fee_per_gas`: (EIP-1559 only) max fee per gas (defaults to 120% current gas price estimate).
+  - `:max_priority_fee_per_gas`: (EIP-1559 only) max priority fee per gas or validator tip. (defaults to zero)
+  - `:nonce`: Nonce of the transaction. (defaults to number of transactions of from address)
   - `:rpc_client`: The RPC Client to use. It should implement ethereum jsonRPC API. default: Ethereumex.HttpClient
   - `:rpc_opts`: Extra options to pass to rpc_client. (Like timeout, Server URL, etc.)
+  - `:signer`: The signer module to use for signing transaction. Default is nil and will rely on the RPC server for signing.
+  - `:signer_opts`: Options for signer module. See your signer docs for more details.
+  - `:tx_type`: Transaction type. Either `:eip1559` (default) or `:legacy`.
+  - `:to`: Address of the contract or a receiver of this transaction. (required if TxData does not have default_address)
+  - `:value`: Ether value to send with the transaction to the receiver (`from => to`).
 
   ## Examples
 
@@ -248,8 +265,8 @@ defmodule Ethers do
 
     {rpc_client, rpc_opts} = get_rpc_client(opts)
 
-    with {:ok, tx_params} <- pre_process(tx_data, overrides, :send, opts) do
-      rpc_client.eth_send_transaction(tx_params, rpc_opts)
+    with {:ok, tx_params, action} <- pre_process(tx_data, overrides, :send, opts) do
+      apply(rpc_client, action, [tx_params, rpc_opts])
       |> post_process(tx_data, :send)
     end
   end
@@ -261,6 +278,30 @@ defmodule Ethers do
   def send!(tx_data, overrides \\ []) do
     case Ethers.send(tx_data, overrides) do
       {:ok, tx_hash} -> tx_hash
+      {:error, reason} -> raise ExecutionError, reason
+    end
+  end
+
+  @doc """
+  Signs a transaction and returns the encoded signed transaction hex.
+
+  ## Parameters
+  Accepts same parameters as `Ethers.send/2`.
+  """
+  @spec sign_transaction(map(), Keyword.t()) :: {:ok, binary()} | {:error, term()}
+  def sign_transaction(tx_data, overrides \\ []) do
+    {opts, overrides} = Keyword.split(overrides, @option_keys)
+
+    pre_process(tx_data, overrides, :sign_transaction, opts)
+  end
+
+  @doc """
+  Same as `Ethers.sign_transaction/2` but raises on error.
+  """
+  @spec sign_transaction!(map(), Keyword.t()) :: binary() | no_return()
+  def sign_transaction!(tx_data, overrides \\ []) do
+    case sign_transaction(tx_data, overrides) do
+      {:ok, signed_transaction} -> signed_transaction
       {:error, reason} -> raise ExecutionError, reason
     end
   end
@@ -408,6 +449,10 @@ defmodule Ethers do
   def json_module, do: Application.get_env(:ethers, :json_module, Jason)
 
   @doc false
+  @spec secp256k1_module() :: atom()
+  def secp256k1_module, do: Application.get_env(:ethers, :secp256k1_module, ExSecp256k1)
+
+  @doc false
   @spec rpc_client() :: atom()
   def rpc_client, do: Application.get_env(:ethers, :rpc_client, Ethereumex.HttpClient)
 
@@ -443,19 +488,34 @@ defmodule Ethers do
   defp pre_process(contract_binary, overrides, :deploy = _action, opts) do
     {encoded_constructor, overrides} = Keyword.pop(overrides, :encoded_constructor)
 
-    overrides
-    |> Enum.into(%{
-      data: "0x#{contract_binary}#{encoded_constructor}",
-      to: nil
-    })
-    |> Utils.maybe_add_gas_limit(opts)
+    tx_params =
+      Enum.into(overrides, %{
+        data: "0x#{contract_binary}#{encoded_constructor}",
+        to: nil
+      })
+
+    with {:ok, tx_params} <- Utils.maybe_add_gas_limit(tx_params, opts) do
+      maybe_use_signer(tx_params, opts)
+    end
   end
 
   defp pre_process(tx_data, overrides, :send = action, opts) do
     tx_params = TxData.to_map(tx_data, overrides)
 
-    with :ok <- check_params(tx_params, action) do
-      Utils.maybe_add_gas_limit(tx_params, opts)
+    with :ok <- check_params(tx_params, action),
+         {:ok, tx_params} <- Utils.maybe_add_gas_limit(tx_params, opts) do
+      maybe_use_signer(tx_params, opts)
+    end
+  end
+
+  defp pre_process(tx_data, overrides, :sign_transaction = action, opts) do
+    tx_params = TxData.to_map(tx_data, overrides)
+
+    with :ok <- check_params(tx_params, action),
+         {:ok, tx_params} <- Utils.maybe_add_gas_limit(tx_params, opts),
+         {:ok, signer} <- get_signer(opts),
+         {:ok, signed_transaction, _action} <- use_signer(tx_params, signer, opts) do
+      {:ok, signed_transaction}
     end
   end
 
@@ -549,12 +609,18 @@ defmodule Ethers do
     |> Enum.reduce_while([], fn {action, data, overrides}, acc ->
       rpc_action = Map.get(@rpc_actions_map, action, action)
 
+      {sub_opts, overrides} = Keyword.split(overrides, @option_keys)
+      opts = Keyword.merge(opts, sub_opts)
+
       case pre_process(data, overrides, action, opts) do
         :ok ->
           {:cont, [{rpc_action, []} | acc]}
 
         {:ok, params} ->
           {:cont, [{rpc_action, List.wrap(params)} | acc]}
+
+        {:ok, params, action} when action in [:eth_send_transaction, :eth_send_raw_transaction] ->
+          {:cont, [{action, [params]} | acc]}
 
         {:ok, params, block} ->
           {:cont, [{rpc_action, [params, block]} | acc]}
@@ -569,11 +635,62 @@ defmodule Ethers do
     end
   end
 
+  defp maybe_use_signer(tx_params, opts) do
+    case get_signer(opts) do
+      {:ok, signer} ->
+        use_signer(tx_params, signer, opts)
+
+      {:error, :no_signer} ->
+        {:ok, tx_params, :eth_send_transaction}
+    end
+  end
+
+  defp get_signer(opts) do
+    case Keyword.get(opts, :signer, default_signer()) do
+      nil -> {:error, :no_signer}
+      signer -> {:ok, signer}
+    end
+  end
+
+  defp default_signer do
+    Application.get_env(:ethers, :default_signer)
+  end
+
+  defp default_signer_opts do
+    Application.get_env(:ethers, :default_signer_opts, [])
+  end
+
+  defp use_signer(tx_params, signer, opts) do
+    signer_opts = Keyword.get(opts, :signer_opts) || default_signer_opts()
+    tx_type = Keyword.get(opts, :tx_type, :eip1559)
+
+    with {:ok, tx} <-
+           Transaction.new(tx_params, tx_type) |> Transaction.fill_with_defaults(opts),
+         {:ok, signed_tx} <-
+           signer.sign_transaction(tx, signer_opts) do
+      {:ok, signed_tx, :eth_send_raw_transaction}
+    end
+  end
+
   defp check_to_address(%{to: to_address}, _action) when is_binary(to_address), do: :ok
-  defp check_to_address(%{to: nil}, action) when action in [:send, :estimate_gas], do: :ok
+
+  defp check_to_address(%{to: nil}, action)
+       when action in [:send, :sign_transaction, :estimate_gas],
+       do: :ok
+
   defp check_to_address(_params, _action), do: {:error, :no_to_address}
 
+  defp check_from_address(%{from: from}, _action) when not is_nil(from), do: :ok
+
+  defp check_from_address(_tx_params, action)
+       when action in [:send, :sign_transaction],
+       do: {:error, :no_from_address}
+
+  defp check_from_address(_tx_params, _action), do: :ok
+
   defp check_params(params, action) do
-    check_to_address(params, action)
+    with :ok <- check_to_address(params, action) do
+      check_from_address(params, action)
+    end
   end
 end

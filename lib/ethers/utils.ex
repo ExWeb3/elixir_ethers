@@ -283,6 +283,48 @@ defmodule Ethers.Utils do
   end
 
   @doc """
+  Calculates address of a given public key. Public key can be in compressed or decompressed format
+  either with or without prefix. It can also be hex encoded.
+
+  ## Examples
+
+      iex> Utils.public_key_to_address("0x04e68acfc0253a10620dff706b0a1b1f1f5833ea3beb3bde2250d5f271f3563606672ebc45e0b7ea2e816ecb70ca03137b1c9476eec63d4632e990020b7b6fba39")
+      "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1"
+
+      iex> Utils.public_key_to_address("0x03e68acfc0253a10620dff706b0a1b1f1f5833ea3beb3bde2250d5f271f3563606")
+      "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1"
+  """
+  @spec public_key_to_address(Ethers.Types.t_pub_key()) :: Ethers.Types.t_address()
+  def public_key_to_address(<<public_key::binary-64>>) do
+    Ethers.keccak_module().hash_256(public_key)
+    |> :binary.part(32 - 20, 20)
+    |> hex_encode()
+    |> to_checksum_address()
+  end
+
+  def public_key_to_address(<<4, public_key::binary-64>>) do
+    public_key_to_address(public_key)
+  end
+
+  unless Code.ensure_loaded?(Ethers.secp256k1_module()) do
+    def public_key_to_address(<<pre, _::binary-32>> = compressed) when pre in [2, 3],
+      do: raise("secp256k1 module not loaded")
+  end
+
+  def public_key_to_address(<<pre, _::binary-32>> = compressed) when pre in [2, 3] do
+    case Ethers.secp256k1_module().public_key_decompress(compressed) do
+      {:ok, public_key} -> public_key_to_address(public_key)
+      error -> raise ArgumentError, "Invalid compressed public key #{inspect(error)}"
+    end
+  end
+
+  def public_key_to_address("0x" <> _ = key) do
+    key
+    |> hex_decode!()
+    |> public_key_to_address()
+  end
+
+  @doc """
   Returns the timestamp for a given block number.
 
   The block_number parameter can be a non negative integer or the hex encoded value of that integer.

@@ -68,6 +68,10 @@ defmodule Ethers.MixProject do
         ],
         "Builtin EventFilters": [
           ~r/^Ethers\.Contracts\.[A-Za-z0-9.]+\.EventFilters$/
+        ],
+        Signer: [
+          ~r/^Ethers\.Signer\.[A-Za-z0-9.]+$/,
+          ~r/^Ethers\.Signer$/
         ]
       ],
       logo: "assets/exdoc_logo.png",
@@ -91,6 +95,8 @@ defmodule Ethers.MixProject do
       {:ethereumex, "~> 0.10.6"},
       {:ex_abi, "~> 0.6.0"},
       {:ex_doc, "~> 0.31.0", only: :dev, runtime: false},
+      {:ex_rlp, "~> 0.6.0"},
+      {:ex_secp256k1, "~> 0.7.2", optional: true},
       {:excoveralls, "~> 0.10", only: :test},
       {:idna, "~> 6.1"},
       {:jason, "~> 1.4"}

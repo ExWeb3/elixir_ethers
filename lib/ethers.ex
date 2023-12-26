@@ -391,7 +391,7 @@ defmodule Ethers do
   @doc """
   Same as `Ethers.batch/2` but raises on error.
   """
-  @spec batch!(list(), Keyword.t()) :: [{:ok, term()} | {:error, term()}]
+  @spec batch!([t_batch_request()], Keyword.t()) :: [{:ok, term()} | {:error, term()}]
   def batch!(actions, opts \\ []) do
     case batch(actions, opts) do
       {:ok, results} -> results

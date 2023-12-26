@@ -24,14 +24,19 @@ jobs:
       MIX_ENV: test
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+    strategy:
+      matrix:
+        otp: ['25.x', '26.x']
+        elixir: ['1.15', '1.16']
+
     steps:
     - uses: actions/checkout@v3
 
     - name: Set up Elixir
       uses: erlef/setup-beam@v1
       with:
-        elixir-version: '1.15.5'
-        otp-version: '26.0.2'
+        otp-version: ${{matrix.otp}}
+        elixir-version: ${{matrix.elixir}}
 
     - uses: actions/setup-node@v3
       with:

@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### New Features
+
+- `Ethers.sign_transaction/2` function
+- Signer behaviour
+- Local Signer implementation
+- JsonRPC Signer implementation
+- `Ethers.Transaction` struct and helper functions
+
 ## v0.1.3 (2023-12-26)
 
 ## Bug fixes
@@ -13,14 +23,6 @@
 
 - `TxData.to_map/2` now returns hex values for all integers.
 - `Utils.maybe_add_gas_limit/2` now adds hex gas limit value instead of integer.
-
-### New Features
-
-- `Ethers.sign_transaction/2` function
-- Signer behaviour
-- Local Signer implementation
-- JsonRPC Signer implementation
-- `Ethers.Transaction` struct and helper functions
 
 ## v0.1.1 (2023-11-22)
 

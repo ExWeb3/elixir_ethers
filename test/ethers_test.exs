@@ -41,6 +41,25 @@ defmodule EthersTest do
     end
   end
 
+  describe "get_balance" do
+    test "returns correct balance for account" do
+      assert {:ok, 0} == Ethers.get_balance("0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045")
+
+      assert {:ok, 1_000_000_000_000_000_000_000} ==
+               Ethers.get_balance("0x95cED938F7991cd0dFcb48F0a06a40FA1aF46EBC")
+    end
+
+    test "works with binary accounts" do
+      bin = Ethers.Utils.hex_decode!("0x95cED938F7991cd0dFcb48F0a06a40FA1aF46EBC")
+
+      assert {:ok, 1_000_000_000_000_000_000_000} == Ethers.get_balance(bin)
+    end
+
+    test "returns error with invalid account" do
+      assert {:error, :invalid_account} == Ethers.get_balance("invalid account")
+    end
+  end
+
   describe "contract deployment" do
     test "can deploy a contract given a module which has the binary" do
       assert {:ok, tx} = Ethers.deploy(HelloWorldContract, from: @from)

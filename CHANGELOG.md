@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### New features
+
+- Add `Ethers.get_balance/2` function to query native chain balance of accounts.
+
 ### Bug fixes
 
 - Encode integers to hex even when they are part of params

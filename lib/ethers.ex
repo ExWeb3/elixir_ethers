@@ -69,7 +69,12 @@ defmodule Ethers do
   alias Ethers.Utils
 
   @option_keys [:rpc_client, :rpc_opts, :signer, :signer_opts, :tx_type]
-  @hex_decode_post_process [:estimate_gas, :current_gas_price, :current_block_number]
+  @hex_decode_post_process [
+    :estimate_gas,
+    :current_gas_price,
+    :current_block_number,
+    :get_balance
+  ]
   @rpc_actions_map %{
     call: :eth_call,
     chain_id: :eth_chain_id,
@@ -106,6 +111,29 @@ defmodule Ethers do
 
     rpc_client.eth_block_number(rpc_opts)
     |> post_process(nil, :current_block_number)
+  end
+
+  @doc """
+  Returns the native token (ETH) balance of an account in wei.
+
+  ## Parameters
+  - account: Account which the balance is queried for.
+  - overrides:
+    - block: The block you want to query the balance of account in (defaults to `latest`).
+    - rpc_client: The RPC module to use for this request (overrides default).
+    - rpc_opts: Specific RPC options to specify for this request.
+  """
+  @spec get_balance(Types.t_address(), Keyword.t()) ::
+          {:ok, non_neg_integer()} | {:error, term()}
+  def get_balance(account, overrides \\ []) do
+    {opts, overrides} = Keyword.split(overrides, @option_keys)
+
+    {rpc_client, rpc_opts} = get_rpc_client(opts)
+
+    with {:ok, account, block} <- pre_process(account, overrides, :get_balance, opts) do
+      rpc_client.eth_get_balance(account, block, rpc_opts)
+      |> post_process(nil, :get_balance)
+    end
   end
 
   @doc """
@@ -482,6 +510,20 @@ defmodule Ethers do
     case check_params(tx_params, :call) do
       :ok -> {:ok, tx_params, block}
       err -> err
+    end
+  end
+
+  defp pre_process(account, overrides, :get_balance = _action, _opts) do
+    block =
+      case Keyword.get(overrides, :block, "latest") do
+        number when is_integer(number) -> Utils.integer_to_hex(number)
+        v -> v
+      end
+
+    case account do
+      "0x" <> _ -> {:ok, account, block}
+      <<_::binary-20>> -> {:ok, Utils.hex_encode(account), block}
+      _ -> {:error, :invalid_account}
     end
   end
 

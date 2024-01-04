@@ -7,8 +7,12 @@ defmodule Ethers.TestRPCModule do
     {:ok, "0x100"}
   end
 
-  def eth_send_transaction(_params, _opts) do
-    {:ok, "tx_hash"}
+  def eth_send_transaction(params, opts) do
+    if pid = opts[:send_params_to_pid] do
+      send(pid, params)
+    end
+
+    {:ok, opts[:tx_hash] || "tx_hash"}
   end
 
   def eth_call(params, block, opts) do

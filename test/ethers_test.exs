@@ -314,6 +314,24 @@ defmodule EthersTest do
       assert {:ok, "hello local signer"} =
                Ethers.call(HelloWorldContract.say_hello(), to: address)
     end
+
+    test "converts all integer params and overrides to hex" do
+      assert {:ok, _tx_hash} =
+               Ethers.send(
+                 %{value: 1000},
+                 rpc_client: Ethers.TestRPCModule,
+                 from: @from,
+                 to: "0x95cED938F7991cd0dFcb48F0a06a40FA1aF46EBC",
+                 rpc_opts: [send_params_to_pid: self()]
+               )
+
+      assert_receive %{
+        from: "0x90f8bf6a479f320ead074411a4b0e7944ea8c9c1",
+        gas: "0x119",
+        to: "0x95cED938F7991cd0dFcb48F0a06a40FA1aF46EBC",
+        value: "0x3E8"
+      }
+    end
   end
 
   describe "sign_transaction/2" do

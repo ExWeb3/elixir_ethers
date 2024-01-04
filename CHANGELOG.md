@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Bug fixes
+
+- Encode integers to hex even when they are part of params
+
 ## v0.2.0 (2024-01-01)
 
 ### New Features
@@ -12,7 +18,7 @@
 
 ## v0.1.3 (2023-12-26)
 
-## Bug fixes
+### Bug fixes
 
 - unsized integer encoding to hex will now raise if given negative numbers.
 - `Utils.date_to_block_number/3` going to negative block numbers issue fixed.

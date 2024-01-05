@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.2.2 (2024-01-05)
+
+### New features
+
+- Add `Ethers.get_transaction/2` function to query native chain transaction by transaction hash.
+
 ## v0.2.1 (2024-01-04)
 
 ### New features

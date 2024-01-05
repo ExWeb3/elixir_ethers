@@ -60,6 +60,21 @@ defmodule EthersTest do
     end
   end
 
+  describe "get_transaction" do
+    test "returns correct transaction by tx_hash" do
+      {:ok, tx_hash} =
+          Ethers.send(
+            %{value: 1000},
+            rpc_client: Ethers.TestRPCModule,
+            from: @from,
+            to: "0x95cED938F7991cd0dFcb48F0a06a40FA1aF46EBC",
+            rpc_opts: [send_params_to_pid: self()]
+          )
+
+      assert {:ok, _tx} == Ethers.get_transaction(tx_hash)
+    end
+  end
+
   describe "contract deployment" do
     test "can deploy a contract given a module which has the binary" do
       assert {:ok, tx} = Ethers.deploy(HelloWorldContract, from: @from)

@@ -136,6 +136,23 @@ defmodule Ethers do
     end
   end
 
+    @doc """
+  Returns the native transaction (ETH) by transaction hash.
+
+  ## Parameters
+  - tx_hash: Transaction hash which the transaction is queried for.
+  - overrides:
+    - rpc_opts: Specific RPC options to specify for this request.
+  """
+  @spec get_transaction(Types.t_hash(), Keyword.t()) ::
+          {:ok, map()} | {:error, term()}
+  def get_transaction(tx_hash, opts \\ []) when is_binary(tx_hash) do
+    {rpc_client, rpc_opts} = get_rpc_client(opts)
+
+    rpc_client.eth_get_transaction_by_hash(tx_hash, rpc_opts)
+    |> post_process(nil, :get_transaction)
+  end
+
   @doc """
   Deploys a contract to the blockchain.
 

@@ -19,6 +19,7 @@ defmodule EthersTest do
   alias Ethers.ExecutionError
 
   @from "0x90f8bf6a479f320ead074411a4b0e7944ea8c9c1"
+  @to "0x95cED938F7991cd0dFcb48F0a06a40FA1aF46EBC"
 
   describe "current_gas_price" do
     test "returns the correct gas price" do
@@ -63,15 +64,35 @@ defmodule EthersTest do
   describe "get_transaction" do
     test "returns correct transaction by tx_hash" do
       {:ok, tx_hash} =
-          Ethers.send(
-            %{value: 1000},
-            rpc_client: Ethers.TestRPCModule,
-            from: @from,
-            to: "0x95cED938F7991cd0dFcb48F0a06a40FA1aF46EBC",
-            rpc_opts: [send_params_to_pid: self()]
-          )
+        HelloWorldContract.set_hello("hello local signer")
+        |> Ethers.send(
+          from: @from,
+          to: @to,
+          signer: Ethers.Signer.Local,
+          signer_opts: [
+            private_key: "0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d"
+          ]
+        )
 
-      assert {:ok, _tx} == Ethers.get_transaction(tx_hash)
+      downcased_to_addr = String.downcase(@to)
+
+      assert {:ok,
+              %{
+                "hash" => ^tx_hash,
+                "from" => @from,
+                "to" => ^downcased_to_addr
+              }} = Ethers.get_transaction(tx_hash)
+    end
+
+    test "returns error by non-existent tx_hash" do
+      assert {:error, :transaction_not_found} =
+               Ethers.get_transaction(
+                 "0x5194596d703a53f65dcb1d7df60fcfa1f7d904ad3145887677a6ab68a425d8d3"
+               )
+    end
+
+    test "returns correct transaction by invalid tx_hash" do
+      assert {:error, _err} = Ethers.get_transaction("invalid tx_hash")
     end
   end
 

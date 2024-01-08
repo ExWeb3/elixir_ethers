@@ -136,7 +136,7 @@ defmodule Ethers do
     end
   end
 
-    @doc """
+  @doc """
   Returns the native transaction (ETH) by transaction hash.
 
   ## Parameters
@@ -641,6 +641,9 @@ defmodule Ethers do
 
   defp post_process({:ok, _}, _tx_hash, :deployed_address),
     do: {:error, :no_contract_address}
+
+  defp post_process({:ok, nil}, _tx_hash, :get_transaction),
+    do: {:error, :transaction_not_found}
 
   defp post_process({:ok, result}, _tx_data, _action),
     do: {:ok, result}

@@ -282,14 +282,19 @@ MyERC20Token.transfer("0x[Recipient]", 1000)
 All contributions are very welcome (as simple as fixing typos). Please feel free to open issues and
 push Pull Requests. Just remember to be respectful to everyone!
 
-To run the tests locally, you need to run [ganache](https://github.com/trufflesuite/ganache).
-After installing ganache, just run the following in a new window the you can run the tests on
-the same machine.
+To run the tests locally, follow below steps:
+- Install [ethereum](https://geth.ethereum.org/docs/getting-started/installing-geth) and [solc](https://docs.soliditylang.org/en/latest/installing-solidity.html). For example, on MacOS
+```
+brew install ethereum
+npm install -g solc
+```
+- Run [ganache](https://github.com/trufflesuite/ganache).
+After installing ganache, just run the following in a new window
 
 ```
 > ganache --wallet.deterministic
 ```
-
+Then you should be able to run tests through `mix test`.
 ## Acknowledgements
 
 Ethers was possible to make thanks to the great contributors of the following libraries.

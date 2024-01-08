@@ -146,7 +146,7 @@ defmodule Ethers do
     - rpc_opts: Specific RPC options to specify for this request.
   """
   @spec get_transaction(Types.t_hash(), Keyword.t()) ::
-          {:ok, map()} | {:error, term()}
+          {:ok, Transaction.t()} | {:error, term()}
   def get_transaction(tx_hash, opts \\ []) when is_binary(tx_hash) do
     {rpc_client, rpc_opts} = get_rpc_client(opts)
 
@@ -663,6 +663,10 @@ defmodule Ethers do
 
   defp post_process({:ok, nil}, _tx_hash, :get_transaction),
     do: {:error, :transaction_not_found}
+
+  defp post_process({:ok, tx_data}, _tx_hash, :get_transaction) do
+    Transaction.decode(tx_data)
+  end
 
   defp post_process({:ok, nil}, _tx_hash, :get_transaction_receipt),
     do: {:error, :transaction_receipt_not_found}

@@ -78,9 +78,9 @@ defmodule EthersTest do
 
       assert {:ok,
               %{
-                "hash" => ^tx_hash,
-                "from" => @from,
-                "to" => ^downcased_to_addr
+                hash: ^tx_hash,
+                from: @from,
+                to: ^downcased_to_addr
               }} = Ethers.get_transaction(tx_hash)
     end
 

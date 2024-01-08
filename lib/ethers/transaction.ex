@@ -22,7 +22,14 @@ defmodule Ethers.Transaction do
     access_list: [],
     signature_r: nil,
     signature_s: nil,
-    signature_recovery_id: nil
+    signature_recovery_id: nil,
+    block_hash: nil,
+    block_number: nil,
+    hash: nil,
+    input: nil,
+    transaction_index: nil,
+    v: nil,
+    y_parity: nil
   ]
 
   @type t_transaction_type :: :legacy | :eip1559
@@ -41,7 +48,14 @@ defmodule Ethers.Transaction do
           access_list: [{binary(), [binary()]}],
           signature_r: binary() | nil,
           signature_s: binary() | nil,
-          signature_recovery_id: 0 | 1 | nil
+          signature_recovery_id: 0 | 1 | nil,
+          block_hash: binary() | nil,
+          block_number: binary() | nil,
+          hash: binary() | nil,
+          input: binary() | nil,
+          transaction_index: binary() | nil,
+          v: binary() | nil,
+          y_parity: binary() | nil
         }
 
   @common_fillable_params [:chain_id, :nonce]
@@ -58,7 +72,7 @@ defmodule Ethers.Transaction do
     {keys, actions} =
       tx
       |> Map.from_struct()
-      |> Map.take(@common_fillable_params ++ Map.fetch!(@type_fillable_params, type))
+      |> Map.take(@common_fillable_params ++ Map.get(@type_fillable_params, type))
       |> Enum.filter(fn {_k, v} -> is_nil(v) end)
       |> Enum.map(&elem(&1, 0))
       |> Enum.map(&{&1, fill_action(&1, tx)})
@@ -107,6 +121,54 @@ defmodule Ethers.Transaction do
     |> convert_to_binary()
     |> ExRLP.encode()
     |> then(&(<<2>> <> &1))
+  end
+
+  def decode(%{"type" => encoded_type} = tx) do
+    type =
+      case Ethers.Utils.hex_to_integer!(encoded_type) do
+        2 -> :eip1559
+        _ -> :legacy
+      end
+
+    tx_body =
+      %{
+        chain_id: Map.get(tx, "chainId"),
+        nonce: Map.get(tx, "nonce"),
+        gas: Map.get(tx, "gas"),
+        gas_price: Map.get(tx, "gasPrice"),
+        max_fee_per_gas: Map.get(tx, "maxFeePerGas"),
+        max_priority_fee_per_gas: Map.get(tx, "maxPriorityFeePerGas"),
+        block_number: Map.get(tx, "blockNumber"),
+        transaction_index: Map.get(tx, "transactionIndex"),
+        v: Map.get(tx, "v"),
+        y_parity: Map.get(tx, "yParity")
+      }
+      |> Enum.map(fn {k, v} ->
+        decoded_value =
+          case v do
+            nil -> nil
+            _ -> Ethers.Utils.hex_to_integer!(v)
+          end
+
+        {k, decoded_value}
+      end)
+      |> Enum.into(%{})
+      |> Map.merge(%{
+        type: type,
+        from: Map.get(tx, "from"),
+        to: Map.get(tx, "to"),
+        data: nil,
+        access_list: Map.get(tx, "accessList"),
+        signature_r: Map.get(tx, "r"),
+        signature_s: Map.get(tx, "s"),
+        signature_recovery_id: nil,
+        block_hash: Map.get(tx, "blockHash"),
+        hash: Map.get(tx, "hash"),
+        input: Map.get(tx, "input")
+      })
+      |> new()
+
+    {:ok, tx_body}
   end
 
   def to_map(%{type: :eip1559} = tx) do

@@ -283,7 +283,6 @@ All contributions are very welcome (as simple as fixing typos). Please feel free
 push Pull Requests. Just remember to be respectful to everyone!
 
 To run the tests locally, follow below steps:
-- Ensure Elixir and Erlang defined in .tool-versions are installed via [asdf](https://github.com/asdf-vm/asdf)
 - Install [ethereum](https://geth.ethereum.org/docs/getting-started/installing-geth) and [solc](https://docs.soliditylang.org/en/latest/installing-solidity.html). For example, on MacOS
 ```
 brew install ethereum

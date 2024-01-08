@@ -72,7 +72,7 @@ defmodule Ethers.Transaction do
     {keys, actions} =
       tx
       |> Map.from_struct()
-      |> Map.take(@common_fillable_params ++ Map.get(@type_fillable_params, type))
+      |> Map.take(@common_fillable_params ++ Map.fetch!(@type_fillable_params, type))
       |> Enum.filter(fn {_k, v} -> is_nil(v) end)
       |> Enum.map(&elem(&1, 0))
       |> Enum.map(&{&1, fill_action(&1, tx)})

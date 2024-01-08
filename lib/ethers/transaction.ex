@@ -109,23 +109,6 @@ defmodule Ethers.Transaction do
     |> then(&(<<2>> <> &1))
   end
 
-  def decode(tx) do
-    [
-      tx.chain_id,
-      tx.nonce,
-      tx.max_priority_fee_per_gas,
-      tx.max_fee_per_gas,
-      tx.gas,
-      tx.to,
-      tx.value,
-      tx.data,
-      tx.access_list
-    ]
-    |> Enum.map(&(&1 || ""))
-    |> ExRLP.decode()
-    |> then(&(<<2>> <> &1))
-  end
-
   def to_map(%{type: :eip1559} = tx) do
     %{
       from: tx.from,

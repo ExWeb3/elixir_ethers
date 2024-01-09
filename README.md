@@ -23,7 +23,7 @@ dependencies in your `mix.exs` file:
 ```elixir
 def deps do
   [
-    {:ethers, "~> 0.2.1"},
+    {:ethers, "~> 0.2.2"},
     # Uncomment next line if you want to use local signers
     # {:ex_secp256k1, "~> 0.7.2"}
   ]
@@ -283,18 +283,23 @@ All contributions are very welcome (as simple as fixing typos). Please feel free
 push Pull Requests. Just remember to be respectful to everyone!
 
 To run the tests locally, follow below steps:
+
 - Install [ethereum](https://geth.ethereum.org/docs/getting-started/installing-geth) and [solc](https://docs.soliditylang.org/en/latest/installing-solidity.html). For example, on MacOS
+
 ```
 brew install ethereum
 npm install -g solc
 ```
+
 - Run [ganache](https://github.com/trufflesuite/ganache).
-After installing ganache, just run the following in a new window
+  After installing ganache, just run the following in a new window
 
 ```
 > ganache --wallet.deterministic
 ```
+
 Then you should be able to run tests through `mix test`.
+
 ## Acknowledgements
 
 Ethers was possible to make thanks to the great contributors of the following libraries.

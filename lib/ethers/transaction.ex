@@ -123,38 +123,27 @@ defmodule Ethers.Transaction do
     |> then(&(<<2>> <> &1))
   end
 
-  def decode(%{"type" => encoded_type} = tx) do
-    type =
-      case Ethers.Utils.hex_to_integer!(encoded_type) do
+  def decode(tx) when is_map(tx) do
+    tx_type =
+      case decode_key(tx, "type") do
         2 -> :eip1559
-        _ -> :legacy
+        1 -> :legacy
+        _ -> nil
       end
 
     tx_body =
       %{
-        chain_id: Map.get(tx, "chainId"),
-        nonce: Map.get(tx, "nonce"),
-        gas: Map.get(tx, "gas"),
-        gas_price: Map.get(tx, "gasPrice"),
-        max_fee_per_gas: Map.get(tx, "maxFeePerGas"),
-        max_priority_fee_per_gas: Map.get(tx, "maxPriorityFeePerGas"),
-        block_number: Map.get(tx, "blockNumber"),
-        transaction_index: Map.get(tx, "transactionIndex"),
-        v: Map.get(tx, "v"),
-        y_parity: Map.get(tx, "yParity")
-      }
-      |> Enum.map(fn {k, v} ->
-        decoded_value =
-          case v do
-            nil -> nil
-            _ -> Ethers.Utils.hex_to_integer!(v)
-          end
-
-        {k, decoded_value}
-      end)
-      |> Enum.into(%{})
-      |> Map.merge(%{
-        type: type,
+        type: tx_type,
+        chain_id: decode_key(tx, "chainId"),
+        nonce: decode_key(tx, "nonce"),
+        gas: decode_key(tx, "gas"),
+        gas_price: decode_key(tx, "gasPrice"),
+        max_fee_per_gas: decode_key(tx, "maxFeePerGas"),
+        max_priority_fee_per_gas: decode_key(tx, "maxPriorityFeePerGas"),
+        block_number: decode_key(tx, "blockNumber"),
+        transaction_index: decode_key(tx, "transactionIndex"),
+        v: decode_key(tx, "v"),
+        y_parity: decode_key(tx, "yParity"),
         from: Map.get(tx, "from"),
         to: Map.get(tx, "to"),
         data: nil,
@@ -165,8 +154,8 @@ defmodule Ethers.Transaction do
         block_hash: Map.get(tx, "blockHash"),
         hash: Map.get(tx, "hash"),
         input: Map.get(tx, "input")
-      })
-      |> new()
+      }
+      |> new(tx_type)
 
     {:ok, tx_body}
   end
@@ -272,4 +261,13 @@ defmodule Ethers.Transaction do
 
   defp trim_leading(<<0, rest::binary>>), do: trim_leading(rest)
   defp trim_leading(<<bin::binary>>), do: bin
+
+  defp decode_key(tx, key) do
+    decoded_value = Map.get(tx, key) |> Ethers.Utils.hex_to_integer()
+
+    case decoded_value do
+      {:ok, v} -> v
+      {:error, :invalid_hex} -> nil
+    end
+  end
 end

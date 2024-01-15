@@ -143,6 +143,7 @@ defmodule Ethers.Transaction do
         block_number: decode_key(tx, "blockNumber"),
         transaction_index: decode_key(tx, "transactionIndex"),
         v: decode_key(tx, "v"),
+        value: decode_key(tx, "value"),
         y_parity: decode_key(tx, "yParity"),
         from: Map.get(tx, "from"),
         to: Map.get(tx, "to"),
@@ -263,11 +264,17 @@ defmodule Ethers.Transaction do
   defp trim_leading(<<bin::binary>>), do: bin
 
   defp decode_key(tx, key) do
-    decoded_value = Map.get(tx, key) |> Ethers.Utils.hex_to_integer()
+    value = Map.get(tx, key)
 
-    case decoded_value do
-      {:ok, v} -> v
-      {:error, :invalid_hex} -> nil
+    case value do
+      nil ->
+        nil
+
+      _ ->
+        case Ethers.Utils.hex_to_integer(value) do
+          {:ok, v} -> v
+          {:error, :invalid_hex} -> nil
+        end
     end
   end
 end

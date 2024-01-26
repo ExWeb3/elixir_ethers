@@ -332,7 +332,7 @@ defmodule Ethers.Utils do
       iex> Utils.public_key_from_pem("MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAsjtGIk8SxD+OEiBpP2/TJUAF0upwuKGMk6wH8Rwov88VvzJrVm2NCticTk5FUg+UG5r8JArrV4tJPRHQyvqKwF4NiksuvOjv3HyIf4oaOhZjT8hDne1Bfv+cFqZJ61Gk0MjANh/T5q9vxER/7TdUNHKpoRV+NVlKN5bEU/NQ5FQjVXicfswxh6Y6fl2PIFqT2CfjD+FkBPU1iT9qyJYHA38IRvwNtcitFgCeZwdGPoxiPPh1WHY8VxpUVBv/2JsUtrB/rAIbGqZoxAIWvijJPe9o1TY3VlOzk9ASZ1AeatvOir+iDVJ5OpKmLnzc46QgGPUsjIyo6Sje9dxpGtoGQQIDAQAB")
       {:ok, <<48, 130, 1, 10, 2, 130, 1, 1, 0, 178, 59, 70, 34, 79, 18, 196, 63, 142, 18,
         32, 105, 63, 111, 211, 37, 64, 5, 210, 234, 112, 184, 161, 140, 147, 172, 7,
-        241, 28, 40, 191, 207, 21, 191, 50, 107, 86, 109, 141, ...>>}
+        241, 28, 40, 191, 207, 21, 191, 50, 107, 86, 109, 141>>}
   """
   @spec public_key_from_pem(String.t()) :: {:ok, binary()}
   def public_key_from_pem(pem) do

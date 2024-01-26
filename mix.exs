@@ -99,7 +99,10 @@ defmodule Ethers.MixProject do
       {:ex_secp256k1, "~> 0.7.2", optional: true},
       {:excoveralls, "~> 0.10", only: :test},
       {:idna, "~> 6.1"},
-      {:jason, "~> 1.4"}
+      {:jason, "~> 1.4"},
+      {:ex_aws, "~> 2.5.1"},
+      {:ex_aws_kms, "~> 2.3.2"},
+      {:ex_aws_sts, "~> 2.3.0"}
     ]
   end
 

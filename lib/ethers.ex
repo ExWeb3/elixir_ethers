@@ -154,6 +154,23 @@ defmodule Ethers do
   end
 
   @doc """
+  Returns the native transaction (ETH) receipt by transaction hash.
+
+  ## Parameters
+  - tx_hash: Transaction hash which the transaction receipt is queried for.
+  - overrides:
+    - rpc_opts: Specific RPC options to specify for this request.
+  """
+  @spec get_transaction_receipt(Types.t_hash(), Keyword.t()) ::
+          {:ok, map()} | {:error, term()}
+  def get_transaction_receipt(tx_hash, opts \\ []) when is_binary(tx_hash) do
+    {rpc_client, rpc_opts} = get_rpc_client(opts)
+
+    rpc_client.eth_get_transaction_receipt(tx_hash, rpc_opts)
+    |> post_process(nil, :get_transaction_receipt)
+  end
+
+  @doc """
   Deploys a contract to the blockchain.
 
   This will return the transaction hash for the deployment transaction.
@@ -644,6 +661,9 @@ defmodule Ethers do
 
   defp post_process({:ok, nil}, _tx_hash, :get_transaction),
     do: {:error, :transaction_not_found}
+
+  defp post_process({:ok, nil}, _tx_hash, :get_transaction_receipt),
+    do: {:error, :transaction_receipt_not_found}
 
   defp post_process({:ok, result}, _tx_data, _action),
     do: {:ok, result}

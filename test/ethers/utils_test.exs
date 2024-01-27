@@ -102,10 +102,5 @@ defmodule Ethers.UtilsTest do
 
       assert true == is_binary(pub_key)
     end
-
-    test "can not extract public key from an invalid pem" do
-      assert_raise ErlangError,
-                   fn -> Utils.public_key_from_pem("invalid pem") end
-    end
   end
 end

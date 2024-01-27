@@ -102,7 +102,8 @@ defmodule Ethers.MixProject do
       {:jason, "~> 1.4"},
       {:ex_aws, "~> 2.5.1"},
       {:ex_aws_kms, "~> 2.3.2"},
-      {:ex_aws_sts, "~> 2.3.0"}
+      {:ex_aws_sts, "~> 2.3.0"},
+      {:mimic, "~> 1.7", only: :test}
     ]
   end
 

@@ -83,4 +83,29 @@ defmodule Ethers.UtilsTest do
                    fn -> Ethers.Utils.hex_decode!("0xrubbish") end
     end
   end
+
+  describe "public_key_from_pem" do
+    test "can extract public key from a pem" do
+      assert {:ok, pub_key} =
+               Utils.public_key_from_pem(
+                 "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAsjtGIk8SxD+OEiBpP2/TJUAF0upwuKGMk6wH8Rwov88VvzJrVm2NCticTk5FUg+UG5r8JArrV4tJPRHQyvqKwF4NiksuvOjv3HyIf4oaOhZjT8hDne1Bfv+cFqZJ61Gk0MjANh/T5q9vxER/7TdUNHKpoRV+NVlKN5bEU/NQ5FQjVXicfswxh6Y6fl2PIFqT2CfjD+FkBPU1iT9qyJYHA38IRvwNtcitFgCeZwdGPoxiPPh1WHY8VxpUVBv/2JsUtrB/rAIbGqZoxAIWvijJPe9o1TY3VlOzk9ASZ1AeatvOir+iDVJ5OpKmLnzc46QgGPUsjIyo6Sje9dxpGtoGQQIDAQAB"
+               )
+
+      assert true == is_binary(pub_key)
+    end
+
+    test "can extract public key from a pem with head and tail" do
+      assert {:ok, pub_key} =
+               Utils.public_key_from_pem(
+                 "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAsjtGIk8SxD+OEiBpP2/TJUAF0upwuKGMk6wH8Rwov88VvzJrVm2NCticTk5FUg+UG5r8JArrV4tJPRHQyvqKwF4NiksuvOjv3HyIf4oaOhZjT8hDne1Bfv+cFqZJ61Gk0MjANh/T5q9vxER/7TdUNHKpoRV+NVlKN5bEU/NQ5FQjVXicfswxh6Y6fl2PIFqT2CfjD+FkBPU1iT9qyJYHA38IRvwNtcitFgCeZwdGPoxiPPh1WHY8VxpUVBv/2JsUtrB/rAIbGqZoxAIWvijJPe9o1TY3VlOzk9ASZ1AeatvOir+iDVJ5OpKmLnzc46QgGPUsjIyo6Sje9dxpGtoGQQIDAQAB\n-----END PUBLIC KEY-----"
+               )
+
+      assert true == is_binary(pub_key)
+    end
+
+    test "can not extract public key from an invalid pem" do
+      assert_raise ErlangError,
+                   fn -> Utils.public_key_from_pem("invalid pem") end
+    end
+  end
 end

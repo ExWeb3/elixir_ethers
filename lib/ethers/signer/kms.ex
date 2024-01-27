@@ -16,12 +16,15 @@ defmodule Ethers.Signer.KMS do
 
   @impl true
   def sign_transaction(%Transaction{} = tx, opts) do
-    with {:ok, key_id} <- get_kms_key(opts) do
+    with {:ok, key_id} <- get_kms_key(opts),
+         {:ok, %{"PublicKey" => pem}} <- ExAws.KMS.get_public_key(key_id) |> ExAws.request(),
+         {:ok, public_key} <- Utils.public_key_from_pem(pem),
+         :ok <- validate_public_key(public_key, tx.from) do
       {:ok, {r, s, recovery_id}} =
         Transaction.encode(tx)
         |> keccak_module().hash_256()
         |> Base.encode64()
-        |> sign(key_id)
+        |> sign(key_id, public_key)
 
       signed =
         %{tx | signature_r: r, signature_s: s, signature_recovery_id: recovery_id}
@@ -42,10 +45,21 @@ defmodule Ethers.Signer.KMS do
     end
   end
 
-  defp sign(message, key_id) do
-    with {:ok, %{"PublicKey" => pem}} <- ExAws.KMS.get_public_key(key_id) |> ExAws.request(),
-         {:ok, public_key} <- Utils.public_key_from_pem(pem),
-         {:ok, %{"Signature" => signature}} <-
+  defp validate_public_key(_public_key, nil), do: {:error, :no_from_address}
+
+  defp validate_public_key(public_key, from_address) do
+    derived_address = Utils.public_key_to_address(public_key)
+    from_address = Utils.to_checksum_address(from_address)
+
+    if derived_address == from_address do
+      :ok
+    else
+      {:error, :wrong_public_key}
+    end
+  end
+
+  defp sign(message, key_id, public_key) do
+    with {:ok, %{"Signature" => signature}} <-
            ExAws.KMS.sign(message, key_id, "ECDSA_SHA_256", message_type: "DIGEST")
            |> ExAws.request() do
       # extract r and s from the signature

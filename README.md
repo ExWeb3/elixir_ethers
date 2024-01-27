@@ -263,7 +263,7 @@ Ethers has these built-in signers to use:
 
 - `Ethers.Signer.Local`\*: A local signer which loads a private key from `signer_opts` and signs the transactions.
 - `Ethers.Signer.JsonRPC`: Uses `eth_signTransaction` Json RPC function to sign transactions. (Using services like [Consensys/web3signer](https://github.com/Consensys/web3signer) or [geth](https://geth.ethereum.org/))
-- `Ethers.Signer.KMS`: A KMS-based signer that expects a valid `kms_key_id` from `signer_opts`. Transactions are sent to KMS to sign with the specified [Customer Managed Key](https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#customer-cmk). Notice that the keys need to be created as `ECC_SECG_P256K1` asymmetric pairs as described on [AWS](https://docs.aws.amazon.com/kms/latest/developerguide/asymmetric-key-specs.html#key-spec-ecc).
+- `Ethers.Signer.KMS`: A KMS-based signer that expects a valid `kms_key_id` from `signer_opts`. Transactions are sent to KMS to sign with the specified [Customer Managed Key](https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#customer-cmk). Notice that the keys need to pre-exist as `ECC_SECG_P256K1` asymmetric pairs as described on [AWS](https://docs.aws.amazon.com/kms/latest/developerguide/asymmetric-key-specs.html#key-spec-ecc). Also, please refer to [AWS Key configuration](https://github.com/ex-aws/ex_aws?tab=readme-ov-file#aws-key-configuration) for configuring your app to connect to AWS in order to use the signer.
 
 For more information on signers, visit [hexdocs](https://hexdocs.pm/ethers/Ethers.Signer.html).
 

@@ -37,7 +37,7 @@ defmodule Ethers.TransactionTest do
                to: "0x95ced938f7991cd0dfcb48f0a06a40fa1af46ebc",
                hash: "0xdc78c7e7ea3a5980f732e466daf1fdc4f009e973530d7e84f0b2012f1ff2cfc7",
                from: "0x90f8bf6a479f320ead074411a4b0e7944ea8c9c1",
-               gas: 23856,
+               gas: 23_856,
                block_number: 1429,
                gas_price: 8,
                max_fee_per_gas: 2_400_000_000,

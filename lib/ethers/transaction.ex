@@ -208,27 +208,8 @@ defmodule Ethers.Transaction do
 
   defp maybe_add_signature(tx_list, tx) do
     case tx do
-      %{signature_r: r, signature_s: s, signature_y_parity: y_parity} when has_value(y_parity) ->
-        tx_list ++ [y_parity, trim_leading(r), trim_leading(s)]
-
-      %{signature_r: r, signature_s: s, signature_recovery_id: rec_id} when has_value(r) ->
-        y_parity =
-          case tx do
-            %{type: :legacy, chain_id: chain_id} when not is_nil(chain_id) ->
-              # EIP-155
-              chain_id = Utils.hex_to_integer!(chain_id)
-              rec_id + 35 + chain_id * 2
-
-            %{type: :legacy} ->
-              # EIP-155
-              rec_id + 27
-
-            _ ->
-              # EIP-1559
-              rec_id
-          end
-
-        tx_list ++ [y_parity, trim_leading(r), trim_leading(s)]
+      %{signature_r: r, signature_s: s} when has_value(r) and has_value(s) ->
+        tx_list ++ [get_y_parity(tx), trim_leading(r), trim_leading(s)]
 
       %{type: :legacy, chain_id: chain_id} when not is_nil(chain_id) ->
         # EIP-155 encoding for signature mitigation intra-chain replay attack
@@ -284,6 +265,27 @@ defmodule Ethers.Transaction do
       item ->
         item
     end)
+  end
+
+  defp get_y_parity(%{signature_y_parity: y_parity}) when has_value(y_parity) do
+    y_parity
+  end
+
+  defp get_y_parity(%{signature_recovery_id: rec_id} = tx) when has_value(rec_id) do
+    case tx do
+      %{type: :legacy, chain_id: chain_id} when has_value(chain_id) ->
+        # EIP-155
+        chain_id = Utils.hex_to_integer!(chain_id)
+        rec_id + 35 + chain_id * 2
+
+      %{type: :legacy} ->
+        # EIP-155
+        rec_id + 27
+
+      _ ->
+        # EIP-1559
+        rec_id
+    end
   end
 
   defp trim_leading(<<0, rest::binary>>), do: trim_leading(rest)

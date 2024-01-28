@@ -84,6 +84,7 @@ defmodule Ethers do
     gas_price: :eth_gas_price,
     get_logs: :eth_get_logs,
     get_transaction_count: :eth_get_transaction_count,
+    get_transaction: :eth_get_transaction_by_hash,
     send: :eth_send_transaction
   }
 

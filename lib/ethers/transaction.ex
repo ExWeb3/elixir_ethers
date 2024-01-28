@@ -195,7 +195,7 @@ defmodule Ethers.Transaction do
   @doc """
   Decodes a transaction struct values in a new map.
   """
-  @spec decode_values(t()) :: Map.t()
+  @spec decode_values(t()) :: map()
   def decode_values(%__MODULE__{} = tx) do
     tx
     |> Map.from_struct()

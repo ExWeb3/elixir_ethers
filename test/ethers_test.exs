@@ -77,7 +77,7 @@ defmodule EthersTest do
       downcased_to_addr = String.downcase(@to)
 
       assert {:ok,
-              %{
+              %Ethers.Transaction{
                 hash: ^tx_hash,
                 from: @from,
                 to: ^downcased_to_addr

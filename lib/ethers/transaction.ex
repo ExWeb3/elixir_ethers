@@ -23,16 +23,14 @@ defmodule Ethers.Transaction do
     signature_r: nil,
     signature_s: nil,
     signature_recovery_id: nil,
+    signature_y_parity: nil,
     block_hash: nil,
     block_number: nil,
     hash: nil,
-    input: nil,
-    transaction_index: nil,
-    v: nil,
-    y_parity: nil
+    transaction_index: nil
   ]
 
-  @type t_transaction_type :: :legacy | :eip1559
+  @type t_transaction_type :: :legacy | :eip1559 | :eip2930 | :eip4844
   @type t :: %__MODULE__{
           type: t_transaction_type(),
           chain_id: binary() | nil,
@@ -52,10 +50,8 @@ defmodule Ethers.Transaction do
           block_hash: binary() | nil,
           block_number: binary() | nil,
           hash: binary() | nil,
-          input: binary() | nil,
           transaction_index: binary() | nil,
-          v: binary() | nil,
-          y_parity: binary() | nil
+          signature_y_parity: binary() | nil
         }
 
   @common_fillable_params [:chain_id, :nonce]
@@ -123,42 +119,38 @@ defmodule Ethers.Transaction do
     |> then(&(<<2>> <> &1))
   end
 
-  def decode(tx) when is_map(tx) do
-    tx_type =
-      case decode_key(tx, "type") do
-        2 -> :eip1559
-        1 -> :legacy
-        _ -> nil
-      end
+  def encode(%{type: type}) do
+    raise "Ethers does not support encoding of #{inspect(type)} transactions"
+  end
 
-    tx_body =
-      %{
-        type: tx_type,
-        chain_id: decode_key(tx, "chainId"),
-        nonce: decode_key(tx, "nonce"),
-        gas: decode_key(tx, "gas"),
-        gas_price: decode_key(tx, "gasPrice"),
-        max_fee_per_gas: decode_key(tx, "maxFeePerGas"),
-        max_priority_fee_per_gas: decode_key(tx, "maxPriorityFeePerGas"),
-        block_number: decode_key(tx, "blockNumber"),
-        transaction_index: decode_key(tx, "transactionIndex"),
-        v: decode_key(tx, "v"),
-        value: decode_key(tx, "value"),
-        y_parity: decode_key(tx, "yParity"),
-        from: Map.get(tx, "from"),
-        to: Map.get(tx, "to"),
-        data: nil,
-        access_list: Map.get(tx, "accessList"),
-        signature_r: Map.get(tx, "r"),
-        signature_s: Map.get(tx, "s"),
-        signature_recovery_id: nil,
-        block_hash: Map.get(tx, "blockHash"),
-        hash: Map.get(tx, "hash"),
-        input: Map.get(tx, "input")
-      }
-      |> new(tx_type)
+  def from_map(tx) do
+    with {:ok, tx_type} <- decode_tx_type(from_map_value(tx, :type)) do
+      tx_struct =
+        %{
+          access_list: from_map_value(tx, :accessList),
+          block_hash: from_map_value(tx, :blockHash),
+          block_number: from_map_value(tx, :blockNumber),
+          chain_id: from_map_value(tx, :chainId),
+          data: from_map_value(tx, :input),
+          from: from_map_value(tx, :from),
+          gas: from_map_value(tx, :gas),
+          gas_price: from_map_value(tx, :gasPrice),
+          hash: from_map_value(tx, :hash),
+          max_fee_per_gas: from_map_value(tx, :maxFeePerGas),
+          max_priority_fee_per_gas: from_map_value(tx, :maxPriorityFeePerGas),
+          nonce: from_map_value(tx, :nonce),
+          signature_r: from_map_value(tx, :r),
+          signature_recovery_id: from_map_value(tx, :v),
+          signature_s: from_map_value(tx, :s),
+          signature_y_parity: from_map_value(tx, :yParity),
+          to: from_map_value(tx, :to),
+          transaction_index: from_map_value(tx, :transactionIndex),
+          value: from_map_value(tx, :value)
+        }
+        |> new(tx_type)
 
-    {:ok, tx_body}
+      {:ok, tx_struct}
+    end
   end
 
   def to_map(%{type: :eip1559} = tx) do
@@ -188,6 +180,9 @@ defmodule Ethers.Transaction do
 
   defp maybe_add_signature(tx_list, tx) do
     case tx do
+      %{signature_r: r, signature_s: s, signature_y_parity: y_parity} when not is_nil(y_parity) ->
+        tx_list ++ [y_parity, trim_leading(r), trim_leading(s)]
+
       %{signature_r: r, signature_s: s, signature_recovery_id: rec_id} when not is_nil(r) ->
         y_parity =
           case tx do
@@ -263,18 +258,18 @@ defmodule Ethers.Transaction do
   defp trim_leading(<<0, rest::binary>>), do: trim_leading(rest)
   defp trim_leading(<<bin::binary>>), do: bin
 
-  defp decode_key(tx, key) do
-    value = Map.get(tx, key)
-
-    case value do
-      nil ->
-        nil
-
-      _ ->
-        case Ethers.Utils.hex_to_integer(value) do
-          {:ok, v} -> v
-          {:error, :invalid_hex} -> nil
-        end
+  defp decode_tx_type(type) do
+    case type do
+      "0x3" -> {:ok, :eip4844}
+      "0x2" -> {:ok, :eip1559}
+      "0x1" -> {:ok, :eip2930}
+      "0x0" -> {:ok, :legacy}
+      nil -> {:ok, :legacy}
+      _ -> {:error, :unsupported_tx_type}
     end
+  end
+
+  defp from_map_value(tx, key) do
+    Map.get_lazy(tx, key, fn -> Map.get(tx, to_string(key)) end)
   end
 end

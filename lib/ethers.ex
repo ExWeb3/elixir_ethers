@@ -665,7 +665,7 @@ defmodule Ethers do
     do: {:error, :transaction_not_found}
 
   defp post_process({:ok, tx_data}, _tx_hash, :get_transaction) do
-    Transaction.decode(tx_data)
+    Transaction.from_map(tx_data)
   end
 
   defp post_process({:ok, nil}, _tx_hash, :get_transaction_receipt),

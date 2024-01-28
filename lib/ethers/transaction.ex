@@ -51,7 +51,7 @@ defmodule Ethers.Transaction do
           block_number: binary() | nil,
           hash: binary() | nil,
           transaction_index: binary() | nil,
-          signature_y_parity: binary() | nil
+          signature_y_parity: non_neg_integer() | nil
         }
 
   @common_fillable_params [:chain_id, :nonce]
@@ -59,6 +59,22 @@ defmodule Ethers.Transaction do
     legacy: [:gas_price],
     eip1559: [:max_fee_per_gas]
   }
+  @integer_type_values [
+    :block_number,
+    :chain_id,
+    :gas,
+    :gas_price,
+    :max_fee_per_gas,
+    :max_priority_fee_per_gas,
+    :nonce,
+    :signature_recovery_id,
+    :signature_y_parity,
+    :transaction_index,
+    :value
+  ]
+  @binary_type_values [:data, :signature_r, :signature_s]
+
+  defguardp has_value(v) when not is_nil(v) and v != ""
 
   def new(params, type \\ :eip1559) do
     struct!(__MODULE__, Map.put(params, :type, type))
@@ -94,7 +110,6 @@ defmodule Ethers.Transaction do
       tx.value,
       tx.data
     ]
-    |> Enum.map(&(&1 || ""))
     |> maybe_add_signature(tx)
     |> convert_to_binary()
     |> ExRLP.encode()
@@ -112,7 +127,6 @@ defmodule Ethers.Transaction do
       tx.data,
       tx.access_list
     ]
-    |> Enum.map(&(&1 || ""))
     |> maybe_add_signature(tx)
     |> convert_to_binary()
     |> ExRLP.encode()
@@ -178,17 +192,31 @@ defmodule Ethers.Transaction do
     }
   end
 
+  @doc """
+  Decodes a transaction struct values in a new map.
+  """
+  @spec decode_values(t()) :: Map.t()
+  def decode_values(%__MODULE__{} = tx) do
+    tx
+    |> Map.from_struct()
+    |> Map.new(fn
+      {k, v} when k in @integer_type_values -> {k, Utils.hex_to_integer!(v)}
+      {k, v} when k in @binary_type_values -> {k, Utils.hex_decode!(v)}
+      {k, v} -> {k, v}
+    end)
+  end
+
   defp maybe_add_signature(tx_list, tx) do
     case tx do
-      %{signature_r: r, signature_s: s, signature_y_parity: y_parity} when not is_nil(y_parity) ->
+      %{signature_r: r, signature_s: s, signature_y_parity: y_parity} when has_value(y_parity) ->
         tx_list ++ [y_parity, trim_leading(r), trim_leading(s)]
 
-      %{signature_r: r, signature_s: s, signature_recovery_id: rec_id} when not is_nil(r) ->
+      %{signature_r: r, signature_s: s, signature_recovery_id: rec_id} when has_value(r) ->
         y_parity =
           case tx do
             %{type: :legacy, chain_id: chain_id} when not is_nil(chain_id) ->
               # EIP-155
-              chain_id = Ethers.Utils.hex_to_integer!(chain_id)
+              chain_id = Utils.hex_to_integer!(chain_id)
               rec_id + 35 + chain_id * 2
 
             %{type: :legacy} ->
@@ -244,11 +272,14 @@ defmodule Ethers.Transaction do
     Enum.map(list, fn
       "0x" <> _ = bin ->
         bin
-        |> Ethers.Utils.hex_decode!()
+        |> Utils.hex_decode!()
         |> trim_leading()
 
       l when is_list(l) ->
         convert_to_binary(l)
+
+      nil ->
+        ""
 
       item ->
         item

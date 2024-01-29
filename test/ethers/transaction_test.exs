@@ -55,5 +55,13 @@ defmodule Ethers.TransactionTest do
       assert is_binary(decoded.signature_r)
       assert is_binary(decoded.signature_s)
     end
+
+    test "does not fail with missing values" do
+      assert %{signature_recovery_id: nil} =
+               Transaction.decode_values(%{@transaction_fixture | signature_recovery_id: nil})
+
+      assert %{signature_recovery_id: nil} =
+               Transaction.decode_values(%{@transaction_fixture | signature_recovery_id: ""})
+    end
   end
 end

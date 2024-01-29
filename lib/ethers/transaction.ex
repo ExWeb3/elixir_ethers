@@ -200,6 +200,8 @@ defmodule Ethers.Transaction do
     tx
     |> Map.from_struct()
     |> Map.new(fn
+      {k, nil} -> {k, nil}
+      {k, ""} -> {k, nil}
       {k, v} when k in @integer_type_values -> {k, Utils.hex_to_integer!(v)}
       {k, v} when k in @binary_type_values -> {k, Utils.hex_decode!(v)}
       {k, v} -> {k, v}

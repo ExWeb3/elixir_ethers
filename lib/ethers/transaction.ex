@@ -22,6 +22,7 @@ defmodule Ethers.Transaction do
     access_list: [],
     signature_r: nil,
     signature_s: nil,
+    signature_v: nil,
     signature_recovery_id: nil,
     signature_y_parity: nil,
     block_hash: nil,
@@ -46,12 +47,13 @@ defmodule Ethers.Transaction do
           access_list: [{binary(), [binary()]}],
           signature_r: binary() | nil,
           signature_s: binary() | nil,
-          signature_recovery_id: 0 | 1 | nil,
+          signature_v: binary() | non_neg_integer() | nil,
+          signature_y_parity: binary() | non_neg_integer() | nil,
+          signature_recovery_id: binary() | 0 | 1 | nil,
           block_hash: binary() | nil,
           block_number: binary() | nil,
           hash: binary() | nil,
-          transaction_index: binary() | nil,
-          signature_y_parity: non_neg_integer() | nil
+          transaction_index: binary() | nil
         }
 
   @common_fillable_params [:chain_id, :nonce]
@@ -69,12 +71,13 @@ defmodule Ethers.Transaction do
     :nonce,
     :signature_recovery_id,
     :signature_y_parity,
+    :signature_v,
     :transaction_index,
     :value
   ]
   @binary_type_values [:data, :signature_r, :signature_s]
 
-  defguardp has_value(v) when not is_nil(v) and v != ""
+  defguardp has_value(v) when not is_nil(v) and v != "" and v != "0x"
 
   def new(params, type \\ :eip1559) do
     struct!(__MODULE__, Map.put(params, :type, type))
@@ -154,8 +157,9 @@ defmodule Ethers.Transaction do
           max_priority_fee_per_gas: from_map_value(tx, :maxPriorityFeePerGas),
           nonce: from_map_value(tx, :nonce),
           signature_r: from_map_value(tx, :r),
-          signature_recovery_id: from_map_value(tx, :v),
           signature_s: from_map_value(tx, :s),
+          signature_v: from_map_value(tx, :v),
+          signature_recovery_id: from_map_value(tx, :v),
           signature_y_parity: from_map_value(tx, :yParity),
           to: from_map_value(tx, :to),
           transaction_index: from_map_value(tx, :transactionIndex),
@@ -289,6 +293,8 @@ defmodule Ethers.Transaction do
         rec_id
     end
   end
+
+  defp get_y_parity(%{type: :legacy, signature_v: v}) when has_value(v), do: v
 
   defp trim_leading(<<0, rest::binary>>), do: trim_leading(rest)
   defp trim_leading(<<bin::binary>>), do: bin

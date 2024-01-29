@@ -21,6 +21,7 @@ defmodule Ethers.TransactionTest do
     signature_s: "0x34a9311fae88125c4f9df5d0ed61f8e37bbaf62681f3ce96d03899114df8997",
     signature_recovery_id: "0x1",
     signature_y_parity: "0x1",
+    signature_v: "0x1",
     block_hash: "0xa2b720a9653afd26411e9bc94283cc496cd3d763378a67fd645bf1a4e332f37d",
     block_number: "0x595",
     hash: "0xdc78c7e7ea3a5980f732e466daf1fdc4f009e973530d7e84f0b2012f1ff2cfc7",
@@ -48,7 +49,8 @@ defmodule Ethers.TransactionTest do
                max_priority_fee_per_gas: 0,
                access_list: [],
                signature_recovery_id: 1,
-               signature_y_parity: 1
+               signature_y_parity: 1,
+               signature_v: 1
              } = decoded
 
       assert is_binary(decoded.data)

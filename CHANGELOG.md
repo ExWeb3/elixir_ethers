@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### New features
+
+- Add `Ethers.get_transaction_receipt/2` function to query native chain transaction receipt by transaction hash.
+
 ## v0.2.2 (2023-01-08)
 
 ### New features

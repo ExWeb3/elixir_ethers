@@ -6,6 +6,12 @@
 
 - Add `Ethers.get_transaction_receipt/2` function to query native chain transaction receipt by transaction hash.
 
+### Enhancements
+
+- Add more metadata to `Ethers.Transaction` struct.
+- Return `Ethers.Transaction` struct in `Ethers.get_transaction/2` function.
+- Support `get_transaction` in batch requests.
+
 ## v0.2.2 (2023-01-08)
 
 ### New features

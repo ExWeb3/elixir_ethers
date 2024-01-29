@@ -142,6 +142,7 @@ defmodule Ethers do
   ## Parameters
   - tx_hash: Transaction hash which the transaction is queried for.
   - overrides:
+    - rpc_client: The RPC module to use for this request (overrides default).
     - rpc_opts: Specific RPC options to specify for this request.
   """
   @spec get_transaction(Types.t_hash(), Keyword.t()) ::
@@ -154,11 +155,12 @@ defmodule Ethers do
   end
 
   @doc """
-  Returns the native transaction (ETH) receipt by transaction hash.
+  Returns the receipt of a transaction by it's hash.
 
   ## Parameters
   - tx_hash: Transaction hash which the transaction receipt is queried for.
   - overrides:
+    - rpc_client: The RPC module to use for this request (overrides default).
     - rpc_opts: Specific RPC options to specify for this request.
   """
   @spec get_transaction_receipt(Types.t_hash(), Keyword.t()) ::

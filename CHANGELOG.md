@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.2.3 (2024-01-29)
 
 ### New features
 
@@ -12,7 +12,7 @@
 - Return `Ethers.Transaction` struct in `Ethers.get_transaction/2` function.
 - Support `get_transaction` in batch requests.
 
-## v0.2.2 (2023-01-08)
+## v0.2.2 (2024-01-08)
 
 ### New features
 

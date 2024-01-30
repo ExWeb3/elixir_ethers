@@ -77,11 +77,32 @@ defmodule EthersTest do
       downcased_to_addr = String.downcase(@to)
 
       assert {:ok,
-              %{
-                "hash" => ^tx_hash,
-                "from" => @from,
-                "to" => ^downcased_to_addr
+              %Ethers.Transaction{
+                hash: ^tx_hash,
+                from: @from,
+                to: ^downcased_to_addr
               }} = Ethers.get_transaction(tx_hash)
+    end
+
+    test "works in batch requests" do
+      {:ok, tx_hash} =
+        HelloWorldContract.set_hello("hello local signer")
+        |> Ethers.send(
+          from: @from,
+          to: @to,
+          signer: Ethers.Signer.Local,
+          signer_opts: [
+            private_key: "0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d"
+          ]
+        )
+
+      assert {:ok,
+              [
+                ok: %Ethers.Transaction{hash: ^tx_hash}
+              ]} =
+               Ethers.batch([
+                 {:get_transaction, tx_hash}
+               ])
     end
 
     test "returns error by non-existent tx_hash" do

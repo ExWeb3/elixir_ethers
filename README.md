@@ -261,7 +261,7 @@ To sign transactions on Ethers, You can specify a `signer` module when sending/s
 
 Ethers has these built-in signers to use:
 
-- `Ethers.Signer.Local`\*: A local signer which loads a private key from `signer_opts` and signs the transactions.
+- `Ethers.Signer.Local`: A local signer which loads a private key from `signer_opts` and signs the transactions.
 - `Ethers.Signer.JsonRPC`: Uses `eth_signTransaction` Json RPC function to sign transactions. (Using services like [Consensys/web3signer](https://github.com/Consensys/web3signer) or [geth](https://geth.ethereum.org/))
 
 For more information on signers, visit [hexdocs](https://hexdocs.pm/ethers/Ethers.Signer.html).

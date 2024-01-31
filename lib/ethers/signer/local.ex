@@ -36,8 +36,15 @@ defmodule Ethers.Signer.Local do
            Transaction.encode(tx)
            |> keccak_module().hash_256()
            |> secp256k1_module().sign(private_key) do
+      y_parity_or_v = Transaction.calculate_y_parity_or_v(tx, recovery_id)
+
       signed =
-        %{tx | signature_r: r, signature_s: s, signature_recovery_id: recovery_id}
+        %Ethers.Transaction{
+          tx
+          | signature_r: r,
+            signature_s: s,
+            signature_y_parity_or_v: y_parity_or_v
+        }
         |> Transaction.encode()
         |> Utils.hex_encode()
 

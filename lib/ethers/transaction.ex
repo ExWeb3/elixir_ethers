@@ -9,53 +9,52 @@ defmodule Ethers.Transaction do
   @enforce_keys [:type]
   defstruct [
     :type,
-    chain_id: nil,
-    nonce: nil,
-    gas: nil,
-    from: nil,
-    to: nil,
-    value: "0x0",
-    data: "",
-    gas_price: nil,
-    max_fee_per_gas: nil,
-    max_priority_fee_per_gas: "0x0",
     access_list: [],
-    signature_r: nil,
-    signature_s: nil,
-    signature_v: nil,
-    signature_recovery_id: nil,
-    signature_y_parity: nil,
     block_hash: nil,
     block_number: nil,
+    chain_id: nil,
+    data: "",
+    from: nil,
+    gas: nil,
+    gas_price: nil,
     hash: nil,
-    transaction_index: nil
+    max_fee_per_gas: nil,
+    max_priority_fee_per_gas: "0x0",
+    nonce: nil,
+    signature_r: nil,
+    signature_s: nil,
+    signature_y_parity_or_v: nil,
+    to: nil,
+    transaction_index: nil,
+    value: "0x0"
   ]
 
   @type t_transaction_type :: :legacy | :eip1559 | :eip2930 | :eip4844
   @type t :: %__MODULE__{
-          type: t_transaction_type(),
-          chain_id: binary() | nil,
-          nonce: binary() | nil,
-          gas: binary() | nil,
-          from: Types.t_address() | nil,
-          to: Types.t_address() | nil,
-          value: binary(),
-          data: binary(),
-          gas_price: binary() | nil,
-          max_fee_per_gas: binary() | nil,
-          max_priority_fee_per_gas: binary(),
           access_list: [{binary(), [binary()]}],
-          signature_r: binary() | nil,
-          signature_s: binary() | nil,
-          signature_v: binary() | non_neg_integer() | nil,
-          signature_y_parity: binary() | non_neg_integer() | nil,
-          signature_recovery_id: binary() | 0 | 1 | nil,
           block_hash: binary() | nil,
           block_number: binary() | nil,
+          chain_id: binary() | nil,
+          data: binary(),
+          from: Types.t_address() | nil,
+          gas: binary() | nil,
+          gas_price: binary() | nil,
           hash: binary() | nil,
-          transaction_index: binary() | nil
+          max_fee_per_gas: binary() | nil,
+          max_priority_fee_per_gas: binary(),
+          nonce: binary() | nil,
+          signature_r: binary() | nil,
+          signature_s: binary() | nil,
+          signature_y_parity_or_v: binary() | non_neg_integer() | nil,
+          to: Types.t_address() | nil,
+          transaction_index: binary() | nil,
+          type: t_transaction_type(),
+          value: binary()
         }
 
+  @transaction_envelope_types %{eip1559: <<2>>, legacy: <<>>}
+  @legacy_parity_magic_number 27
+  @legacy_parity_with_chain_magic_number 35
   @common_fillable_params [:chain_id, :nonce]
   @type_fillable_params %{
     legacy: [:gas_price],
@@ -69,9 +68,7 @@ defmodule Ethers.Transaction do
     :max_fee_per_gas,
     :max_priority_fee_per_gas,
     :nonce,
-    :signature_recovery_id,
-    :signature_y_parity,
-    :signature_v,
+    :signature_y_parity_or_v,
     :transaction_index,
     :value
   ]
@@ -104,40 +101,13 @@ defmodule Ethers.Transaction do
     end
   end
 
-  def encode(%{type: :legacy} = tx) do
-    [
-      tx.nonce,
-      tx.gas_price,
-      tx.gas,
-      tx.to,
-      tx.value,
-      tx.data
-    ]
-    |> maybe_add_signature(tx)
+  def encode(%__MODULE__{type: type} = transaction) do
+    transaction
+    |> to_rlp_list()
+    |> maybe_append_signature(transaction)
     |> convert_to_binary()
     |> ExRLP.encode()
-  end
-
-  def encode(%{type: :eip1559} = tx) do
-    [
-      tx.chain_id,
-      tx.nonce,
-      tx.max_priority_fee_per_gas,
-      tx.max_fee_per_gas,
-      tx.gas,
-      tx.to,
-      tx.value,
-      tx.data,
-      tx.access_list
-    ]
-    |> maybe_add_signature(tx)
-    |> convert_to_binary()
-    |> ExRLP.encode()
-    |> then(&(<<2>> <> &1))
-  end
-
-  def encode(%{type: type}) do
-    raise "Ethers does not support encoding of #{inspect(type)} transactions"
+    |> prepend_type_envelope(type)
   end
 
   def from_map(tx) do
@@ -158,9 +128,7 @@ defmodule Ethers.Transaction do
           nonce: from_map_value(tx, :nonce),
           signature_r: from_map_value(tx, :r),
           signature_s: from_map_value(tx, :s),
-          signature_v: from_map_value(tx, :v),
-          signature_recovery_id: from_map_value(tx, :v),
-          signature_y_parity: from_map_value(tx, :yParity),
+          signature_y_parity_or_v: from_map_value(tx, :yParity) || from_map_value(tx, :v),
           to: from_map_value(tx, :to),
           transaction_index: from_map_value(tx, :transactionIndex),
           value: from_map_value(tx, :value)
@@ -212,10 +180,11 @@ defmodule Ethers.Transaction do
     end)
   end
 
-  defp maybe_add_signature(tx_list, tx) do
+  defp maybe_append_signature(tx_list, tx) do
     case tx do
-      %{signature_r: r, signature_s: s} when has_value(r) and has_value(s) ->
-        tx_list ++ [get_y_parity(tx), trim_leading(r), trim_leading(s)]
+      %{signature_r: r, signature_s: s, signature_y_parity_or_v: y_parity}
+      when has_value(r) and has_value(s) and has_value(y_parity) ->
+        tx_list ++ [y_parity, trim_leading(r), trim_leading(s)]
 
       %{type: :legacy, chain_id: chain_id} when not is_nil(chain_id) ->
         # EIP-155 encoding for signature mitigation intra-chain replay attack
@@ -224,6 +193,39 @@ defmodule Ethers.Transaction do
       _ ->
         tx_list
     end
+  end
+
+  defp to_rlp_list(%{type: :eip1559} = tx) do
+    [
+      tx.chain_id,
+      tx.nonce,
+      tx.max_priority_fee_per_gas,
+      tx.max_fee_per_gas,
+      tx.gas,
+      tx.to,
+      tx.value,
+      tx.data,
+      tx.access_list || []
+    ]
+  end
+
+  defp to_rlp_list(%{type: :legacy} = tx) do
+    [
+      tx.nonce,
+      tx.gas_price,
+      tx.gas,
+      tx.to,
+      tx.value,
+      tx.data
+    ]
+  end
+
+  defp to_rlp_list(%{type: type}) do
+    raise "Ethers does not support encoding of #{inspect(type)} transactions"
+  end
+
+  defp prepend_type_envelope(tx_data, type) do
+    Map.fetch!(@transaction_envelope_types, type) <> tx_data
   end
 
   defp fill_action(:chain_id, _tx), do: :chain_id
@@ -273,28 +275,22 @@ defmodule Ethers.Transaction do
     end)
   end
 
-  defp get_y_parity(%{signature_y_parity: y_parity}) when has_value(y_parity) do
-    y_parity
-  end
-
-  defp get_y_parity(%{signature_recovery_id: rec_id} = tx) when has_value(rec_id) do
+  def calculate_y_parity_or_v(tx, recovery_id) when has_value(recovery_id) do
     case tx do
       %{type: :legacy, chain_id: chain_id} when has_value(chain_id) ->
         # EIP-155
         chain_id = Utils.hex_to_integer!(chain_id)
-        rec_id + 35 + chain_id * 2
+        recovery_id + @legacy_parity_with_chain_magic_number + chain_id * 2
 
       %{type: :legacy} ->
         # EIP-155
-        rec_id + 27
+        recovery_id + @legacy_parity_magic_number
 
       _ ->
         # EIP-1559
-        rec_id
+        recovery_id
     end
   end
-
-  defp get_y_parity(%{type: :legacy, signature_v: v}) when has_value(v), do: v
 
   defp trim_leading(<<0, rest::binary>>), do: trim_leading(rest)
   defp trim_leading(<<bin::binary>>), do: bin

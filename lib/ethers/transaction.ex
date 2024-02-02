@@ -249,6 +249,16 @@ defmodule Ethers.Transaction do
     end
   end
 
+  defp do_post_process(:gas_price, {:ok, v_hex}) do
+    with {:ok, v} <- Utils.hex_to_integer(v_hex) do
+      # Setting a higher value for gas_price gas since the actual base fee is
+      # determined by the last block. This way we minimize the chance to get stuck in
+      # queue when base fee increases
+      mex_fee_per_gas = div(v * 120, 100)
+      {:ok, {:gas_price, Utils.integer_to_hex(mex_fee_per_gas)}}
+    end
+  end
+
   defp do_post_process(key, {:ok, v_hex}) do
     {:ok, {key, v_hex}}
   end

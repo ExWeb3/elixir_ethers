@@ -18,7 +18,10 @@ defmodule Ethers.EventArgumentTypesContractTest do
                  function: "TestEvent",
                  input_names: ["numbers", "has_won"],
                  inputs_indexed: [true, false],
-                 method_id: "\x05\xFA4\xD0",
+                 method_id:
+                   Ethers.Utils.hex_decode!(
+                     "0x05fa34d0d20b7c225e7b176f34bcf7538f55be08ce7caf15cc5789c3fc32646c"
+                   ),
                  returns: [],
                  state_mutability: nil,
                  type: :event,
@@ -46,7 +49,10 @@ defmodule Ethers.EventArgumentTypesContractTest do
                  function: "TestEvent",
                  input_names: ["numbers", "has_won"],
                  inputs_indexed: [true, false],
-                 method_id: "\x9Bm\x1E\xFF",
+                 method_id:
+                   Ethers.Utils.hex_decode!(
+                     "0x9b6d1eff0add9c1c52995c5d2e7b50ba11dc2535256cb88d7ed507bff2794a42"
+                   ),
                  returns: [],
                  state_mutability: nil,
                  type: :event,
@@ -71,7 +77,10 @@ defmodule Ethers.EventArgumentTypesContractTest do
                  function: "TestEvent",
                  input_names: ["numbers", "has_won"],
                  inputs_indexed: [true, false],
-                 method_id: "E(\x99\t",
+                 method_id:
+                   Ethers.Utils.hex_decode!(
+                     "0x452899094966d30dee615ca51e9f6f0f5ef486fee956f3bc3d8d38381a830ae7"
+                   ),
                  returns: [],
                  state_mutability: nil,
                  type: :event,
@@ -99,7 +108,10 @@ defmodule Ethers.EventArgumentTypesContractTest do
                  function: "TestEvent",
                  input_names: ["numbers", "has_won"],
                  inputs_indexed: [true, false],
-                 method_id: "\xDAF\xD1<",
+                 method_id:
+                   Ethers.Utils.hex_decode!(
+                     "0xda46d13c877fe85be32813ad8ae8e248bdb8cfc433c47cb648bf18229e3e79b5"
+                   ),
                  returns: [],
                  state_mutability: nil,
                  type: :event,
@@ -124,7 +136,10 @@ defmodule Ethers.EventArgumentTypesContractTest do
                  function: "TestEvent",
                  input_names: ["numbers", "has_won"],
                  inputs_indexed: [true, false],
-                 method_id: "Xnc\xBB",
+                 method_id:
+                   Ethers.Utils.hex_decode!(
+                     "0x586e63bbc89d8901dcdf36aacc9068837356d52ccafae5ecf041e3b03fc373c1"
+                   ),
                  returns: [],
                  state_mutability: nil,
                  type: :event,

@@ -270,7 +270,10 @@ defmodule EthersTest do
                ],
                selector: %ABI.FunctionSelector{
                  function: "HelloSet",
-                 method_id: <<190, 108, 245, 233>>,
+                 method_id:
+                   Ethers.Utils.hex_decode!(
+                     "0xbe6cf5e99b344c66895d6304d442b2f51b6359ee51ac581db2255de9373e24b8"
+                   ),
                  type: :event,
                  inputs_indexed: [false],
                  state_mutability: nil,
@@ -296,7 +299,10 @@ defmodule EthersTest do
                ],
                selector: %ABI.FunctionSelector{
                  function: "HelloSet",
-                 method_id: <<190, 108, 245, 233>>,
+                 method_id:
+                   Ethers.Utils.hex_decode!(
+                     "0xbe6cf5e99b344c66895d6304d442b2f51b6359ee51ac581db2255de9373e24b8"
+                   ),
                  type: :event,
                  inputs_indexed: [false],
                  state_mutability: nil,

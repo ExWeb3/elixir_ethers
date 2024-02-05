@@ -15,7 +15,10 @@ defmodule Ethers.EventMixedIndexContractTest do
       assert %Ethers.EventFilter{
                selector: %ABI.FunctionSelector{
                  function: "Transfer",
-                 method_id: <<15, 20, 89, 183>>,
+                 method_id:
+                   Ethers.Utils.hex_decode!(
+                     "0x0f1459b71050cedb12633644ebaa16569e1bb49626ab8a0f4c7d1cf0d574abe7"
+                   ),
                  type: :event,
                  inputs_indexed: [false, true, false, true],
                  state_mutability: nil,

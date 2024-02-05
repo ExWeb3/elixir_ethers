@@ -84,6 +84,7 @@ defmodule Ethers do
     gas_price: :eth_gas_price,
     get_logs: :eth_get_logs,
     get_transaction_count: :eth_get_transaction_count,
+    get_transaction: :eth_get_transaction_by_hash,
     send: :eth_send_transaction
   }
 
@@ -142,15 +143,34 @@ defmodule Ethers do
   ## Parameters
   - tx_hash: Transaction hash which the transaction is queried for.
   - overrides:
+    - rpc_client: The RPC module to use for this request (overrides default).
     - rpc_opts: Specific RPC options to specify for this request.
   """
   @spec get_transaction(Types.t_hash(), Keyword.t()) ::
-          {:ok, map()} | {:error, term()}
+          {:ok, Transaction.t()} | {:error, term()}
   def get_transaction(tx_hash, opts \\ []) when is_binary(tx_hash) do
     {rpc_client, rpc_opts} = get_rpc_client(opts)
 
     rpc_client.eth_get_transaction_by_hash(tx_hash, rpc_opts)
     |> post_process(nil, :get_transaction)
+  end
+
+  @doc """
+  Returns the receipt of a transaction by it's hash.
+
+  ## Parameters
+  - tx_hash: Transaction hash which the transaction receipt is queried for.
+  - overrides:
+    - rpc_client: The RPC module to use for this request (overrides default).
+    - rpc_opts: Specific RPC options to specify for this request.
+  """
+  @spec get_transaction_receipt(Types.t_hash(), Keyword.t()) ::
+          {:ok, map()} | {:error, term()}
+  def get_transaction_receipt(tx_hash, opts \\ []) when is_binary(tx_hash) do
+    {rpc_client, rpc_opts} = get_rpc_client(opts)
+
+    rpc_client.eth_get_transaction_receipt(tx_hash, rpc_opts)
+    |> post_process(nil, :get_transaction_receipt)
   end
 
   @doc """
@@ -644,6 +664,13 @@ defmodule Ethers do
 
   defp post_process({:ok, nil}, _tx_hash, :get_transaction),
     do: {:error, :transaction_not_found}
+
+  defp post_process({:ok, tx_data}, _tx_hash, :get_transaction) do
+    Transaction.from_map(tx_data)
+  end
+
+  defp post_process({:ok, nil}, _tx_hash, :get_transaction_receipt),
+    do: {:error, :transaction_receipt_not_found}
 
   defp post_process({:ok, result}, _tx_data, _action),
     do: {:ok, result}

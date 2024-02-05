@@ -77,11 +77,32 @@ defmodule EthersTest do
       downcased_to_addr = String.downcase(@to)
 
       assert {:ok,
-              %{
-                "hash" => ^tx_hash,
-                "from" => @from,
-                "to" => ^downcased_to_addr
+              %Ethers.Transaction{
+                hash: ^tx_hash,
+                from: @from,
+                to: ^downcased_to_addr
               }} = Ethers.get_transaction(tx_hash)
+    end
+
+    test "works in batch requests" do
+      {:ok, tx_hash} =
+        HelloWorldContract.set_hello("hello local signer")
+        |> Ethers.send(
+          from: @from,
+          to: @to,
+          signer: Ethers.Signer.Local,
+          signer_opts: [
+            private_key: "0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d"
+          ]
+        )
+
+      assert {:ok,
+              [
+                ok: %Ethers.Transaction{hash: ^tx_hash}
+              ]} =
+               Ethers.batch([
+                 {:get_transaction, tx_hash}
+               ])
     end
 
     test "returns error by non-existent tx_hash" do
@@ -91,8 +112,43 @@ defmodule EthersTest do
                )
     end
 
-    test "returns correct transaction by invalid tx_hash" do
+    test "returns error by invalid tx_hash" do
       assert {:error, _err} = Ethers.get_transaction("invalid tx_hash")
+    end
+  end
+
+  describe "get_transaction_receipt" do
+    test "returns correct transaction receipt by tx_hash" do
+      {:ok, tx_hash} =
+        HelloWorldContract.set_hello("hello local signer")
+        |> Ethers.send(
+          from: @from,
+          to: @to,
+          signer: Ethers.Signer.Local,
+          signer_opts: [
+            private_key: "0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d"
+          ]
+        )
+
+      downcased_to_addr = String.downcase(@to)
+
+      assert {:ok,
+              %{
+                "transactionHash" => ^tx_hash,
+                "from" => @from,
+                "to" => ^downcased_to_addr
+              }} = Ethers.get_transaction_receipt(tx_hash)
+    end
+
+    test "returns error by non-existent tx_hash" do
+      assert {:error, :transaction_receipt_not_found} =
+               Ethers.get_transaction_receipt(
+                 "0x5194596d703a53f65dcb1d7df60fcfa1f7d904ad3145887677a6ab68a425d8d3"
+               )
+    end
+
+    test "returns error by invalid tx_hash" do
+      assert {:error, _err} = Ethers.get_transaction_receipt("invalid tx_hash")
     end
   end
 
@@ -214,7 +270,10 @@ defmodule EthersTest do
                ],
                selector: %ABI.FunctionSelector{
                  function: "HelloSet",
-                 method_id: <<190, 108, 245, 233>>,
+                 method_id:
+                   Ethers.Utils.hex_decode!(
+                     "0xbe6cf5e99b344c66895d6304d442b2f51b6359ee51ac581db2255de9373e24b8"
+                   ),
                  type: :event,
                  inputs_indexed: [false],
                  state_mutability: nil,
@@ -240,7 +299,10 @@ defmodule EthersTest do
                ],
                selector: %ABI.FunctionSelector{
                  function: "HelloSet",
-                 method_id: <<190, 108, 245, 233>>,
+                 method_id:
+                   Ethers.Utils.hex_decode!(
+                     "0xbe6cf5e99b344c66895d6304d442b2f51b6359ee51ac581db2255de9373e24b8"
+                   ),
                  type: :event,
                  inputs_indexed: [false],
                  state_mutability: nil,

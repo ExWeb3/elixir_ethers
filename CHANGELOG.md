@@ -1,6 +1,30 @@
 # Changelog
 
-## v0.2.2 (2023-01-08)
+## v0.3.0 (2024-02-05)
+
+### Breaking Changes
+
+- Removed `signature_v`, `signature_recovery_id` and `signature_y_parity` from `Ethers.Transaction`
+  struct and introduce new `signature_v_or_y_parity` value
+- Update `ex_abi` to 0.7.0 with new `method_id` logic for event selectors and use its value
+
+### Enhancements
+
+- Cleanup implementation of Transaction encoders and value decoder
+
+## v0.2.3 (2024-01-29)
+
+### New features
+
+- Add `Ethers.get_transaction_receipt/2` function to query native chain transaction receipt by transaction hash.
+
+### Enhancements
+
+- Add more metadata to `Ethers.Transaction` struct.
+- Return `Ethers.Transaction` struct in `Ethers.get_transaction/2` function.
+- Support `get_transaction` in batch requests.
+
+## v0.2.2 (2024-01-08)
 
 ### New features
 

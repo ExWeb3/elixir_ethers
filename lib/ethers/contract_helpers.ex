@@ -315,6 +315,10 @@ defmodule Ethers.ContractHelpers do
     [event_topic_0(selector) | encode_event_sub_topics(selector, args)]
   end
 
+  defp event_topic_0(%{method_id: method_id}) when byte_size(method_id) == 32 do
+    Ethers.Utils.hex_encode(method_id)
+  end
+
   defp event_topic_0(selector) do
     selector
     |> ABI.FunctionSelector.encode()

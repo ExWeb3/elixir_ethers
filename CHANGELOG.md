@@ -1,11 +1,12 @@
 # Changelog
 
-## Unreleased
+## v0.3.0 (2024-02-05)
 
 ### Breaking Changes
 
 - Removed `signature_v`, `signature_recovery_id` and `signature_y_parity` from `Ethers.Transaction`
   struct and introduce new `signature_v_or_y_parity` value
+- Update `ex_abi` to 0.7.0 with new `method_id` logic for event selectors and use its value
 
 ### Enhancements
 

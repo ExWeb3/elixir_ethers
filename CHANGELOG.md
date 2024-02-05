@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+### Breaking Changes
+
+- Removed `signature_v`, `signature_recovery_id` and `signature_y_parity` from `Ethers.Transaction`
+  struct and introduce new `signature_v_or_y_parity` value
+
+### Enhancements
+
+- Cleanup implementation of Transaction encoders and value decoder
+
 ## v0.2.3 (2024-01-29)
 
 ### New features

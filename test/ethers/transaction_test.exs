@@ -19,9 +19,7 @@ defmodule Ethers.TransactionTest do
     access_list: [],
     signature_r: "0x639e5b615f34498f3e5a03f4831e4b7a2a1d5b61ed1388181ef7689c01466fc3",
     signature_s: "0x34a9311fae88125c4f9df5d0ed61f8e37bbaf62681f3ce96d03899114df8997",
-    signature_recovery_id: "0x1",
-    signature_y_parity: "0x1",
-    signature_v: "0x1",
+    signature_y_parity_or_v: "0x1",
     block_hash: "0xa2b720a9653afd26411e9bc94283cc496cd3d763378a67fd645bf1a4e332f37d",
     block_number: "0x595",
     hash: "0xdc78c7e7ea3a5980f732e466daf1fdc4f009e973530d7e84f0b2012f1ff2cfc7",
@@ -48,22 +46,19 @@ defmodule Ethers.TransactionTest do
                transaction_index: 0,
                max_priority_fee_per_gas: 0,
                access_list: [],
-               signature_recovery_id: 1,
-               signature_y_parity: 1,
-               signature_v: 1
-             } = decoded
-
-      assert is_binary(decoded.data)
-      assert is_binary(decoded.signature_r)
-      assert is_binary(decoded.signature_s)
+               signature_y_parity_or_v: 1,
+               signature_r: Ethers.Utils.hex_decode!(@transaction_fixture.signature_r),
+               signature_s: Ethers.Utils.hex_decode!(@transaction_fixture.signature_s),
+               data: Ethers.Utils.hex_decode!(@transaction_fixture.data)
+             } == decoded
     end
 
     test "does not fail with missing values" do
-      assert %{signature_recovery_id: nil} =
-               Transaction.decode_values(%{@transaction_fixture | signature_recovery_id: nil})
+      assert %{signature_y_parity_or_v: nil} =
+               Transaction.decode_values(%{@transaction_fixture | signature_y_parity_or_v: nil})
 
-      assert %{signature_recovery_id: nil} =
-               Transaction.decode_values(%{@transaction_fixture | signature_recovery_id: ""})
+      assert %{signature_y_parity_or_v: nil} =
+               Transaction.decode_values(%{@transaction_fixture | signature_y_parity_or_v: ""})
     end
   end
 end

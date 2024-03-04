@@ -675,6 +675,23 @@ defmodule Ethers do
   defp post_process({:ok, result}, _tx_data, _action),
     do: {:ok, result}
 
+  defp post_process(
+         {:error, %{"data" => "0x" <> error_data} = full_error},
+         %{base_module: module},
+         _action
+       )
+       when is_atom(module) do
+    error_data = Utils.hex_decode!(error_data)
+
+    errors_module = Module.concat(module, Errors)
+
+    case errors_module.find_and_decode(error_data) do
+      {:ok, error} -> {:error, error}
+      {:error, :undefined_error} -> {:error, full_error}
+      e -> e
+    end
+  end
+
   defp post_process({:error, cause}, _tx_data, _action),
     do: {:error, cause}
 

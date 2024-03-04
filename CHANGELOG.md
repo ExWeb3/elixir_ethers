@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Breaking Changes
+
+- Custom errors will be returned as error structs instead of raw RPC response
+
+### Enhancements
+
+- Generate error structs from ABI and decode custom errors when error data is available
+
 ## v0.3.1 (2024-03-05)
 
 ### Bug fixes

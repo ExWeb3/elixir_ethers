@@ -127,6 +127,25 @@ defmodule Ethers.Contract do
         end
       end
 
+    errors_mod_name = Module.concat(module, Errors)
+
+    error_modules_ast =
+      function_selectors_with_meta
+      |> Enum.filter(&(&1.type == :error))
+      |> Enum.map(&impl(&1, module))
+
+    errors_module_impl = errors_impl(function_selectors_with_meta, module)
+
+    errors_module_ast =
+      quote context: module do
+        defmodule unquote(errors_mod_name) do
+          @moduledoc false
+
+          unquote(error_modules_ast)
+          unquote(errors_module_impl)
+        end
+      end
+
     default_address_type =
       if default_address do
         quote do: Ethers.Types.t_address()
@@ -147,7 +166,7 @@ defmodule Ethers.Contract do
         def __default_address__, do: unquote(default_address)
       end
 
-    [extra_ast, constructor_ast | functions_ast] ++ [events_module_ast]
+    [extra_ast, constructor_ast | functions_ast] ++ [events_module_ast, errors_module_ast]
   end
 
   ## Helpers
@@ -217,7 +236,7 @@ defmodule Ethers.Contract do
 
         ABI.encode(selector, args)
         |> Ethers.Utils.hex_encode()
-        |> Ethers.TxData.new(selector, __default_address__())
+        |> Ethers.TxData.new(selector, __default_address__(), __MODULE__)
       end
     end
   end
@@ -253,6 +272,73 @@ defmodule Ethers.Contract do
         encode_event_topics(selector, raw_args)
         |> Ethers.EventFilter.new(selector, __default_address__())
       end
+    end
+  end
+
+  defp impl(%{type: :error, selectors: [selector_abi]} = abi, mod) do
+    error_module = Module.concat([mod, Errors, abi.function])
+
+    aggregated_arg_names = aggregate_input_names(abi.selectors)
+
+    error_args = generate_error_arguments(mod, abi.arity, aggregated_arg_names)
+
+    error_typespec = generate_struct_typespecs(error_args, selector_abi)
+
+    error_module_functions =
+      quote context: error_module, location: :keep do
+        @doc false
+        def decode(data) do
+          decoded_args = ABI.decode(function_selector(), data)
+
+          struct_args = Enum.zip(ordered_argument_keys(), decoded_args)
+
+          {:ok, struct!(__MODULE__, struct_args)}
+        end
+
+        @doc false
+        def function_selector, do: unquote(Macro.escape(selector_abi))
+
+        @doc false
+        def ordered_argument_keys, do: unquote(error_args)
+      end
+
+    quote context: mod, location: :keep do
+      defmodule unquote(error_module) do
+        @moduledoc "Error struct for `error #{unquote(abi.function)}`"
+
+        defstruct unquote(error_args)
+
+        @type t :: unquote(error_typespec)
+
+        unquote(error_module_functions)
+
+        defimpl Inspect do
+          defdelegate inspect(error, opts), to: Ethers.Error
+        end
+      end
+    end
+  end
+
+  defp errors_impl(selectors, mod) do
+    errors_module = Module.concat([mod, Errors])
+
+    error_mappings =
+      Enum.filter(selectors, &(&1.type == :error))
+      |> Enum.map(fn %{selectors: [selector]} -> selector end)
+      |> Enum.map(&{&1.method_id, Module.concat([mod, Errors, &1.function])})
+      |> Enum.into(%{})
+      |> Macro.escape()
+
+    quote context: errors_module, location: :keep do
+      @doc false
+      def find_and_decode(<<error_id::binary-4, _::binary>> = error_data) do
+        case Map.get(error_mappings(), error_id) do
+          nil -> {:error, :undefined_error}
+          module when is_atom(module) -> module.decode(error_data)
+        end
+      end
+
+      defp error_mappings, do: unquote(error_mappings)
     end
   end
 end

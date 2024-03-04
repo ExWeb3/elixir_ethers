@@ -12,19 +12,22 @@ defmodule Ethers.TxData do
   @type t :: %__MODULE__{
           data: binary() | [binary()],
           selector: ABI.FunctionSelector.t(),
-          default_address: nil | Ethers.Types.t_address()
+          default_address: nil | Ethers.Types.t_address(),
+          base_module: atom() | nil
         }
 
   @enforce_keys [:data, :selector]
-  defstruct [:data, :selector, :default_address]
+  defstruct [:data, :selector, :default_address, :base_module]
 
   @doc false
-  @spec new(binary(), ABI.FunctionSelector.t(), Ethers.Types.t_address() | nil) :: t()
-  def new(data, selector, default_address) do
+  @spec new(binary(), ABI.FunctionSelector.t(), Ethers.Types.t_address() | nil, atom() | nil) ::
+          t()
+  def new(data, selector, default_address, base_module) do
     %__MODULE__{
       data: data,
       selector: selector,
-      default_address: default_address
+      default_address: default_address,
+      base_module: base_module
     }
   end
 

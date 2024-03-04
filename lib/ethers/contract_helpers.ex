@@ -195,6 +195,11 @@ defmodule Ethers.ContractHelpers do
     Enum.map_join(selectors, " OR ", &human_signature/1)
   end
 
+  def generate_error_arguments(mod, arity, names) do
+    generate_arguments(mod, arity, names)
+    |> Enum.map(fn {arg, _ctx, _mod} -> arg end)
+  end
+
   def generate_arguments(mod, arity, names) when is_integer(arity) do
     args = Macro.generate_arguments(arity, mod)
 
@@ -215,6 +220,13 @@ defmodule Ethers.ContractHelpers do
   def generate_event_typespecs(selectors, arity) do
     Enum.map(selectors, &Enum.take(&1.types, arity))
     |> do_generate_typescpecs()
+  end
+
+  def generate_struct_typespecs(args, selector) do
+    types = Enum.map(selector.types, &Ethers.Types.to_elixir_type/1)
+
+    # quoted expression of %__MODULE__{key: type(), ...}
+    {:%, [], [{:__MODULE__, [], Elixir}, {:%{}, [], Enum.zip(args, types)}]}
   end
 
   defp do_generate_typescpecs(types) do

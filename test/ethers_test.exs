@@ -225,6 +225,7 @@ defmodule EthersTest do
   describe "default address" do
     test "is included in the function calls when has default address" do
       assert %Ethers.TxData{
+               base_module: HelloWorldWithDefaultAddressContract,
                data: "0xef5fb05b",
                selector: %ABI.FunctionSelector{
                  function: "sayHello",
@@ -247,6 +248,7 @@ defmodule EthersTest do
 
     test "is not included in the function calls when does not have default address" do
       assert %Ethers.TxData{
+               base_module: HelloWorldContract,
                data: "0xef5fb05b",
                selector: %ABI.FunctionSelector{
                  function: "sayHello",

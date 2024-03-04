@@ -99,6 +99,7 @@ defmodule Ethers.CounterContractTest do
 
     test "calling view functions", %{address: address} do
       assert %Ethers.TxData{
+               base_module: CounterContract,
                data: "0x6d4ce63c",
                selector: %ABI.FunctionSelector{
                  function: "get",
@@ -176,6 +177,7 @@ defmodule Ethers.CounterContractTest do
 
     test "returns the params when called" do
       assert %Ethers.TxData{
+               base_module: CounterContract,
                data: "0x60fe47b10000000000000000000000000000000000000000000000000000000000000065",
                selector: %ABI.FunctionSelector{
                  function: "set",

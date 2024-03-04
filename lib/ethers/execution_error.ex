@@ -24,4 +24,8 @@ defmodule Ethers.ExecutionError do
   def exception(error) when is_atom(error) or is_binary(error) do
     %__MODULE__{message: "Unexpected error: #{error}"}
   end
+
+  def exception(error) when is_struct(error) do
+    %__MODULE__{message: inspect(error), evm_error: error}
+  end
 end

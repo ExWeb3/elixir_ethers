@@ -5,6 +5,7 @@
 ### Breaking Changes
 
 - Custom errors will be returned as error structs instead of raw RPC response
+- Updated ERC20, ERC721 and ERC1155 ABIs to Openzeppelin 5.x
 
 ### Enhancements
 

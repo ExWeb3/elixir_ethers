@@ -1,10 +1,10 @@
 # Changelog
 
-## Unreleased
+## v0.3.1 (2024-03-05)
 
 ### Bug fixes
 
-- Fix `to` address trimmed zeros in transaction encoder with unified hex encoding for transaction
+- Fix trimmed zeros in transaction encoder with unified hex encoding for transaction
 
 ## v0.3.0 (2024-02-05)
 

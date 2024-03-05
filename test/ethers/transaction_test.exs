@@ -81,5 +81,24 @@ defmodule Ethers.TransactionTest do
       assert "0x02eb8205390180851448baf2f58212349400008fdee72ac11b5c542428b35eef5769c409f080850006fdde03c0" ==
                Transaction.encode(transaction) |> Ethers.Utils.hex_encode()
     end
+
+    test "encodes transaction with empty data" do
+      transaction = %Ethers.Transaction{
+        type: :eip1559,
+        chain_id: "0x00539",
+        from: "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1",
+        to: "0x00008FDEE72ac11b5c542428B35EEF5769C409f0",
+        nonce: "0x1",
+        gas: "0x1234",
+        value: "0x0",
+        data: "",
+        gas_price: "0x10e7467522",
+        max_fee_per_gas: "0x1448BAF2F5",
+        max_priority_fee_per_gas: "0x0"
+      }
+
+      assert "0x02e68205390180851448baf2f58212349400008fdee72ac11b5c542428b35eef5769c409f08080c0" ==
+               Transaction.encode(transaction) |> Ethers.Utils.hex_encode()
+    end
   end
 end

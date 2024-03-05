@@ -105,7 +105,6 @@ defmodule Ethers.Transaction do
     transaction
     |> to_rlp_list()
     |> maybe_append_signature(transaction)
-    |> convert_to_binary()
     |> ExRLP.encode()
     |> prepend_type_envelope(type)
   end
@@ -184,11 +183,12 @@ defmodule Ethers.Transaction do
     case tx do
       %{signature_r: r, signature_s: s, signature_y_parity_or_v: y_parity}
       when has_value(r) and has_value(s) and has_value(y_parity) ->
-        tx_list ++ [y_parity, trim_leading(r), trim_leading(s)]
+        tx_list ++
+          [Utils.hex_to_integer!(y_parity), Utils.hex_to_integer!(r), Utils.hex_to_integer!(s)]
 
       %{type: :legacy, chain_id: chain_id} when not is_nil(chain_id) ->
         # EIP-155 encoding for signature mitigation intra-chain replay attack
-        tx_list ++ [chain_id, 0, 0]
+        tx_list ++ [Utils.hex_to_integer!(chain_id), 0, 0]
 
       _ ->
         tx_list
@@ -197,26 +197,26 @@ defmodule Ethers.Transaction do
 
   defp to_rlp_list(%{type: :eip1559} = tx) do
     [
-      tx.chain_id,
-      tx.nonce,
-      tx.max_priority_fee_per_gas,
-      tx.max_fee_per_gas,
-      tx.gas,
-      tx.to,
-      tx.value,
-      tx.data,
-      tx.access_list || []
+      Utils.hex_to_integer!(tx.chain_id),
+      Utils.hex_to_integer!(tx.nonce),
+      Utils.hex_to_integer!(tx.max_priority_fee_per_gas),
+      Utils.hex_to_integer!(tx.max_fee_per_gas),
+      Utils.hex_to_integer!(tx.gas),
+      hex_decode(tx.to),
+      Utils.hex_to_integer!(tx.value),
+      hex_decode(tx.data),
+      hex_decode(tx.access_list || [])
     ]
   end
 
   defp to_rlp_list(%{type: :legacy} = tx) do
     [
-      tx.nonce,
-      tx.gas_price,
-      tx.gas,
-      tx.to,
-      tx.value,
-      tx.data
+      Utils.hex_to_integer!(tx.nonce),
+      Utils.hex_to_integer!(tx.gas_price),
+      Utils.hex_to_integer!(tx.gas),
+      hex_decode(tx.to),
+      Utils.hex_to_integer!(tx.value),
+      hex_decode(tx.data)
     ]
   end
 
@@ -257,22 +257,12 @@ defmodule Ethers.Transaction do
 
   defp do_post_process(_key, {:error, reason}), do: {:error, reason}
 
-  defp convert_to_binary(list) do
-    Enum.map(list, fn
-      "0x" <> _ = bin ->
-        bin
-        |> Utils.hex_decode!()
-        |> trim_leading()
+  defp hex_decode("0x" <> _ = bin) do
+    Utils.hex_decode!(bin)
+  end
 
-      l when is_list(l) ->
-        convert_to_binary(l)
-
-      nil ->
-        ""
-
-      item ->
-        item
-    end)
+  defp hex_decode(list) when is_list(list) do
+    Enum.map(list, &hex_decode/1)
   end
 
   def calculate_y_parity_or_v(tx, recovery_id) when has_value(recovery_id) do
@@ -291,9 +281,6 @@ defmodule Ethers.Transaction do
         recovery_id
     end
   end
-
-  defp trim_leading(<<0, rest::binary>>), do: trim_leading(rest)
-  defp trim_leading(<<bin::binary>>), do: bin
 
   defp decode_tx_type(type) do
     case type do

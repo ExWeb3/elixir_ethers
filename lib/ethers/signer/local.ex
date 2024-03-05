@@ -41,9 +41,9 @@ defmodule Ethers.Signer.Local do
       signed =
         %Ethers.Transaction{
           tx
-          | signature_r: r,
-            signature_s: s,
-            signature_y_parity_or_v: y_parity_or_v
+          | signature_r: Utils.hex_encode(r),
+            signature_s: Utils.hex_encode(s),
+            signature_y_parity_or_v: Utils.integer_to_hex(y_parity_or_v)
         }
         |> Transaction.encode()
         |> Utils.hex_encode()

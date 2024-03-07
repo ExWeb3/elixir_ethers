@@ -11,4 +11,11 @@ contract Owner {
     function getOwner() public view returns (address) {
         return _owner;
     }
+
+    error NotOwner();
+
+    function changeOwner(address newOwner) public {
+        if (msg.sender != _owner) revert NotOwner();
+        _owner = newOwner;
+    }
 }

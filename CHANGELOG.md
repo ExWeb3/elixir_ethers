@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+### Breaking Changes
+
+- Custom errors will be returned as error structs instead of raw RPC response
+- Updated ERC20, ERC721 and ERC1155 ABIs to Openzeppelin 5.x
+
+### Enhancements
+
+- Generate error structs from ABI and decode custom errors when error data is available
+
 ## v0.3.1 (2024-03-05)
 
 ### Bug fixes

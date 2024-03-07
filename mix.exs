@@ -63,9 +63,12 @@ defmodule Ethers.MixProject do
       ],
       source_url: @source_url,
       source_ref: source_ref,
+      nest_modules_by_prefix: [
+        Ethers.Contracts
+      ],
       groups_for_modules: [
         "Builtin Contracts": [
-          ~r/^Ethers\.Contracts\.(?:(?!EventFilters$).)*$/
+          ~r/^Ethers\.Contracts\.(?:(?!EventFilters$|Errors\.).)*$/
         ],
         "Builtin EventFilters": [
           ~r/^Ethers\.Contracts\.[A-Za-z0-9.]+\.EventFilters$/
@@ -73,6 +76,9 @@ defmodule Ethers.MixProject do
         Signer: [
           ~r/^Ethers\.Signer\.[A-Za-z0-9.]+$/,
           ~r/^Ethers\.Signer$/
+        ],
+        "Buitin Contract Errors": [
+          ~r/^Ethers\.Contracts\..*$/
         ]
       ],
       logo: "assets/exdoc_logo.png",

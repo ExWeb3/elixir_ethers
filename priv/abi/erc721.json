@@ -1,7 +1,119 @@
 [
   {
+    "inputs":
+    [
+      {
+        "internalType": "address",
+        "name": "sender",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "tokenId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "owner",
+        "type": "address"
+      }
+    ],
+    "name": "ERC721IncorrectOwner",
+    "type": "error"
+  },
+  {
+    "inputs":
+    [
+      {
+        "internalType": "address",
+        "name": "operator",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "tokenId",
+        "type": "uint256"
+      }
+    ],
+    "name": "ERC721InsufficientApproval",
+    "type": "error"
+  },
+  {
+    "inputs":
+    [
+      {
+        "internalType": "address",
+        "name": "approver",
+        "type": "address"
+      }
+    ],
+    "name": "ERC721InvalidApprover",
+    "type": "error"
+  },
+  {
+    "inputs":
+    [
+      {
+        "internalType": "address",
+        "name": "operator",
+        "type": "address"
+      }
+    ],
+    "name": "ERC721InvalidOperator",
+    "type": "error"
+  },
+  {
+    "inputs":
+    [
+      {
+        "internalType": "address",
+        "name": "owner",
+        "type": "address"
+      }
+    ],
+    "name": "ERC721InvalidOwner",
+    "type": "error"
+  },
+  {
+    "inputs":
+    [
+      {
+        "internalType": "address",
+        "name": "receiver",
+        "type": "address"
+      }
+    ],
+    "name": "ERC721InvalidReceiver",
+    "type": "error"
+  },
+  {
+    "inputs":
+    [
+      {
+        "internalType": "address",
+        "name": "sender",
+        "type": "address"
+      }
+    ],
+    "name": "ERC721InvalidSender",
+    "type": "error"
+  },
+  {
+    "inputs":
+    [
+      {
+        "internalType": "uint256",
+        "name": "tokenId",
+        "type": "uint256"
+      }
+    ],
+    "name": "ERC721NonexistentToken",
+    "type": "error"
+  },
+  {
     "anonymous": false,
-    "inputs": [
+    "inputs":
+    [
       {
         "indexed": true,
         "internalType": "address",
@@ -26,7 +138,8 @@
   },
   {
     "anonymous": false,
-    "inputs": [
+    "inputs":
+    [
       {
         "indexed": true,
         "internalType": "address",
@@ -51,7 +164,8 @@
   },
   {
     "anonymous": false,
-    "inputs": [
+    "inputs":
+    [
       {
         "indexed": true,
         "internalType": "address",
@@ -75,7 +189,8 @@
     "type": "event"
   },
   {
-    "inputs": [
+    "inputs":
+    [
       {
         "internalType": "address",
         "name": "to",
@@ -93,21 +208,8 @@
     "type": "function"
   },
   {
-    "constant": true,
-    "inputs": [],
-    "name": "totalSupply",
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "payable": false,
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
+    "inputs":
+    [
       {
         "internalType": "address",
         "name": "owner",
@@ -115,10 +217,11 @@
       }
     ],
     "name": "balanceOf",
-    "outputs": [
+    "outputs":
+    [
       {
         "internalType": "uint256",
-        "name": "balance",
+        "name": "",
         "type": "uint256"
       }
     ],
@@ -126,7 +229,8 @@
     "type": "function"
   },
   {
-    "inputs": [
+    "inputs":
+    [
       {
         "internalType": "uint256",
         "name": "tokenId",
@@ -134,10 +238,11 @@
       }
     ],
     "name": "getApproved",
-    "outputs": [
+    "outputs":
+    [
       {
         "internalType": "address",
-        "name": "operator",
+        "name": "",
         "type": "address"
       }
     ],
@@ -145,7 +250,8 @@
     "type": "function"
   },
   {
-    "inputs": [
+    "inputs":
+    [
       {
         "internalType": "address",
         "name": "owner",
@@ -158,7 +264,8 @@
       }
     ],
     "name": "isApprovedForAll",
-    "outputs": [
+    "outputs":
+    [
       {
         "internalType": "bool",
         "name": "",
@@ -171,7 +278,8 @@
   {
     "inputs": [],
     "name": "name",
-    "outputs": [
+    "outputs":
+    [
       {
         "internalType": "string",
         "name": "",
@@ -182,7 +290,8 @@
     "type": "function"
   },
   {
-    "inputs": [
+    "inputs":
+    [
       {
         "internalType": "uint256",
         "name": "tokenId",
@@ -190,10 +299,11 @@
       }
     ],
     "name": "ownerOf",
-    "outputs": [
+    "outputs":
+    [
       {
         "internalType": "address",
-        "name": "owner",
+        "name": "",
         "type": "address"
       }
     ],
@@ -201,7 +311,8 @@
     "type": "function"
   },
   {
-    "inputs": [
+    "inputs":
+    [
       {
         "internalType": "address",
         "name": "from",
@@ -224,7 +335,8 @@
     "type": "function"
   },
   {
-    "inputs": [
+    "inputs":
+    [
       {
         "internalType": "address",
         "name": "from",
@@ -252,7 +364,8 @@
     "type": "function"
   },
   {
-    "inputs": [
+    "inputs":
+    [
       {
         "internalType": "address",
         "name": "operator",
@@ -260,7 +373,7 @@
       },
       {
         "internalType": "bool",
-        "name": "_approved",
+        "name": "approved",
         "type": "bool"
       }
     ],
@@ -270,7 +383,8 @@
     "type": "function"
   },
   {
-    "inputs": [
+    "inputs":
+    [
       {
         "internalType": "bytes4",
         "name": "interfaceId",
@@ -278,7 +392,8 @@
       }
     ],
     "name": "supportsInterface",
-    "outputs": [
+    "outputs":
+    [
       {
         "internalType": "bool",
         "name": "",
@@ -291,7 +406,8 @@
   {
     "inputs": [],
     "name": "symbol",
-    "outputs": [
+    "outputs":
+    [
       {
         "internalType": "string",
         "name": "",
@@ -302,7 +418,8 @@
     "type": "function"
   },
   {
-    "inputs": [
+    "inputs":
+    [
       {
         "internalType": "uint256",
         "name": "tokenId",
@@ -310,7 +427,8 @@
       }
     ],
     "name": "tokenURI",
-    "outputs": [
+    "outputs":
+    [
       {
         "internalType": "string",
         "name": "",
@@ -321,7 +439,8 @@
     "type": "function"
   },
   {
-    "inputs": [
+    "inputs":
+    [
       {
         "internalType": "address",
         "name": "from",

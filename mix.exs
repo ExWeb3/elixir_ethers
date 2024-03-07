@@ -58,6 +58,7 @@ defmodule Ethers.MixProject do
       main: "readme",
       extras: [
         "README.md": [title: "Introduction"],
+        "CHANGELOG.md": [title: "Changelog"],
         "guides/typed-arguments.md": [title: "Typed Arguments"]
       ],
       source_url: @source_url,

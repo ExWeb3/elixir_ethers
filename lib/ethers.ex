@@ -357,7 +357,13 @@ defmodule Ethers do
   def sign_transaction(tx_data, overrides \\ []) do
     {opts, overrides} = Keyword.split(overrides, @option_keys)
 
-    pre_process(tx_data, overrides, :sign_transaction, opts)
+    default_signer = default_signer() || Ethers.Signer.JsonRPC
+
+    with {:ok, tx_params} <- pre_process(tx_data, overrides, :sign_transaction, opts),
+         {:ok, signer} <- get_signer(opts, default_signer),
+         {:ok, signed_transaction, _action} <- use_signer(tx_params, signer, opts) do
+      {:ok, signed_transaction}
+    end
   end
 
   @doc """
@@ -590,11 +596,8 @@ defmodule Ethers do
   defp pre_process(tx_data, overrides, :sign_transaction = action, opts) do
     tx_params = TxData.to_map(tx_data, overrides)
 
-    with :ok <- check_params(tx_params, action),
-         {:ok, tx_params} <- Utils.maybe_add_gas_limit(tx_params, opts),
-         {:ok, signer} <- get_signer(opts),
-         {:ok, signed_transaction, _action} <- use_signer(tx_params, signer, opts) do
-      {:ok, signed_transaction}
+    with :ok <- check_params(tx_params, action) do
+      Utils.maybe_add_gas_limit(tx_params, opts)
     end
   end
 
@@ -751,8 +754,8 @@ defmodule Ethers do
     end
   end
 
-  defp get_signer(opts) do
-    case Keyword.get(opts, :signer, default_signer()) do
+  defp get_signer(opts, default \\ default_signer()) do
+    case Keyword.get(opts, :signer, default) do
       nil -> {:error, :no_signer}
       signer -> {:ok, signer}
     end

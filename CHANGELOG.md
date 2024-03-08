@@ -10,6 +10,7 @@
 ### Enhancements
 
 - Generate error structs from ABI and decode custom errors when error data is available
+- Use JsonRPC signer as a default signer in `Ethers.sign_transaction/2`
 
 ## v0.3.1 (2024-03-05)
 

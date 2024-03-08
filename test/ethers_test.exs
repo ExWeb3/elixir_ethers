@@ -492,6 +492,19 @@ defmodule EthersTest do
       assert {:ok, "hi signed"} = Ethers.call(HelloWorldContract.say_hello(), to: address)
     end
 
+    test "uses Signer.JsonRPC as default signer" do
+      assert {:ok, tx} = Ethers.deploy(HelloWorldContract, from: @from)
+      assert {:ok, address} = Ethers.deployed_address(tx)
+
+      assert {:ok, signed} =
+               HelloWorldContract.set_hello("hi signed")
+               |> Ethers.sign_transaction(from: @from, to: address)
+
+      assert {:ok, _tx_hash} = Ethers.rpc_client().eth_send_raw_transaction(signed)
+
+      assert {:ok, "hi signed"} = Ethers.call(HelloWorldContract.say_hello(), to: address)
+    end
+
     test "requires from address" do
       assert {:error, :no_from_address} =
                HelloWorldContract.set_hello("hi signed")
@@ -506,7 +519,8 @@ defmodule EthersTest do
                HelloWorldContract.set_hello("hi signed")
                |> Ethers.sign_transaction(
                  from: @from,
-                 to: "0x95cED938F7991cd0dFcb48F0a06a40FA1aF46EBC"
+                 to: "0x95cED938F7991cd0dFcb48F0a06a40FA1aF46EBC",
+                 signer: nil
                )
     end
   end

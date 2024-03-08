@@ -302,7 +302,9 @@ defmodule Ethers.Contract do
         def ordered_argument_keys, do: unquote(error_args)
       end
 
-    skip_consolidation? = Mix.env() == :test and Protocol.consolidated?(Inspect)
+    skip_consolidation? =
+      Protocol.consolidated?(Inspect) and
+        Application.get_env(:ethers, :ignore_error_consolidation?, false)
 
     quote context: mod, location: :keep do
       defmodule unquote(error_module) do

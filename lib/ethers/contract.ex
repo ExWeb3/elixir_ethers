@@ -302,6 +302,8 @@ defmodule Ethers.Contract do
         def ordered_argument_keys, do: unquote(error_args)
       end
 
+    skip_consolidation? = Mix.env() == :test and Protocol.consolidated?(Inspect)
+
     quote context: mod, location: :keep do
       defmodule unquote(error_module) do
         @moduledoc "Error struct for `error #{unquote(abi.function)}`"
@@ -312,8 +314,10 @@ defmodule Ethers.Contract do
 
         unquote(error_module_functions)
 
-        defimpl Inspect do
-          defdelegate inspect(error, opts), to: Ethers.Error
+        unless unquote(skip_consolidation?) do
+          defimpl Inspect do
+            defdelegate inspect(error, opts), to: Ethers.Error
+          end
         end
       end
     end

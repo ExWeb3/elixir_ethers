@@ -1,13 +1,13 @@
-<img height="120" align="left" src="https://github.com/alisinabh/elixir_ethers/raw/main/assets/ethers_logo.png" alt="Ethers Elixir">
+<img height="120" align="left" src="https://github.com/ExWeb3/elixir_ethers/raw/main/assets/ethers_logo.png" alt="Ethers Elixir">
 
 # Elixir Ethers
 
-[![example workflow](https://github.com/alisinabh/elixir_ethers/actions/workflows/elixir.yml/badge.svg)](https://github.com/alisinabh/elixir_ethers)
-[![Coverage Status](https://coveralls.io/repos/github/alisinabh/elixir_ethers/badge.svg?branch=main)](https://coveralls.io/github/alisinabh/elixir_ethers?branch=main)
+[![example workflow](https://github.com/ExWeb3/elixir_ethers/actions/workflows/elixir.yml/badge.svg)](https://github.com/ExWeb3/elixir_ethers)
+[![Coverage Status](https://coveralls.io/repos/github/ExWeb3/elixir_ethers/badge.svg?branch=main)](https://coveralls.io/github/ExWeb3/elixir_ethers?branch=main)
 [![Module Version](https://img.shields.io/hexpm/v/ethers.svg)](https://hex.pm/packages/ethers)
 [![Hex Docs](https://img.shields.io/badge/hex-docs-lightgreen.svg)](https://hexdocs.pm/ethers/)
-[![License](https://img.shields.io/hexpm/l/ethers.svg)](https://github.com/alisinabh/elixir_ethers/blob/master/LICENSE.md)
-[![Last Updated](https://img.shields.io/github/last-commit/alisinabh/elixir_ethers.svg)](https://github.com/alisinabh/elixir_ethers/commits/main)
+[![License](https://img.shields.io/hexpm/l/ethers.svg)](https://github.com/ExWeb3/elixir_ethers/blob/master/LICENSE.md)
+[![Last Updated](https://img.shields.io/github/last-commit/ExWeb3/elixir_ethers.svg)](https://github.com/ExWeb3/elixir_ethers/commits/main)
 
 Ethers is a comprehensive Web3 library for interacting with smart contracts on the Ethereum (Or any EVM based blockchain) using Elixir.
 
@@ -23,7 +23,7 @@ dependencies in your `mix.exs` file:
 ```elixir
 def deps do
   [
-    {:ethers, "~> 0.3.1"},
+    {:ethers, "~> 0.4.0"},
     # Uncomment next line if you want to use local signers
     # {:ex_secp256k1, "~> 0.7.2"}
   ]
@@ -312,4 +312,4 @@ And also all the people who contributed to this project in any ways.
 
 ## License
 
-[Apache License 2.0](https://github.com/alisinabh/elixir_ethers/blob/main/LICENSE)
+[Apache License 2.0](https://github.com/ExWeb3/elixir_ethers/blob/main/LICENSE)

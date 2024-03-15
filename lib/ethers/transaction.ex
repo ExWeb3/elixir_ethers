@@ -109,6 +109,17 @@ defmodule Ethers.Transaction do
     |> prepend_type_envelope(type)
   end
 
+  # Assuming the input is always a single string, the signed tx
+  # We could just leave the (most likely present) 0x on and just pass it around,
+  # i don't think hex_decode cares, but it makes inspecting the possible prexfix easier to remove it - discuss
+  def decode("0x" <> signed_tx), do: decode(signed_tx) 
+  def decode(signed_tx) do
+    # NOTE we can determine type from the possible prefixes [01, 02, ..] or the lack thereof (ab)
+    # in order to use Utils.hex_decode we have to slice prefixes off in non-legacy cases
+    # thus, something like defp decode_tx_and_type(signed_tx) -- seems correct (see method)
+    {type, decoded} = decode_tx_and_type(signed_tx)
+  end
+
   def from_map(tx) do
     with {:ok, tx_type} <- decode_tx_type(from_map_value(tx, :type)) do
       tx_struct =
@@ -293,6 +304,18 @@ defmodule Ethers.Transaction do
       "0x0" -> {:ok, :legacy}
       nil -> {:ok, :legacy}
       _ -> {:error, :unsupported_tx_type}
+    end
+  end
+
+  # another possibility is more overrides for the local hex_decode, but... slicing the prefix seems ok? discuss
+  defp decode_tx_and_type(full_sig) do
+    {prefix, sig} = String.split_at(full_sig, 2)
+
+    case prefix do
+      "03" -> {:eip4844, Utils.hex_decode(sig)}
+      "02" -> {:eip1559, Utils.hex_decode(sig)}
+      "01" -> {:eip2930, Utils.hex_decode(sig)}
+        _ -> {:legacy, Utils.hex_decode(full_sig)}
     end
   end
 

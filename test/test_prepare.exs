@@ -9,7 +9,7 @@ for file <- File.ls!(test_contracts_path) do
       "/bin/bash",
       [
         "-c",
-        "solc #{Path.join(test_contracts_path, name)}.sol --combined-json abi,bin | jq \".contracts | to_entries | .[0].value\" > tmp/#{name}_abi.json"
+        "solc #{Path.join(test_contracts_path, name)}.sol --evm-version=shanghai --combined-json abi,bin | jq \".contracts | to_entries | .[0].value\" > tmp/#{name}_abi.json"
       ]
     )
 end

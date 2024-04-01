@@ -693,6 +693,9 @@ defmodule Ethers do
   defp post_process({:ok, result}, _tx_data, _action),
     do: {:ok, result}
 
+  defp post_process({:error, %{"data" => "0x"} = full_error}, _tx_data, _action),
+    do: {:error, full_error}
+
   defp post_process(
          {:error, %{"data" => "0x" <> error_data} = full_error},
          %{base_module: module},

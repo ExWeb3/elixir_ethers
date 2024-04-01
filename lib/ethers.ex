@@ -70,10 +70,11 @@ defmodule Ethers do
 
   @option_keys [:rpc_client, :rpc_opts, :signer, :signer_opts, :tx_type]
   @hex_decode_post_process [
-    :estimate_gas,
     :current_gas_price,
     :current_block_number,
-    :get_balance
+    :estimate_gas,
+    :get_balance,
+    :max_priority_fee_per_gas
   ]
   @rpc_actions_map %{
     call: :eth_call,
@@ -85,6 +86,7 @@ defmodule Ethers do
     get_logs: :eth_get_logs,
     get_transaction_count: :eth_get_transaction_count,
     get_transaction: :eth_get_transaction_by_hash,
+    max_priority_fee_per_gas: :eth_max_priority_fee_per_gas,
     send: :eth_send_transaction
   }
 
@@ -412,6 +414,17 @@ defmodule Ethers do
       {:ok, gas} -> gas
       {:error, reason} -> raise ExecutionError, reason
     end
+  end
+
+  @doc """
+  Returns the current max priority fee per gas from the RPC API
+  """
+  @spec max_priority_fee_per_gas(Keyword.t()) :: {:ok, non_neg_integer()}
+  def max_priority_fee_per_gas(opts \\ []) do
+    {rpc_client, rpc_opts} = get_rpc_client(opts)
+
+    rpc_client.eth_max_priority_fee_per_gas(rpc_opts)
+    |> post_process(nil, :max_priority_fee_per_gas)
   end
 
   @doc """

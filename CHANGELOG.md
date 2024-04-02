@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Enhancements
+
+- Add support of getting current `max_priority_fee_per_gas`.
+
 ## v0.4.0 (2024-03-11)
 
 ### Breaking Changes

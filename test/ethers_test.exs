@@ -27,6 +27,12 @@ defmodule EthersTest do
     end
   end
 
+  describe "max_priority_fee_per_gas" do
+    test "returns the correct max priority fee per gas" do
+      assert {:ok, 1_000_000_000} = Ethers.max_priority_fee_per_gas()
+    end
+  end
+
   describe "current_block_number" do
     test "returns the current block number" do
       assert {:ok, n} = Ethers.current_block_number()

@@ -1,10 +1,11 @@
 # Changelog
 
-## Unreleased
+## v0.4.1 (2024-04-02)
 
 ### Enhancements
 
-- Add support of getting current `max_priority_fee_per_gas`.
+- Add support of getting current `max_priority_fee_per_gas`
+- Use latest `max_priority_fee_per_gas` from the chain as default value in transactions
 
 ## v0.4.0 (2024-03-11)
 

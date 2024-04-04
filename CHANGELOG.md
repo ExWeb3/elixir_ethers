@@ -1,16 +1,11 @@
 # Changelog
 
-## Unreleased
-
-### Enhancements
-
-- Add `Ethers.get_transaction_count/2`
-
 ## v0.4.2 (2024-04-04)
 
 ### Enhancements
 
 - Support sending raw transactions using `Ethers.send/2`
+- Add `Ethers.get_transaction_count/2`
 
 ## v0.4.1 (2024-04-02)
 

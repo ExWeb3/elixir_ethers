@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Enhancements
+
+- Add `Ethers.get_transaction_count/2`
+
 ## v0.4.2 (2024-04-04)
 
 ### Enhancements

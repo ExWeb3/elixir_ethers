@@ -67,6 +67,26 @@ defmodule EthersTest do
     end
   end
 
+  describe "get_transaction_count" do
+    test "returns the correct transaction count" do
+      assert {:ok, c} =
+               Ethers.get_transaction_count("0xACa94ef8bD5ffEE41947b4585a84BdA5a3d3DA6E")
+
+      assert is_integer(c)
+      assert c >= 0
+
+      {:ok, _} =
+        Ethers.send(%{
+          from: "0xACa94ef8bD5ffEE41947b4585a84BdA5a3d3DA6E",
+          to: "0xaadA6BF26964aF9D7eEd9e03E53415D37aA96045",
+          value: 1000
+        })
+
+      assert {:ok, c + 1} ==
+               Ethers.get_transaction_count("0xACa94ef8bD5ffEE41947b4585a84BdA5a3d3DA6E")
+    end
+  end
+
   describe "get_transaction" do
     test "returns correct transaction by tx_hash" do
       {:ok, tx_hash} =

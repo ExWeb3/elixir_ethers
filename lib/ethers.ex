@@ -70,10 +70,11 @@ defmodule Ethers do
 
   @option_keys [:rpc_client, :rpc_opts, :signer, :signer_opts, :tx_type]
   @hex_decode_post_process [
-    :current_gas_price,
     :current_block_number,
+    :current_gas_price,
     :estimate_gas,
     :get_balance,
+    :get_transaction_count,
     :max_priority_fee_per_gas
   ]
   @rpc_actions_map %{
@@ -136,6 +137,29 @@ defmodule Ethers do
     with {:ok, account, block} <- pre_process(account, overrides, :get_balance, opts) do
       rpc_client.eth_get_balance(account, block, rpc_opts)
       |> post_process(nil, :get_balance)
+    end
+  end
+
+  @doc """
+  Returns the transaction count of an address.
+
+  ## Parameters
+  - account: Account which the transaction count is queried for.
+  - overrides:
+    - block: The block you want to query the transaction count in (defaults to latest).
+    - rpc_client: The RPC module to use for this request (overrides default).
+    - rpc_opts: Specific RPC options to specify for this request.
+  """
+  @spec get_transaction_count(Types.t_address(), Keyword.t()) ::
+          {:ok, non_neg_integer()} | {:error, term()}
+  def get_transaction_count(account, overrides \\ []) do
+    {opts, overrides} = Keyword.split(overrides, @option_keys)
+
+    {rpc_client, rpc_opts} = get_rpc_client(opts)
+
+    with {:ok, account, block} <- pre_process(account, overrides, :get_transaction_count, opts) do
+      rpc_client.eth_get_transaction_count(account, block, rpc_opts)
+      |> post_process(nil, :get_transaction_count)
     end
   end
 
@@ -571,7 +595,8 @@ defmodule Ethers do
     end
   end
 
-  defp pre_process(account, overrides, :get_balance = _action, _opts) do
+  defp pre_process(account, overrides, action, _opts)
+       when action in [:get_balance, :get_transaction_count] do
     block =
       case Keyword.get(overrides, :block, "latest") do
         number when is_integer(number) -> Utils.integer_to_hex(number)

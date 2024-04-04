@@ -229,7 +229,7 @@ defmodule Ethers.Transaction do
   end
 
   defp fill_action(:chain_id, _tx), do: :chain_id
-  defp fill_action(:nonce, tx), do: {:get_transaction_count, [tx.from, "latest"]}
+  defp fill_action(:nonce, tx), do: {:get_transaction_count, tx.from, block: "latest"}
   defp fill_action(:max_fee_per_gas, _tx), do: :gas_price
   defp fill_action(:max_priority_fee_per_gas, _tx), do: :max_priority_fee_per_gas
   defp fill_action(:gas_price, _tx), do: :gas_price
@@ -255,6 +255,10 @@ defmodule Ethers.Transaction do
   defp do_post_process(:max_priority_fee_per_gas, {:ok, v_int}) do
     # use latest max_priority_fee_per_gas from the chain as default
     {:ok, {:max_priority_fee_per_gas, Utils.integer_to_hex(v_int)}}
+  end
+
+  defp do_post_process(:nonce, {:ok, nonce}) when is_integer(nonce) do
+    {:ok, {:nonce, Utils.integer_to_hex(nonce)}}
   end
 
   defp do_post_process(key, {:ok, v_hex}) do

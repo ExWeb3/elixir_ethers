@@ -473,7 +473,7 @@ defmodule EthersTest do
                  tx_type: :eip1559
                )
 
-      assert {:ok, _tx_hash} = Ethers.rpc_client().eth_send_raw_transaction(signed)
+      assert {:ok, _tx_hash} = Ethers.send(signed)
 
       assert {:ok, "hi signed"} = Ethers.call(HelloWorldContract.say_hello(), to: address)
     end

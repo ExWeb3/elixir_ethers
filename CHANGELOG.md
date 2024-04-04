@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Enhancements
+
+- Support sending raw transactions using `Ethers.send/2`
+
 ## v0.4.1 (2024-04-02)
 
 ### Enhancements

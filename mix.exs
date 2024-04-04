@@ -19,7 +19,8 @@ defmodule Ethers.MixProject do
         coveralls: :test,
         "coveralls.detail": :test,
         "coveralls.post": :test,
-        "coveralls.html": :test
+        "coveralls.html": :test,
+        test_prepare: :test
       ],
       description:
         "A comprehensive Web3 library for interacting with smart contracts on Ethereum using Elixir.",

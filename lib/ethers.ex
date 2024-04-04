@@ -599,6 +599,10 @@ defmodule Ethers do
     end
   end
 
+  defp pre_process("0x" <> _ = signed_tx, _overrides, :send, _opts) do
+    {:ok, signed_tx, :eth_send_raw_transaction}
+  end
+
   defp pre_process(tx_data, overrides, :send = action, opts) do
     tx_params = TxData.to_map(tx_data, overrides)
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.4.3 (2024-04-05)
+
+### Bug fixes
+
+- Fix `Ethers.Multicall` typespecs
+
 ## v0.4.2 (2024-04-04)
 
 ### Enhancements

@@ -70,10 +70,12 @@ defmodule Ethers do
 
   @option_keys [:rpc_client, :rpc_opts, :signer, :signer_opts, :tx_type]
   @hex_decode_post_process [
-    :estimate_gas,
-    :current_gas_price,
     :current_block_number,
-    :get_balance
+    :current_gas_price,
+    :estimate_gas,
+    :get_balance,
+    :get_transaction_count,
+    :max_priority_fee_per_gas
   ]
   @rpc_actions_map %{
     call: :eth_call,
@@ -85,6 +87,7 @@ defmodule Ethers do
     get_logs: :eth_get_logs,
     get_transaction_count: :eth_get_transaction_count,
     get_transaction: :eth_get_transaction_by_hash,
+    max_priority_fee_per_gas: :eth_max_priority_fee_per_gas,
     send: :eth_send_transaction
   }
 
@@ -134,6 +137,29 @@ defmodule Ethers do
     with {:ok, account, block} <- pre_process(account, overrides, :get_balance, opts) do
       rpc_client.eth_get_balance(account, block, rpc_opts)
       |> post_process(nil, :get_balance)
+    end
+  end
+
+  @doc """
+  Returns the transaction count of an address.
+
+  ## Parameters
+  - account: Account which the transaction count is queried for.
+  - overrides:
+    - block: The block you want to query the transaction count in (defaults to latest).
+    - rpc_client: The RPC module to use for this request (overrides default).
+    - rpc_opts: Specific RPC options to specify for this request.
+  """
+  @spec get_transaction_count(Types.t_address(), Keyword.t()) ::
+          {:ok, non_neg_integer()} | {:error, term()}
+  def get_transaction_count(account, overrides \\ []) do
+    {opts, overrides} = Keyword.split(overrides, @option_keys)
+
+    {rpc_client, rpc_opts} = get_rpc_client(opts)
+
+    with {:ok, account, block} <- pre_process(account, overrides, :get_transaction_count, opts) do
+      rpc_client.eth_get_transaction_count(account, block, rpc_opts)
+      |> post_process(nil, :get_transaction_count)
     end
   end
 
@@ -415,6 +441,17 @@ defmodule Ethers do
   end
 
   @doc """
+  Returns the current max priority fee per gas from the RPC API
+  """
+  @spec max_priority_fee_per_gas(Keyword.t()) :: {:ok, non_neg_integer()}
+  def max_priority_fee_per_gas(opts \\ []) do
+    {rpc_client, rpc_opts} = get_rpc_client(opts)
+
+    rpc_client.eth_max_priority_fee_per_gas(rpc_opts)
+    |> post_process(nil, :max_priority_fee_per_gas)
+  end
+
+  @doc """
   Fetches the event logs with the given filter.
 
   ## Overrides and Options
@@ -558,7 +595,8 @@ defmodule Ethers do
     end
   end
 
-  defp pre_process(account, overrides, :get_balance = _action, _opts) do
+  defp pre_process(account, overrides, action, _opts)
+       when action in [:get_balance, :get_transaction_count] do
     block =
       case Keyword.get(overrides, :block, "latest") do
         number when is_integer(number) -> Utils.integer_to_hex(number)
@@ -584,6 +622,10 @@ defmodule Ethers do
     with {:ok, tx_params} <- Utils.maybe_add_gas_limit(tx_params, opts) do
       maybe_use_signer(tx_params, opts)
     end
+  end
+
+  defp pre_process("0x" <> _ = signed_tx, _overrides, :send, _opts) do
+    {:ok, signed_tx, :eth_send_raw_transaction}
   end
 
   defp pre_process(tx_data, overrides, :send = action, opts) do
@@ -679,6 +721,9 @@ defmodule Ethers do
 
   defp post_process({:ok, result}, _tx_data, _action),
     do: {:ok, result}
+
+  defp post_process({:error, %{"data" => "0x"} = full_error}, _tx_data, _action),
+    do: {:error, full_error}
 
   defp post_process(
          {:error, %{"data" => "0x" <> error_data} = full_error},

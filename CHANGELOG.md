@@ -1,5 +1,25 @@
 # Changelog
 
+## v0.4.3 (2024-04-05)
+
+### Bug fixes
+
+- Fix `Ethers.Multicall` typespecs
+
+## v0.4.2 (2024-04-04)
+
+### Enhancements
+
+- Support sending raw transactions using `Ethers.send/2`
+- Add `Ethers.get_transaction_count/2`
+
+## v0.4.1 (2024-04-02)
+
+### Enhancements
+
+- Add support of getting current `max_priority_fee_per_gas`
+- Use latest `max_priority_fee_per_gas` from the chain as default value in transactions
+
 ## v0.4.0 (2024-03-11)
 
 ### Breaking Changes

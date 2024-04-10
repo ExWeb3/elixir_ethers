@@ -1,7 +1,7 @@
 defmodule Ethers.MixProject do
   use Mix.Project
 
-  @version "0.4.0"
+  @version "0.4.3"
   @source_url "https://github.com/ExWeb3/elixir_ethers"
 
   def project do
@@ -19,7 +19,8 @@ defmodule Ethers.MixProject do
         coveralls: :test,
         "coveralls.detail": :test,
         "coveralls.post": :test,
-        "coveralls.html": :test
+        "coveralls.html": :test,
+        test_prepare: :test
       ],
       description:
         "A comprehensive Web3 library for interacting with smart contracts on Ethereum using Elixir.",

@@ -27,6 +27,12 @@ defmodule EthersTest do
     end
   end
 
+  describe "max_priority_fee_per_gas" do
+    test "returns the correct max priority fee per gas" do
+      assert {:ok, 1_000_000_000} = Ethers.max_priority_fee_per_gas()
+    end
+  end
+
   describe "current_block_number" do
     test "returns the current block number" do
       assert {:ok, n} = Ethers.current_block_number()
@@ -58,6 +64,26 @@ defmodule EthersTest do
 
     test "returns error with invalid account" do
       assert {:error, :invalid_account} == Ethers.get_balance("invalid account")
+    end
+  end
+
+  describe "get_transaction_count" do
+    test "returns the correct transaction count" do
+      assert {:ok, c} =
+               Ethers.get_transaction_count("0xACa94ef8bD5ffEE41947b4585a84BdA5a3d3DA6E")
+
+      assert is_integer(c)
+      assert c >= 0
+
+      {:ok, _} =
+        Ethers.send(%{
+          from: "0xACa94ef8bD5ffEE41947b4585a84BdA5a3d3DA6E",
+          to: "0xaadA6BF26964aF9D7eEd9e03E53415D37aA96045",
+          value: 1000
+        })
+
+      assert {:ok, c + 1} ==
+               Ethers.get_transaction_count("0xACa94ef8bD5ffEE41947b4585a84BdA5a3d3DA6E")
     end
   end
 
@@ -467,7 +493,7 @@ defmodule EthersTest do
                  tx_type: :eip1559
                )
 
-      assert {:ok, _tx_hash} = Ethers.rpc_client().eth_send_raw_transaction(signed)
+      assert {:ok, _tx_hash} = Ethers.send(signed)
 
       assert {:ok, "hi signed"} = Ethers.call(HelloWorldContract.say_hello(), to: address)
     end
@@ -540,7 +566,25 @@ defmodule EthersTest do
         )
 
       assert signed ==
-               "0x02f8cd8205396480840756b5b38227109495ced938f7991cd0dfcb48f0a06a40fa1af46ebc80b864435ffe94000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000096869207369676e65640000000000000000000000000000000000000000000000c001a002692d6fb9c645a9c16759ad577511d132c6976eacfaeca52f564771e4b80ddea075bcae22afa255d44387ef43fc6b005cc86529c6e99364e065736804f16c1bfc"
+               "0x02f8d182053964843b9aca00840756b5b38227109495ced938f7991cd0dfcb48f0a06a40fa1af46ebc80b864435ffe94000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000096869207369676e65640000000000000000000000000000000000000000000000c001a0da576ea4a1cf5979a34056d2fde083f6567430b2286e4985ffb9ea83df69c57fa070790ded792b1e55abd3fcc13202133289dfaba0fc96b476a76f488d69b2477d"
+    end
+
+    test "returns signed transaction with custom max_priority_fee_per_gas" do
+      signed =
+        HelloWorldContract.set_hello("hi signed")
+        |> Ethers.sign_transaction!(
+          from: @from,
+          gas: 10_000,
+          max_fee_per_gas: 123_123_123,
+          max_priority_fee_per_gas: 2_000_000_000,
+          chain_id: 1337,
+          nonce: 100,
+          to: "0x95cED938F7991cd0dFcb48F0a06a40FA1aF46EBC",
+          signer: Ethers.Signer.JsonRPC
+        )
+
+      assert signed ==
+               "0x02f8d1820539648477359400840756b5b38227109495ced938f7991cd0dfcb48f0a06a40fa1af46ebc80b864435ffe94000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000096869207369676e65640000000000000000000000000000000000000000000000c001a054c7dd5c03757b3fa7c896bfb23f6bf3cf32aa21e3e53dbca00d447a673c033aa01e81b956fe27a1757f780a12570df243fc10c3a08b8647b301b1be15b376734e"
     end
 
     test "raises in case of error" do

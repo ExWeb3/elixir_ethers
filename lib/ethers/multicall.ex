@@ -29,8 +29,8 @@ defmodule Ethers.Multicall do
   alias Ethers.Contracts.Multicall3
   alias Ethers.TxData
 
-  @type aggregate3_options :: [to: Ethers.Types.t_address(), allow_failure: boolean()]
-  @type aggregate2_options :: [to: Ethers.Types.t_address()]
+  @type aggregate3_option :: {:to, Ethers.Types.t_address()} | {:allow_failure, boolean()}
+  @type aggregate2_option :: {:to, Ethers.Types.t_address()}
 
   @doc """
   Aggregates calls, ensuring each returns success if required, and returns a `Ethers.TxData` struct,
@@ -65,7 +65,7 @@ defmodule Ethers.Multicall do
   """
   @spec aggregate3([
           TxData.t()
-          | {TxData.t(), aggregate3_options}
+          | {TxData.t(), [aggregate3_option()]}
         ]) :: TxData.t()
   def aggregate3(data) when is_list(data) do
     data
@@ -93,7 +93,7 @@ defmodule Ethers.Multicall do
   """
   @spec aggregate3_encode_data(
           TxData.t()
-          | {TxData.t(), aggregate3_options}
+          | {TxData.t(), [aggregate3_option()]}
         ) :: {Ethers.Types.t_address(), boolean(), binary()}
   def aggregate3_encode_data(data)
 
@@ -132,7 +132,7 @@ defmodule Ethers.Multicall do
   """
   @spec aggregate2([
           TxData.t()
-          | {TxData.t(), aggregate2_options}
+          | {TxData.t(), [aggregate2_option]}
         ]) :: TxData.t()
   def aggregate2(data) when is_list(data) do
     data
@@ -158,7 +158,7 @@ defmodule Ethers.Multicall do
   """
   @spec aggregate2_encode_data(
           TxData.t()
-          | {TxData.t(), aggregate2_options}
+          | {TxData.t(), [aggregate2_option]}
         ) :: {Ethers.Types.t_address(), binary()}
   def aggregate2_encode_data(data)
 
@@ -188,9 +188,9 @@ defmodule Ethers.Multicall do
   ```
   """
   @spec decode(
-          [%{(true | false) => term()}] | [integer() | [...]],
-          [TxData.t() | binary()]
-        ) :: [%{(true | false) => term()}] | [integer() | [...]]
+          [integer() | {boolean(), binary()}],
+          [TxData.t() | {TxData.t(), Keyword.t()} | binary()]
+        ) :: [integer() | {boolean(), term()}]
   def decode(resps, calls)
 
   def decode([block, resps], calls) when is_integer(block) do
@@ -218,9 +218,10 @@ defmodule Ethers.Multicall do
   [ true: "bar", true: "baz" ]
   ```
   """
-  @spec aggregate3_decode([%{(true | false) => term()}], [TxData.t()] | [binary()]) :: [
-          %{(true | false) => term()}
-        ]
+  @spec aggregate3_decode(
+          [{boolean(), term()}],
+          [TxData.t() | {TxData.t() | [aggregate3_option()]}] | [binary()]
+        ) :: [{boolean(), term()}]
   def aggregate3_decode(resps, calls) when length(resps) == length(calls) do
     decode_calls(calls)
     |> Enum.zip(resps)
@@ -246,7 +247,10 @@ defmodule Ethers.Multicall do
   [ 1337, [ "bar", "baz" ]]
   ```
   """
-  @spec aggregate2_decode([integer() | [...]], [TxData.t()] | [binary()]) :: [integer() | [...]]
+  @spec aggregate2_decode(
+          [integer() | [...]],
+          [TxData.t() | {TxData.t(), [aggregate2_option()]}] | [binary()]
+        ) :: [integer() | [...]]
   def aggregate2_decode([block, resps], calls) when length(resps) == length(calls) do
     [
       block,

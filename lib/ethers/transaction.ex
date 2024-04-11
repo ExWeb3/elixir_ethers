@@ -113,12 +113,45 @@ defmodule Ethers.Transaction do
   # We could just leave the (most likely present) 0x on and just pass it around,
   # i don't think hex_decode cares, but it makes inspecting the possible prexfix easier to remove it - discuss
   def decode("0x" <> signed_tx), do: decode(signed_tx) 
-  def decode(signed_tx) do
-    # NOTE we can determine type from the possible prefixes [01, 02, ..] or the lack thereof (ab)
-    # in order to use Utils.hex_decode we have to slice prefixes off in non-legacy cases
-    # thus, something like defp decode_tx_and_type(signed_tx) -- seems correct (see method)
-    {type, decoded} = decode_tx_and_type(signed_tx)
+  def decode(signed_tx), do: decode(decode_tx_and_type(signed_tx))
+  def decode(:eip1559, decoded) do
+    # TODO we could inspect the length and throw if not 12..
+    # [chain_id, nonce, max_priority_fee, max_fee, gas_limit, to, value, data, access_list, y, r, s]
+    vector = ExRLP.decode(decoded)
+
+    # no recover the public key (from), we first need to reconstruct the unsigned 'digest'
+    # NOTE: after the digest is assembled we also prepend the type envelope
+    tx_hash =
+      Enum.take(vector, 9)
+      |> ExRLP.encode()
+      |> prepend_type_envelope(:eip1559)
+      |> ExKeccak.hash_256()
+
+    [y, r, s] = Enum.take(vector, -3)
+
+    {:ok, public_key} = ExSecp256k1.recover(tx_hash, r, s, :binary.decode_unsigned(y))
+
+    {:ok, struct!(__MODULE__, %{
+      access_list: Enum.at(vector, 8),
+      chain_id: Enum.at(vector, 0),
+      data: Enum.at(vector, 7),
+      from: Utils.public_key_to_address(public_key),
+      gas: Enum.at(vector, 4),
+      max_fee_per_gas: Enum.at(vector, 3),
+      max_priority_fee_per_gas: Enum.at(vector, 2),
+      nonce: Enum.at(vector, 1),
+      signature_r: r,
+      signature_s: s,
+      signature_y_parity_or_v: y,
+      to: Enum.at(5),
+      type: :eip1559,
+      value: Enum.at(6)
+    })}
   end
+
+  def decode(:legacy, decoded), do: decoded
+
+  def decode(_type, _decoded), do: {:error, :unsupported_tx_type}
 
   def from_map(tx) do
     with {:ok, tx_type} <- decode_tx_type(from_map_value(tx, :type)) do

@@ -101,4 +101,12 @@ defmodule Ethers.TransactionTest do
                Transaction.encode(transaction) |> Ethers.Utils.hex_encode()
     end
   end
+
+  describe "decode/1" do
+    test "decodes type2" do
+      sig = "0x02f8a70103020482a41094826180541412d574cf1336d22c0c0a287822678a80b844a9059cbb000000000000000000000000b1228c21546e3848498169f4241ab63279d502d5000000000000000000000000000000000000000000000000000000e8d4a51000c080a0b37b7057eaf42412f834b4e3f1cd00ed4a346381ac2bdd7ddc2fad48619453b3a00868d3423b2e365793bc691be1f7611e3d09c8e883535a1d7f25c2d2f8ee514c"
+      assert {:ok, tx} = Transaction.decode(sig)
+      dbg(tx)
+    end
+  end
 end

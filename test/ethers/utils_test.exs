@@ -83,4 +83,39 @@ defmodule Ethers.UtilsTest do
                    fn -> Ethers.Utils.hex_decode!("0xrubbish") end
     end
   end
+
+  describe "to_checksum_address/1" do
+    test "converts address to checksum form" do
+      assert Ethers.Utils.to_checksum_address("0x90f8bf6a479f320ead074411a4b0e7944ea8c9c1") ==
+               "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1"
+
+      assert Ethers.Utils.to_checksum_address("0x90F8BF6A479F320EAD074411A4B0E7944EA8C9C1") ==
+               "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1"
+    end
+
+    test "works with binary addresses" do
+      bin_address = Ethers.Utils.hex_decode!("0x90f8bf6a479f320ead074411a4b0e7944ea8c9c1")
+
+      assert Ethers.Utils.to_checksum_address(bin_address) ==
+               "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1"
+    end
+  end
+
+  describe "public_key_to_address/2" do
+    @public_key "0x04e68acfc0253a10620dff706b0a1b1f1f5833ea3beb3bde2250d5f271f3563606672ebc45e0b7ea2e816ecb70ca03137b1c9476eec63d4632e990020b7b6fba39"
+    test "converts public_key to address" do
+      assert Ethers.Utils.public_key_to_address(@public_key) ==
+               "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1"
+
+      assert Ethers.Utils.public_key_to_address(@public_key, false) ==
+               "0x90f8bf6a479f320ead074411a4b0e7944ea8c9c1"
+    end
+
+    test "works with binary public_key" do
+      bin_public_key = Ethers.Utils.hex_decode!(@public_key)
+
+      assert Ethers.Utils.public_key_to_address(bin_public_key) ==
+               "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1"
+    end
+  end
 end

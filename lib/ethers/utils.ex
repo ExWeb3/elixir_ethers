@@ -246,6 +246,9 @@ defmodule Ethers.Utils do
   def to_checksum_address("0x" <> address), do: to_checksum_address(address)
   def to_checksum_address("0X" <> address), do: to_checksum_address(address)
 
+  def to_checksum_address(<<address_bin::binary-20>>),
+    do: hex_encode(address_bin) |> to_checksum_address()
+
   def to_checksum_address(address) do
     address = String.downcase(address)
 
@@ -295,33 +298,43 @@ defmodule Ethers.Utils do
       "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1"
   """
   @spec public_key_to_address(Ethers.Types.t_pub_key()) :: Ethers.Types.t_address()
-  def public_key_to_address(<<public_key::binary-64>>) do
-    Ethers.keccak_module().hash_256(public_key)
-    |> :binary.part(32 - 20, 20)
-    |> hex_encode()
-    |> to_checksum_address()
+  def public_key_to_address(public_key, use_checksum_address \\ true)
+
+  def public_key_to_address(<<public_key::binary-64>>, use_checksum_address) do
+    address =
+      Ethers.keccak_module().hash_256(public_key)
+      |> :binary.part(32 - 20, 20)
+      |> hex_encode()
+
+    if use_checksum_address do
+      to_checksum_address(address)
+    else
+      address
+    end
   end
 
-  def public_key_to_address(<<4, public_key::binary-64>>) do
-    public_key_to_address(public_key)
+  def public_key_to_address(<<4, public_key::binary-64>>, use_checksum_address) do
+    public_key_to_address(public_key, use_checksum_address)
   end
 
   unless Code.ensure_loaded?(Ethers.secp256k1_module()) do
-    def public_key_to_address(<<pre, _::binary-32>> = compressed) when pre in [2, 3],
-      do: raise("secp256k1 module not loaded")
+    def public_key_to_address(<<pre, _::binary-32>> = compressed, _use_checksum_address)
+        when pre in [2, 3],
+        do: raise("secp256k1 module not loaded")
   end
 
-  def public_key_to_address(<<pre, _::binary-32>> = compressed) when pre in [2, 3] do
+  def public_key_to_address(<<pre, _::binary-32>> = compressed, use_checksum_address)
+      when pre in [2, 3] do
     case Ethers.secp256k1_module().public_key_decompress(compressed) do
-      {:ok, public_key} -> public_key_to_address(public_key)
+      {:ok, public_key} -> public_key_to_address(public_key, use_checksum_address)
       error -> raise ArgumentError, "Invalid compressed public key #{inspect(error)}"
     end
   end
 
-  def public_key_to_address("0x" <> _ = key) do
+  def public_key_to_address("0x" <> _ = key, use_checksum_address) do
     key
     |> hex_decode!()
-    |> public_key_to_address()
+    |> public_key_to_address(use_checksum_address)
   end
 
   @doc """

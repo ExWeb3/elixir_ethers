@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Enhancements
+
+- Add ERC-165 contract and behaviour
+- Add `skip_docs` option for contract module doc and typespec generation
+
 ## v0.4.3 (2024-04-05)
 
 ### Bug fixes

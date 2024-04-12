@@ -6,6 +6,7 @@
 
 - Add ERC-165 contract and behaviour
 - Add `skip_docs` option for contract module doc and typespec generation
+- Allow skipping checksum address in `Ethers.Utils.public_key_to_address/2`
 
 ## v0.4.3 (2024-04-05)
 

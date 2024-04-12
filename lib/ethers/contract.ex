@@ -35,6 +35,10 @@ defmodule Ethers.Contract do
   - `abi`: Used to pass in the decoded (or even encoded json binay) ABI of contract.
   - `abi_file`: Used to pass in the file path to the json ABI of contract.
   - `default_address`: Default contract deployed address to include in the parameters. (Optional)
+  - `skip_docs`: Determines if Ethers should skip generating docs and typespecs. (Default: false)
+    - `true`: Skip docs and typespecs for all functions.
+    - `false`: Generate docs and typespecs for all functions.
+    - `[{function_name :: atom(), skip_docs :: boolean()}]`: Specify for each function.
   """
 
   require Ethers.ContractHelpers
@@ -79,6 +83,7 @@ defmodule Ethers.Contract do
     {:ok, abi} = read_abi(opts)
     contract_binary = maybe_read_contract_binary(opts)
     default_address = Keyword.get(opts, :default_address)
+    skip_docs = Keyword.get(opts, :skip_docs, false)
 
     function_selectors = ABI.parse_specification(abi, include_events?: true)
 
@@ -100,22 +105,24 @@ defmodule Ethers.Contract do
         }
       end)
 
+    impl_opts = [skip_docs: skip_docs]
+
     constructor_ast =
       function_selectors_with_meta
       |> Enum.find(@default_constructor, &(&1.type == :constructor))
-      |> impl(module)
+      |> impl(module, impl_opts)
 
     functions_ast =
       function_selectors_with_meta
       |> Enum.filter(&(&1.type == :function and not is_nil(&1.function)))
-      |> Enum.map(&impl(&1, module))
+      |> Enum.map(&impl(&1, module, impl_opts))
 
     events_mod_name = Module.concat(module, EventFilters)
 
     events =
       function_selectors_with_meta
       |> Enum.filter(&(&1.type == :event))
-      |> Enum.map(&impl(&1, module))
+      |> Enum.map(&impl(&1, module, impl_opts))
 
     events_module_ast =
       quote context: module do
@@ -132,7 +139,7 @@ defmodule Ethers.Contract do
     error_modules_ast =
       function_selectors_with_meta
       |> Enum.filter(&(&1.type == :error))
-      |> Enum.map(&impl(&1, module))
+      |> Enum.map(&impl(&1, module, impl_opts))
 
     errors_module_impl = errors_impl(function_selectors_with_meta, module)
 
@@ -171,7 +178,7 @@ defmodule Ethers.Contract do
 
   ## Helpers
 
-  defp impl(%{type: :constructor, selectors: [selector]} = abi, mod) do
+  defp impl(%{type: :constructor, selectors: [selector]} = abi, mod, opts) do
     func_args = generate_arguments(mod, abi.arity, selector.input_names)
 
     func_input_types =
@@ -179,16 +186,19 @@ defmodule Ethers.Contract do
       |> Enum.map(&Ethers.Types.to_elixir_type/1)
 
     quote context: mod, location: :keep do
-      @doc """
-      Prepares contract constructor values for deployment.
+      if unquote(generate_docs?(:constructor, opts[:skip_docs])) do
+        @doc """
+        Prepares contract constructor values for deployment.
 
-      To deploy a contracts use `Ethers.deploy/2` and pass the result of this function as
-      `:encoded_constructor` option.
+        To deploy a contracts use `Ethers.deploy/2` and pass the result of this function as
+        `:encoded_constructor` option.
 
-      ## Parameters
-      #{unquote(document_types(selector.types, selector.input_names))}
-      """
-      @spec constructor(unquote_splicing(func_input_types)) :: binary()
+        ## Parameters
+        #{unquote(document_types(selector.types, selector.input_names))}
+        """
+        @spec constructor(unquote_splicing(func_input_types)) :: binary()
+      end
+
       def constructor(unquote_splicing(func_args)) do
         args =
           unquote(func_args)
@@ -202,7 +212,7 @@ defmodule Ethers.Contract do
     end
   end
 
-  defp impl(%{type: :function} = abi, mod) do
+  defp impl(%{type: :function} = abi, mod, opts) do
     name =
       abi.function
       |> Macro.underscore()
@@ -216,16 +226,19 @@ defmodule Ethers.Contract do
     func_input_types = generate_typespecs(abi.selectors)
 
     quote context: mod, location: :keep do
-      @doc """
-      Prepares `#{unquote(human_signature(abi.selectors))}` call parameters on the contract.
+      if unquote(generate_docs?(name, opts[:skip_docs])) do
+        @doc """
+        Prepares `#{unquote(human_signature(abi.selectors))}` call parameters on the contract.
 
-      #{unquote(document_help_message(abi.selectors))}
+        #{unquote(document_help_message(abi.selectors))}
 
-      #{unquote(document_parameters(abi.selectors))}
+        #{unquote(document_parameters(abi.selectors))}
 
-      #{unquote(document_returns(abi.selectors))}
-      """
-      @spec unquote(name)(unquote_splicing(func_input_types)) :: Ethers.TxData.t()
+        #{unquote(document_returns(abi.selectors))}
+        """
+        @spec unquote(name)(unquote_splicing(func_input_types)) :: Ethers.TxData.t()
+      end
+
       def unquote(name)(unquote_splicing(func_args)) do
         {selector, raw_args} =
           find_selector!(unquote(Macro.escape(abi.selectors)), unquote(func_args))
@@ -241,7 +254,7 @@ defmodule Ethers.Contract do
     end
   end
 
-  defp impl(%{type: :event} = abi, mod) do
+  defp impl(%{type: :event} = abi, mod, opts) do
     name =
       abi.function
       |> Macro.underscore()
@@ -254,17 +267,20 @@ defmodule Ethers.Contract do
     func_typespec = generate_event_typespecs(abi.selectors, abi.arity)
 
     quote context: mod, location: :keep do
-      @doc """
-      Create event filter for `#{unquote(human_signature(abi.selectors))}`
+      if unquote(generate_docs?(name, opts[:skip_docs])) do
+        @doc """
+        Create event filter for `#{unquote(human_signature(abi.selectors))}`
 
-      For each indexed parameter you can either pass in the value you want to
-      filter or `nil` if you don't want to filter.
+        For each indexed parameter you can either pass in the value you want to
+        filter or `nil` if you don't want to filter.
 
-      #{unquote(document_parameters(abi.selectors))}
+        #{unquote(document_parameters(abi.selectors))}
 
-      #{unquote(document_returns(abi.selectors))}
-      """
-      @spec unquote(name)(unquote_splicing(func_typespec)) :: Ethers.EventFilter.t()
+        #{unquote(document_returns(abi.selectors))}
+        """
+        @spec unquote(name)(unquote_splicing(func_typespec)) :: Ethers.EventFilter.t()
+      end
+
       def unquote(name)(unquote_splicing(func_args)) do
         {selector, raw_args} =
           find_selector!(unquote(Macro.escape(abi.selectors)), unquote(func_args))
@@ -275,7 +291,7 @@ defmodule Ethers.Contract do
     end
   end
 
-  defp impl(%{type: :error, selectors: [selector_abi]} = abi, mod) do
+  defp impl(%{type: :error, selectors: [selector_abi]} = abi, mod, _opts) do
     error_module = Module.concat([mod, Errors, abi.function])
 
     aggregated_arg_names = aggregate_input_names(abi.selectors)
@@ -345,6 +361,18 @@ defmodule Ethers.Contract do
       end
 
       defp error_mappings, do: unquote(error_mappings)
+    end
+  end
+
+  defp generate_docs?(_name, true = _skip_docs), do: false
+  defp generate_docs?(_name, false = _skip_docs), do: true
+  defp generate_docs?(_name, nil = _skip_docs), do: true
+
+  defp generate_docs?(name, skip_docs) do
+    case Keyword.get(skip_docs, name) do
+      nil -> true
+      false -> true
+      true -> false
     end
   end
 end

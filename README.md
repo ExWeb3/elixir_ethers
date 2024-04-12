@@ -165,6 +165,7 @@ Ethers already includes some of the well-known contract interface standards for 
 Here is a list of them.
 
 - [ERC20](https://hexdocs.pm/ethers/Ethers.Contracts.ERC20.html) - The well know fungible token standard
+- [ERC165](https://hexdocs.pm/ethers/Ethers.Contracts.ERC165.html) - Standard Interface detection
 - [ERC721](https://hexdocs.pm/ethers/Ethers.Contracts.ERC721.html) - Non-Fungible tokens (NFTs) standard
 - [ERC777](https://hexdocs.pm/ethers/Ethers.Contracts.ERC777.html) - Improved fungible token standard
 - [ERC1155](https://hexdocs.pm/ethers/Ethers.Contracts.ERC1155.html) - Multi-Token standard (Fungible, Non-Fungible or Semi-Fungible)

@@ -9,7 +9,7 @@ defmodule Ethers.Contracts.ERC721 do
 
   @behaviour Ethers.Contracts.ERC165
 
-  # Interface ID
+  # ERC-165 Interface ID
   @interface_id Ethers.Utils.hex_decode!("0x80ac58cd")
 
   @impl Ethers.Contracts.ERC165

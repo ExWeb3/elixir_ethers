@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.4.4 (2024-04-17)
 
 ### Enhancements
 

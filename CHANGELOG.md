@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Enhancements
+
+- Add `Ethers.NameService.reverse_resolve/2` to reverse resolve addresses to domains
+
 ## v0.4.4 (2024-04-17)
 
 ### Enhancements

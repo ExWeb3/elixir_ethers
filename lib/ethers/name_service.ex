@@ -55,6 +55,56 @@ defmodule Ethers.NameService do
   end
 
   @doc """
+  Resolves an address to a name on blockchain.
+
+  ## Parameters
+  - address: Address to resolve.
+  - opts: Resolve options.
+    - to: Resolver contract address. Defaults to ENS
+    - Accepts all other Execution options from `Ethers.call/2`.
+
+  ## Examples
+
+  ```elixir
+  Ethers.NameService.reverse_resolve("0xd8da6bf26964af9d7eed9e03e53415d37aa96045")
+  {:ok, "vitalik.eth"}
+  ```
+  """
+  @spec reverse_resolve(Ethers.Types.t_address(), Keyword.t()) ::
+          {:ok, String.t()} | {:error, :domain_not_found | term()}
+  def reverse_resolve(address, opts \\ []) do
+    "0x" <> address_hash = Ethers.Utils.to_checksum_address(address)
+
+    name_hash =
+      address_hash
+      |> Kernel.<>(".addr.reverse")
+      |> name_hash()
+
+    with {:ok, resolver} <- get_resolver(name_hash, opts) do
+      opts = Keyword.put(opts, :to, resolver)
+      Ethers.call(ENS.Resolver.name(name_hash), opts)
+    end
+  end
+
+  @doc """
+  Same as `reverse_resolve/2` but raises on errors.
+
+  ## Examples
+
+  ```elixir
+  Ethers.NameService.reverse_resolve!("0xd8da6bf26964af9d7eed9e03e53415d37aa96045")
+  "vitalik.eth"
+  ```
+  """
+  @spec reverse_resolve!(Ethers.Types.t_address(), Keyword.t()) :: String.t() | no_return
+  def reverse_resolve!(address, opts \\ []) do
+    case reverse_resolve(address, opts) do
+      {:ok, name} -> name
+      {:error, reason} -> raise "Reverse Name Resolution failed: #{inspect(reason)}"
+    end
+  end
+
+  @doc """
   Implementation of namehash function in Elixir.
 
   See https://docs.ens.domains/contract-api-reference/name-processing

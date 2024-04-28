@@ -1,5 +1,11 @@
 # Changelog
 
+## Unrelease
+
+### Breaking Changes
+
+- Rename `NotERC165CompatibleError` to `Errors.NotERC165CompatibleError`
+
 ## v0.4.5 (2024-04-27)
 
 ### Enhancements

@@ -35,7 +35,7 @@ defmodule Ethers.Contracts.ERC165 do
 
   @interface_id Ethers.Utils.hex_decode!("0x01ffc9a7")
 
-  defmodule NotERC165CompatibleError do
+  defmodule Errors.NotERC165CompatibleError do
     defexception [:message]
   end
 
@@ -72,7 +72,7 @@ defmodule Ethers.Contracts.ERC165 do
     supports_interface(module.erc165_interface_id())
   rescue
     UndefinedFunctionError ->
-      reraise NotERC165CompatibleError,
+      reraise __MODULE__.Errors.NotERC165CompatibleError,
               "module #{module} does not implement ERC165 behaviour",
               __STACKTRACE__
   end

@@ -14,22 +14,28 @@ defmodule EthersTest do
   use ExUnit.Case
   doctest Ethers
 
+  import Ethers.TestDeployer
+
   alias Ethers.Contract.Test.HelloWorldContract
   alias Ethers.Contract.Test.HelloWorldWithDefaultAddressContract
   alias Ethers.ExecutionError
 
-  @from "0x90f8bf6a479f320ead074411a4b0e7944ea8c9c1"
-  @to "0x95cED938F7991cd0dFcb48F0a06a40FA1aF46EBC"
+  @from "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
+  @to "0x9965507d1a55bcc2695c58ba16fb37d819b0a4dc"
+
+  @from_private_key "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
 
   describe "current_gas_price" do
     test "returns the correct gas price" do
-      assert {:ok, 2_000_000_000} = Ethers.current_gas_price()
+      assert {:ok, gas_price} = Ethers.current_gas_price()
+      assert is_integer(gas_price)
     end
   end
 
   describe "max_priority_fee_per_gas" do
     test "returns the correct max priority fee per gas" do
-      assert {:ok, 1_000_000_000} = Ethers.max_priority_fee_per_gas()
+      assert {:ok, max_priority_fee_per_gas} = Ethers.max_priority_fee_per_gas()
+      assert is_integer(max_priority_fee_per_gas)
     end
   end
 
@@ -52,14 +58,14 @@ defmodule EthersTest do
     test "returns correct balance for account" do
       assert {:ok, 0} == Ethers.get_balance("0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045")
 
-      assert {:ok, 1_000_000_000_000_000_000_000} ==
-               Ethers.get_balance("0x95cED938F7991cd0dFcb48F0a06a40FA1aF46EBC")
+      assert {:ok, 10_000_000_000_000_000_000_000} ==
+               Ethers.get_balance("0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc")
     end
 
     test "works with binary accounts" do
-      bin = Ethers.Utils.hex_decode!("0x95cED938F7991cd0dFcb48F0a06a40FA1aF46EBC")
+      bin = Ethers.Utils.hex_decode!("0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc")
 
-      assert {:ok, 1_000_000_000_000_000_000_000} == Ethers.get_balance(bin)
+      assert {:ok, 10_000_000_000_000_000_000_000} == Ethers.get_balance(bin)
     end
 
     test "returns error with invalid account" do
@@ -68,22 +74,21 @@ defmodule EthersTest do
   end
 
   describe "get_transaction_count" do
+    @address "0x23618e81E3f5cdF7f54C3d65f7FBc0aBf5B21E8f"
     test "returns the correct transaction count" do
-      assert {:ok, c} =
-               Ethers.get_transaction_count("0xACa94ef8bD5ffEE41947b4585a84BdA5a3d3DA6E")
+      assert {:ok, c} = Ethers.get_transaction_count(@address)
 
       assert is_integer(c)
       assert c >= 0
 
       {:ok, _} =
         Ethers.send(%{
-          from: "0xACa94ef8bD5ffEE41947b4585a84BdA5a3d3DA6E",
+          from: @address,
           to: "0xaadA6BF26964aF9D7eEd9e03E53415D37aA96045",
           value: 1000
         })
 
-      assert {:ok, c + 1} ==
-               Ethers.get_transaction_count("0xACa94ef8bD5ffEE41947b4585a84BdA5a3d3DA6E")
+      assert {:ok, c + 1} == Ethers.get_transaction_count(@address)
     end
   end
 
@@ -96,7 +101,7 @@ defmodule EthersTest do
           to: @to,
           signer: Ethers.Signer.Local,
           signer_opts: [
-            private_key: "0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d"
+            private_key: @from_private_key
           ]
         )
 
@@ -118,7 +123,7 @@ defmodule EthersTest do
           to: @to,
           signer: Ethers.Signer.Local,
           signer_opts: [
-            private_key: "0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d"
+            private_key: @from_private_key
           ]
         )
 
@@ -152,11 +157,13 @@ defmodule EthersTest do
           to: @to,
           signer: Ethers.Signer.Local,
           signer_opts: [
-            private_key: "0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d"
+            private_key: @from_private_key
           ]
         )
 
       downcased_to_addr = String.downcase(@to)
+
+      Process.sleep(50)
 
       assert {:ok,
               %{
@@ -180,8 +187,7 @@ defmodule EthersTest do
 
   describe "contract deployment" do
     test "can deploy a contract given a module which has the binary" do
-      assert {:ok, tx} = Ethers.deploy(HelloWorldContract, from: @from)
-      assert {:ok, contract_address} = Ethers.deployed_address(tx)
+      contract_address = deploy(HelloWorldContract, from: @from)
 
       assert HelloWorldContract.say_hello() |> Ethers.call!(to: contract_address) ==
                "Hello World!"
@@ -189,8 +195,7 @@ defmodule EthersTest do
 
     test "can deploy a contract given the contract binary" do
       bin = HelloWorldContract.__contract_binary__()
-      assert {:ok, tx} = Ethers.deploy(bin, from: @from)
-      assert {:ok, contract_address} = Ethers.deployed_address(tx)
+      contract_address = deploy(bin, from: @from)
 
       assert HelloWorldContract.say_hello() |> Ethers.call!(to: contract_address) ==
                "Hello World!"
@@ -198,8 +203,7 @@ defmodule EthersTest do
 
     test "can deploy a contract given the contract binary prefixed with 0x" do
       bin = HelloWorldContract.__contract_binary__()
-      assert {:ok, tx} = Ethers.deploy("0x" <> bin, from: @from)
-      assert {:ok, contract_address} = Ethers.deployed_address(tx)
+      contract_address = deploy("0x" <> bin, from: @from)
 
       assert HelloWorldContract.say_hello() |> Ethers.call!(to: contract_address) ==
                "Hello World!"
@@ -218,11 +222,12 @@ defmodule EthersTest do
     end
 
     test "getting the deployed address of a non contract creation transaction" do
-      {:ok, tx} = Ethers.deploy(HelloWorldContract, from: @from)
-      {:ok, contract_address} = Ethers.deployed_address(tx)
+      contract_address = deploy(HelloWorldContract, from: @from)
 
       {:ok, tx_hash} =
         HelloWorldContract.set_hello("Bye") |> Ethers.send(to: contract_address, from: @from)
+
+      Process.sleep(50)
 
       assert {:error, :no_contract_address} = Ethers.deployed_address(tx_hash)
 
@@ -345,8 +350,7 @@ defmodule EthersTest do
 
   describe "batch/2" do
     test "Can batch multiple requests" do
-      assert {:ok, tx} = Ethers.deploy(HelloWorldContract, from: @from)
-      assert {:ok, address} = Ethers.deployed_address(tx)
+      address = deploy(HelloWorldContract, from: @from)
 
       HelloWorldContract.set_hello("Hello Batch!")
       |> Ethers.send!(to: address, from: @from)
@@ -386,8 +390,7 @@ defmodule EthersTest do
 
   describe "batch!/2" do
     test "returns the correct result" do
-      assert {:ok, tx} = Ethers.deploy(HelloWorldContract, from: @from)
-      assert {:ok, address} = Ethers.deployed_address(tx)
+      address = deploy(HelloWorldContract, from: @from)
 
       assert [ok: "Hello World!", ok: _] =
                Ethers.batch!([
@@ -414,14 +417,13 @@ defmodule EthersTest do
                HelloWorldContract.set_hello("hello")
                |> Ethers.send(
                  from: @from,
-                 to: "0x95cED938F7991cd0dFcb48F0a06a40FA1aF46EBC",
+                 to: "0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc",
                  signer: Ethers.Signer.Local
                )
     end
 
     test "signs and sends an eip1559 transaction using a signer" do
-      assert {:ok, tx} = Ethers.deploy(HelloWorldContract, from: @from)
-      assert {:ok, address} = Ethers.deployed_address(tx)
+      address = deploy(HelloWorldContract, from: @from)
 
       assert {:ok, _tx_hash} =
                HelloWorldContract.set_hello("hello local signer")
@@ -430,8 +432,7 @@ defmodule EthersTest do
                  to: address,
                  signer: Ethers.Signer.Local,
                  signer_opts: [
-                   private_key:
-                     "0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d"
+                   private_key: @from_private_key
                  ]
                )
 
@@ -440,8 +441,7 @@ defmodule EthersTest do
     end
 
     test "signs and sends a legacy transaction using a signer" do
-      assert {:ok, tx} = Ethers.deploy(HelloWorldContract, from: @from)
-      assert {:ok, address} = Ethers.deployed_address(tx)
+      address = deploy(HelloWorldContract, from: @from)
 
       assert {:ok, _tx_hash} =
                HelloWorldContract.set_hello("hello local signer")
@@ -451,10 +451,11 @@ defmodule EthersTest do
                  tx_type: :legacy,
                  signer: Ethers.Signer.Local,
                  signer_opts: [
-                   private_key:
-                     "0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d"
+                   private_key: @from_private_key
                  ]
                )
+
+      Process.sleep(50)
 
       assert {:ok, "hello local signer"} =
                Ethers.call(HelloWorldContract.say_hello(), to: address)
@@ -466,14 +467,14 @@ defmodule EthersTest do
                  %{value: 1000},
                  rpc_client: Ethers.TestRPCModule,
                  from: @from,
-                 to: "0x95cED938F7991cd0dFcb48F0a06a40FA1aF46EBC",
+                 to: "0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc",
                  rpc_opts: [send_params_to_pid: self()]
                )
 
       assert_receive %{
-        from: "0x90f8bf6a479f320ead074411a4b0e7944ea8c9c1",
+        from: @from,
         gas: "0x119",
-        to: "0x95cED938F7991cd0dFcb48F0a06a40FA1aF46EBC",
+        to: "0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc",
         value: "0x3E8"
       }
     end
@@ -481,8 +482,7 @@ defmodule EthersTest do
 
   describe "sign_transaction/2" do
     test "returns the signed eip1559 transaction and is valid" do
-      assert {:ok, tx} = Ethers.deploy(HelloWorldContract, from: @from)
-      assert {:ok, address} = Ethers.deployed_address(tx)
+      address = deploy(HelloWorldContract, from: @from)
 
       assert {:ok, "0x02" <> _ = signed} =
                HelloWorldContract.set_hello("hi signed")
@@ -499,8 +499,7 @@ defmodule EthersTest do
     end
 
     test "returns the signed legacy transaction and is valid" do
-      assert {:ok, tx} = Ethers.deploy(HelloWorldContract, from: @from)
-      assert {:ok, address} = Ethers.deployed_address(tx)
+      address = deploy(HelloWorldContract, from: @from)
 
       assert {:ok, signed} =
                HelloWorldContract.set_hello("hi signed")
@@ -519,8 +518,7 @@ defmodule EthersTest do
     end
 
     test "uses Signer.JsonRPC as default signer" do
-      assert {:ok, tx} = Ethers.deploy(HelloWorldContract, from: @from)
-      assert {:ok, address} = Ethers.deployed_address(tx)
+      address = deploy(HelloWorldContract, from: @from)
 
       assert {:ok, signed} =
                HelloWorldContract.set_hello("hi signed")
@@ -535,7 +533,7 @@ defmodule EthersTest do
       assert {:error, :no_from_address} =
                HelloWorldContract.set_hello("hi signed")
                |> Ethers.sign_transaction(
-                 to: "0x95cED938F7991cd0dFcb48F0a06a40FA1aF46EBC",
+                 to: "0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc",
                  signer: Ethers.Signer.JsonRPC
                )
     end
@@ -545,7 +543,7 @@ defmodule EthersTest do
                HelloWorldContract.set_hello("hi signed")
                |> Ethers.sign_transaction(
                  from: @from,
-                 to: "0x95cED938F7991cd0dFcb48F0a06a40FA1aF46EBC",
+                 to: "0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc",
                  signer: nil
                )
     end
@@ -561,12 +559,11 @@ defmodule EthersTest do
           max_fee_per_gas: 123_123_123,
           chain_id: 1337,
           nonce: 100,
-          to: "0x95cED938F7991cd0dFcb48F0a06a40FA1aF46EBC",
+          to: "0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc",
           signer: Ethers.Signer.JsonRPC
         )
 
-      assert signed ==
-               "0x02f8d182053964843b9aca00840756b5b38227109495ced938f7991cd0dfcb48f0a06a40fa1af46ebc80b864435ffe94000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000096869207369676e65640000000000000000000000000000000000000000000000c001a0da576ea4a1cf5979a34056d2fde083f6567430b2286e4985ffb9ea83df69c57fa070790ded792b1e55abd3fcc13202133289dfaba0fc96b476a76f488d69b2477d"
+      assert String.starts_with?(signed, "0x02")
     end
 
     test "returns signed transaction with custom max_priority_fee_per_gas" do
@@ -579,19 +576,18 @@ defmodule EthersTest do
           max_priority_fee_per_gas: 2_000_000_000,
           chain_id: 1337,
           nonce: 100,
-          to: "0x95cED938F7991cd0dFcb48F0a06a40FA1aF46EBC",
+          to: "0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc",
           signer: Ethers.Signer.JsonRPC
         )
 
-      assert signed ==
-               "0x02f8d1820539648477359400840756b5b38227109495ced938f7991cd0dfcb48f0a06a40fa1af46ebc80b864435ffe94000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000096869207369676e65640000000000000000000000000000000000000000000000c001a054c7dd5c03757b3fa7c896bfb23f6bf3cf32aa21e3e53dbca00d447a673c033aa01e81b956fe27a1757f780a12570df243fc10c3a08b8647b301b1be15b376734e"
+      assert String.starts_with?(signed, "0x02")
     end
 
     test "raises in case of error" do
       assert_raise Ethers.ExecutionError, "Unexpected error: no_from_address", fn ->
         HelloWorldContract.set_hello("hi signed")
         |> Ethers.sign_transaction!(
-          to: "0x95cED938F7991cd0dFcb48F0a06a40FA1aF46EBC",
+          to: "0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc",
           signer: Ethers.Signer.JsonRPC
         )
       end

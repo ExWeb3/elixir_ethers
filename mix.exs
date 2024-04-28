@@ -102,7 +102,7 @@ defmodule Ethers.MixProject do
       {:dialyxir, "~> 1.3", only: [:dev, :test], runtime: false},
       {:ethereumex, "~> 0.10.6"},
       {:ex_abi, "~> 0.7.0"},
-      {:ex_doc, "~> 0.31.0", only: :dev, runtime: false},
+      {:ex_doc, "~> 0.32", only: :dev, runtime: false},
       {:ex_rlp, "~> 0.6.0"},
       {:ex_secp256k1, "~> 0.7.2", optional: true},
       {:excoveralls, "~> 0.10", only: :test},

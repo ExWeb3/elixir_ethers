@@ -1,10 +1,12 @@
 defmodule Ethers.RevertContractTest do
   use ExUnit.Case
 
+  import Ethers.TestHelpers
+
   alias Ethers.Contract.Test.RevertContract
   alias Ethers.ExecutionError
 
-  @from "0x90f8bf6a479f320ead074411a4b0e7944ea8c9c1"
+  @from "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
 
   setup :deploy_revert_contract
 
@@ -18,7 +20,7 @@ defmodule Ethers.RevertContractTest do
       assert message =~ "success must be true"
 
       assert_raise Ethers.ExecutionError,
-                   "VM Exception while processing transaction: revert success must be true",
+                   "execution reverted: revert: success must be true",
                    fn ->
                      RevertContract.get(false) |> Ethers.call!(to: address, from: @from)
                    end
@@ -54,15 +56,8 @@ defmodule Ethers.RevertContractTest do
   end
 
   defp deploy_revert_contract(_ctx) do
-    encoded_constructor = RevertContract.constructor()
-
-    assert {:ok, tx_hash} =
-             Ethers.deploy(RevertContract,
-               encoded_constructor: encoded_constructor,
-               from: @from
-             )
-
-    assert {:ok, address} = Ethers.deployed_address(tx_hash)
+    address =
+      deploy(RevertContract, encoded_constructor: RevertContract.constructor(), from: @from)
 
     [address: address]
   end

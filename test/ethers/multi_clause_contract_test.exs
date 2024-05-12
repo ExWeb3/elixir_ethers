@@ -6,11 +6,12 @@ end
 defmodule Ethers.MultiClauseContractTest do
   use ExUnit.Case
 
+  import Ethers.Types, only: [typed: 2]
+  import Ethers.TestHelpers
+
   alias Ethers.Contract.Test.MultiClauseContract
 
-  import Ethers.Types, only: [typed: 2]
-
-  @from "0x90f8bf6a479f320ead074411a4b0e7944ea8c9c1"
+  @from "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
 
   setup :deploy_multi_clause_contract
 
@@ -54,6 +55,7 @@ defmodule Ethers.MultiClauseContractTest do
     test "listens on the right event", %{address: address} do
       MultiClauseContract.emit_event(typed({:uint, 256}, 10))
       |> Ethers.send!(to: address, from: @from)
+      |> wait_for_transaction!()
 
       uint_filter = MultiClauseContract.EventFilters.multi_event(typed({:uint, 256}, 10))
 
@@ -62,6 +64,7 @@ defmodule Ethers.MultiClauseContractTest do
 
       MultiClauseContract.emit_event(typed({:int, 256}, -20))
       |> Ethers.send!(to: address, from: @from)
+      |> wait_for_transaction!()
 
       int_filter = MultiClauseContract.EventFilters.multi_event(typed({:int, 256}, -20))
 
@@ -70,6 +73,7 @@ defmodule Ethers.MultiClauseContractTest do
 
       MultiClauseContract.emit_event("Hello")
       |> Ethers.send!(to: address, from: @from)
+      |> wait_for_transaction!()
 
       string_filter = MultiClauseContract.EventFilters.multi_event(typed(:string, "Hello"))
 
@@ -84,6 +88,7 @@ defmodule Ethers.MultiClauseContractTest do
     test "listens on the right event with nil values", %{address: address} do
       MultiClauseContract.emit_event(typed({:uint, 256}, 10))
       |> Ethers.send!(to: address, from: @from)
+      |> wait_for_transaction!()
 
       uint_filter = MultiClauseContract.EventFilters.multi_event(typed({:uint, 256}, nil))
 
@@ -92,6 +97,7 @@ defmodule Ethers.MultiClauseContractTest do
 
       MultiClauseContract.emit_event(typed({:int, 256}, -20))
       |> Ethers.send!(to: address, from: @from)
+      |> wait_for_transaction!()
 
       int_filter = MultiClauseContract.EventFilters.multi_event(typed({:int, 256}, nil))
 
@@ -125,13 +131,7 @@ defmodule Ethers.MultiClauseContractTest do
   defp deploy_multi_clause_contract(_ctx) do
     encoded_constructor = MultiClauseContract.constructor()
 
-    assert {:ok, tx_hash} =
-             Ethers.deploy(MultiClauseContract,
-               encoded_constructor: encoded_constructor,
-               from: @from
-             )
-
-    assert {:ok, address} = Ethers.deployed_address(tx_hash)
+    address = deploy(MultiClauseContract, encoded_constructor: encoded_constructor, from: @from)
 
     [address: address]
   end

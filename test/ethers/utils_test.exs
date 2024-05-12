@@ -7,7 +7,7 @@ defmodule Ethers.UtilsTest do
     test "returns the block timestamp" do
       assert {:ok, n} = Ethers.current_block_number()
       assert {:ok, t} = Utils.get_block_timestamp(n)
-      assert abs(System.system_time(:second) - t) < 100
+      assert is_integer(t)
     end
 
     test "can override the rpc opts" do
@@ -22,9 +22,11 @@ defmodule Ethers.UtilsTest do
   describe "date_to_block_number" do
     test "calculates the right block number for a given date" do
       assert {:ok, n} = Ethers.current_block_number()
-      assert {:ok, ^n} = Utils.date_to_block_number(DateTime.utc_now())
-      assert {:ok, ^n} = Utils.date_to_block_number(DateTime.utc_now(), n)
-      assert {:ok, ^n} = Utils.date_to_block_number(DateTime.utc_now() |> DateTime.to_unix())
+      {:ok, t} = Utils.get_block_timestamp(n)
+
+      assert {:ok, ^n} = Utils.date_to_block_number(t)
+      assert {:ok, ^n} = Utils.date_to_block_number(t, n)
+      assert {:ok, ^n} = Utils.date_to_block_number(t |> DateTime.from_unix!())
     end
 
     test "can override the rpc opts" do

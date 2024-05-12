@@ -14,7 +14,7 @@ defmodule EthersTest do
   use ExUnit.Case
   doctest Ethers
 
-  import Ethers.TestDeployer
+  import Ethers.TestHelpers
 
   alias Ethers.Contract.Test.HelloWorldContract
   alias Ethers.Contract.Test.HelloWorldWithDefaultAddressContract
@@ -81,12 +81,12 @@ defmodule EthersTest do
       assert is_integer(c)
       assert c >= 0
 
-      {:ok, _} =
-        Ethers.send(%{
-          from: @address,
-          to: "0xaadA6BF26964aF9D7eEd9e03E53415D37aA96045",
-          value: 1000
-        })
+      Ethers.send!(%{
+        from: @address,
+        to: "0xaadA6BF26964aF9D7eEd9e03E53415D37aA96045",
+        value: 1000
+      })
+      |> wait_for_transaction!()
 
       assert {:ok, c + 1} == Ethers.get_transaction_count(@address)
     end
@@ -354,6 +354,7 @@ defmodule EthersTest do
 
       HelloWorldContract.set_hello("Hello Batch!")
       |> Ethers.send!(to: address, from: @from)
+      |> wait_for_transaction!()
 
       assert {:ok, results} =
                Ethers.batch([
@@ -425,7 +426,7 @@ defmodule EthersTest do
     test "signs and sends an eip1559 transaction using a signer" do
       address = deploy(HelloWorldContract, from: @from)
 
-      assert {:ok, _tx_hash} =
+      assert {:ok, tx_hash} =
                HelloWorldContract.set_hello("hello local signer")
                |> Ethers.send(
                  from: @from,
@@ -435,6 +436,8 @@ defmodule EthersTest do
                    private_key: @from_private_key
                  ]
                )
+
+      wait_for_transaction!(tx_hash)
 
       assert {:ok, "hello local signer"} =
                Ethers.call(HelloWorldContract.say_hello(), to: address)
@@ -493,7 +496,8 @@ defmodule EthersTest do
                  tx_type: :eip1559
                )
 
-      assert {:ok, _tx_hash} = Ethers.send(signed)
+      assert {:ok, tx_hash} = Ethers.send(signed)
+      wait_for_transaction!(tx_hash)
 
       assert {:ok, "hi signed"} = Ethers.call(HelloWorldContract.say_hello(), to: address)
     end
@@ -512,7 +516,8 @@ defmodule EthersTest do
 
       refute String.starts_with?(signed, "0x02")
 
-      assert {:ok, _tx_hash} = Ethers.rpc_client().eth_send_raw_transaction(signed)
+      assert {:ok, tx_hash} = Ethers.rpc_client().eth_send_raw_transaction(signed)
+      wait_for_transaction!(tx_hash)
 
       assert {:ok, "hi signed"} = Ethers.call(HelloWorldContract.say_hello(), to: address)
     end
@@ -524,7 +529,8 @@ defmodule EthersTest do
                HelloWorldContract.set_hello("hi signed")
                |> Ethers.sign_transaction(from: @from, to: address)
 
-      assert {:ok, _tx_hash} = Ethers.rpc_client().eth_send_raw_transaction(signed)
+      assert {:ok, tx_hash} = Ethers.rpc_client().eth_send_raw_transaction(signed)
+      wait_for_transaction!(tx_hash)
 
       assert {:ok, "hi signed"} = Ethers.call(HelloWorldContract.say_hello(), to: address)
     end

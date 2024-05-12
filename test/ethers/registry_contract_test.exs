@@ -7,25 +7,29 @@ defmodule Ethers.RegistryContractTest do
   use ExUnit.Case
   doctest Ethers.Contract
 
+  import Ethers.TestHelpers
+
   alias Ethers.Contract.Test.RegistryContract
 
-  @from "0x90f8bf6a479f320ead074411a4b0e7944ea8c9c1"
-  @from1 "0xFFcf8FDEE72ac11b5c542428B35EEF5769C409f0"
-  @from2 "0x22d491Bde2303f2f43325b2108D26f1eAbA1e32b"
+  @from "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
+  @from1 "0x70997970C51812dc3A010C7d01b50e0d17dc79C8"
+  @from2 "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC"
 
   setup :deploy_registry_contract
 
   describe "can send and receive structs" do
     test "can send transaction with structs", %{address: address} do
-      {:ok, _tx_hash} =
-        RegistryContract.register({"alisina", 27}) |> Ethers.send(from: @from, to: address)
+      RegistryContract.register({"alisina", 27})
+      |> Ethers.send!(from: @from, to: address)
+      |> wait_for_transaction!()
     end
 
     test "can call functions returning structs", %{address: address} do
       {:ok, {"", 0}} = RegistryContract.info(@from) |> Ethers.call(to: address)
 
-      {:ok, _tx_hash} =
-        RegistryContract.register({"alisina", 27}) |> Ethers.send(from: @from, to: address)
+      RegistryContract.register({"alisina", 27})
+      |> Ethers.send!(from: @from, to: address)
+      |> wait_for_transaction!()
 
       {:ok, {"alisina", 27}} = RegistryContract.info(@from) |> Ethers.call(to: address)
     end
@@ -33,22 +37,26 @@ defmodule Ethers.RegistryContractTest do
 
   describe "can handle tuples and arrays" do
     test "can call functions returning array of structs", %{address: address} do
-      {:ok, _tx_hash} =
-        RegistryContract.register({"alisina", 27}) |> Ethers.send(from: @from, to: address)
+      RegistryContract.register({"alisina", 27})
+      |> Ethers.send!(from: @from, to: address)
+      |> wait_for_transaction!()
 
-      {:ok, _tx_hash} =
-        RegistryContract.register({"bob", 13}) |> Ethers.send(from: @from1, to: address)
+      RegistryContract.register({"bob", 13})
+      |> Ethers.send!(from: @from1, to: address)
+      |> wait_for_transaction!()
 
-      {:ok, _tx_hash} =
-        RegistryContract.register({"blaze", 37}) |> Ethers.send(from: @from2, to: address)
+      RegistryContract.register({"blaze", 37})
+      |> Ethers.send!(from: @from2, to: address)
+      |> wait_for_transaction!()
 
       {:ok, [{"alisina", 27}, {"bob", 13}, {"blaze", 37}]} =
         RegistryContract.info_many([@from, @from1, @from2]) |> Ethers.call(to: address)
     end
 
     test "can call functions returning tuple", %{address: address} do
-      {:ok, _tx_hash} =
-        RegistryContract.register({"alisina", 27}) |> Ethers.send(from: @from, to: address)
+      RegistryContract.register({"alisina", 27})
+      |> Ethers.send!(from: @from, to: address)
+      |> wait_for_transaction!()
 
       {:ok, ["alisina", 27]} = RegistryContract.info_as_tuple(@from) |> Ethers.call(to: address)
     end
@@ -56,8 +64,9 @@ defmodule Ethers.RegistryContractTest do
 
   describe "event filters" do
     test "can create event filters and fetch register events", %{address: address} do
-      {:ok, _tx_hash} =
-        RegistryContract.register({"alisina", 27}) |> Ethers.send(from: @from, to: address)
+      RegistryContract.register({"alisina", 27})
+      |> Ethers.send!(from: @from, to: address)
+      |> wait_for_transaction!()
 
       empty_filter = RegistryContract.EventFilters.registered(nil)
       search_filter = RegistryContract.EventFilters.registered(@from)
@@ -70,8 +79,9 @@ defmodule Ethers.RegistryContractTest do
     end
 
     test "does not return any events for a non existing contract", %{address: address} do
-      {:ok, _tx_hash} =
-        RegistryContract.register({"alisina", 27}) |> Ethers.send(from: @from, to: address)
+      RegistryContract.register({"alisina", 27})
+      |> Ethers.send!(from: @from, to: address)
+      |> wait_for_transaction!()
 
       empty_filter = RegistryContract.EventFilters.registered(nil)
 
@@ -83,15 +93,7 @@ defmodule Ethers.RegistryContractTest do
   end
 
   defp deploy_registry_contract(_ctx) do
-    encoded_constructor = RegistryContract.constructor()
-
-    assert {:ok, tx_hash} =
-             Ethers.deploy(RegistryContract,
-               encoded_constructor: encoded_constructor,
-               from: @from
-             )
-
-    assert {:ok, address} = Ethers.deployed_address(tx_hash)
+    address = deploy(RegistryContract, constructor: RegistryContract.constructor(), from: @from)
 
     [address: address]
   end

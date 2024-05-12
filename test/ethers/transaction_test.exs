@@ -8,7 +8,7 @@ defmodule Ethers.TransactionTest do
     chain_id: "0x539",
     nonce: "0x516",
     gas: "0x5d30",
-    from: "0x90f8bf6a479f320ead074411a4b0e7944ea8c9c1",
+    from: "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
     to: "0x95ced938f7991cd0dfcb48f0a06a40fa1af46ebc",
     value: "0x0",
     data:
@@ -35,7 +35,7 @@ defmodule Ethers.TransactionTest do
                value: 0,
                to: "0x95ced938f7991cd0dfcb48f0a06a40fa1af46ebc",
                hash: "0xdc78c7e7ea3a5980f732e466daf1fdc4f009e973530d7e84f0b2012f1ff2cfc7",
-               from: "0x90f8bf6a479f320ead074411a4b0e7944ea8c9c1",
+               from: "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
                gas: 23_856,
                block_number: 1429,
                gas_price: 8,
@@ -67,7 +67,7 @@ defmodule Ethers.TransactionTest do
       transaction = %Ethers.Transaction{
         type: :eip1559,
         chain_id: "0x00539",
-        from: "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1",
+        from: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
         to: "0x00008FDEE72ac11b5c542428B35EEF5769C409f0",
         nonce: "0x1",
         gas: "0x1234",
@@ -86,7 +86,7 @@ defmodule Ethers.TransactionTest do
       transaction = %Ethers.Transaction{
         type: :eip1559,
         chain_id: "0x00539",
-        from: "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1",
+        from: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
         to: "0x00008FDEE72ac11b5c542428B35EEF5769C409f0",
         nonce: "0x1",
         gas: "0x1234",

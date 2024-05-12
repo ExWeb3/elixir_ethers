@@ -18,7 +18,7 @@ jobs:
   test:
     name: Test - Lint - Dialyze
 
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
 
     env:
       MIX_ENV: test
@@ -26,8 +26,19 @@ jobs:
 
     strategy:
       matrix:
-        otp: ['25.x', '26.x']
-        elixir: ['1.15', '1.16']
+        variation:
+          - otp: '26.x'
+            elixir: '1.16'
+            report_coverage: true
+          - otp: '26.x'
+            elixir: '1.15'
+            report_coverage: false
+          - otp: '25.x'
+            elixir: '1.16'
+            report_coverage: false
+          - otp: '25.x'
+            elixir: '1.15'
+            report_coverage: false
 
     steps:
     - uses: actions/checkout@v3
@@ -35,21 +46,17 @@ jobs:
     - name: Set up Elixir
       uses: erlef/setup-beam@v1
       with:
-        otp-version: ${{matrix.otp}}
-        elixir-version: ${{matrix.elixir}}
-
-    - uses: actions/setup-node@v3
-      with:
-        node-version: 16
-
-    - name: Install Ganache
-      run: npm install -g ganache
+        otp-version: ${{matrix.variation.otp}}
+        elixir-version: ${{matrix.variation.elixir}}
 
     - name: Install Solidity
       run: |
         sudo add-apt-repository ppa:ethereum/ethereum
         sudo apt-get update
         sudo apt-get install solc
+
+    - name: Install Foundry
+      uses: foundry-rs/foundry-toolchain@v1
 
     - name: Restore dependencies cache
       uses: actions/cache@v3
@@ -61,14 +68,19 @@ jobs:
     - name: Install dependencies
       run: mix deps.get
 
-    - name: Start Ganache (Background)
-      run: ganache --wallet.deterministic &
+    - name: Start Anvil (Background)
+      run: anvil &
 
     - name: Prepare for tests
       run: elixir test/test_prepare.exs
 
-    - name: Run tests
+    - name: Run tests and report coverage
+      if: ${{matrix.variation.report_coverage}}
       run: mix coveralls.github
+
+    - name: Run tests
+      if: ${{!matrix.variation.report_coverage}}
+      run: mix coveralls
 
     - name: Credo
       run: mix credo --strict

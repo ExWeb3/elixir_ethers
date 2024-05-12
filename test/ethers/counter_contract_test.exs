@@ -7,11 +7,13 @@ defmodule Ethers.CounterContractTest do
   use ExUnit.Case
   doctest Ethers.Contract
 
+  import Ethers.TestHelpers
+
   alias Ethers.Event
 
   alias Ethers.Contract.Test.CounterContract
 
-  @from "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1"
+  @from "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
 
   describe "contract deployment" do
     test "Can deploy a contract on blockchain" do
@@ -22,6 +24,8 @@ defmodule Ethers.CounterContractTest do
                  encoded_constructor: encoded_constructor,
                  from: @from
                )
+
+      wait_for_transaction!(tx_hash)
 
       assert {:ok, _address} = Ethers.deployed_address(tx_hash)
     end
@@ -58,7 +62,7 @@ defmodule Ethers.CounterContractTest do
 
       tx_data_with_default_address = %{tx_data | default_address: @from}
 
-      assert ~s'#Ethers.TxData<function get() view returns (uint256 amount)\n  default_address: "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1">' ==
+      assert ~s'#Ethers.TxData<function get() view returns (uint256 amount)\n  default_address: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266">' ==
                inspect(tx_data_with_default_address)
     end
   end
@@ -89,7 +93,7 @@ defmodule Ethers.CounterContractTest do
 
       filter_with_default_address = %{filter | default_address: @from}
 
-      assert ~s'#Ethers.EventFilter<event SetCalled(uint256 indexed oldAmount 101, uint256 newAmount)\n  default_address: "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1">' ==
+      assert ~s'#Ethers.EventFilter<event SetCalled(uint256 indexed oldAmount 101, uint256 newAmount)\n  default_address: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266">' ==
                inspect(filter_with_default_address)
     end
   end
@@ -120,7 +124,8 @@ defmodule Ethers.CounterContractTest do
     end
 
     test "sending transaction with state mutating functions", %{address: address} do
-      {:ok, _tx_hash} = CounterContract.set(101) |> Ethers.send(from: @from, to: address)
+      {:ok, tx_hash} = CounterContract.set(101) |> Ethers.send(from: @from, to: address)
+      wait_for_transaction!(tx_hash)
 
       {:ok, 101} = CounterContract.get() |> Ethers.call(to: address)
     end
@@ -128,7 +133,9 @@ defmodule Ethers.CounterContractTest do
     test "sending transaction with state mutating functions using bang functions", %{
       address: address
     } do
-      _tx_hash = CounterContract.set(101) |> Ethers.send!(from: @from, to: address)
+      tx_hash = CounterContract.set(101) |> Ethers.send!(from: @from, to: address)
+
+      wait_for_transaction!(tx_hash)
 
       assert 101 == CounterContract.get() |> Ethers.call!(to: address)
     end
@@ -198,7 +205,9 @@ defmodule Ethers.CounterContractTest do
     setup :deploy_counter_contract
 
     test "can get the emitted event with the correct filter", %{address: address} do
-      {:ok, _tx_hash} = CounterContract.set(101) |> Ethers.send(from: @from, to: address)
+      {:ok, tx_hash} = CounterContract.set(101) |> Ethers.send(from: @from, to: address)
+
+      wait_for_transaction!(tx_hash)
 
       assert open_filter = CounterContract.EventFilters.set_called(nil)
       assert correct_filter = CounterContract.EventFilters.set_called(100)
@@ -219,6 +228,8 @@ defmodule Ethers.CounterContractTest do
 
     test "cat get the emitted events with get_logs! function", %{address: address} do
       {:ok, tx_hash} = CounterContract.set(101) |> Ethers.send(from: @from, to: address)
+
+      wait_for_transaction!(tx_hash)
 
       assert filter = CounterContract.EventFilters.set_called(nil)
 
@@ -246,7 +257,9 @@ defmodule Ethers.CounterContractTest do
     end
 
     test "can filter logs with fromBlock and toBlock options", %{address: address} do
-      {:ok, _tx_hash} = CounterContract.set(101) |> Ethers.send(from: @from, to: address)
+      {:ok, tx_hash} = CounterContract.set(101) |> Ethers.send(from: @from, to: address)
+
+      wait_for_transaction!(tx_hash)
 
       assert filter = CounterContract.EventFilters.set_called(nil)
 
@@ -264,15 +277,23 @@ defmodule Ethers.CounterContractTest do
     setup :deploy_counter_contract
 
     test "can call a view function on a previous block", %{address: address} do
-      {:ok, _tx_hash} = CounterContract.set(101) |> Ethers.send(from: @from, to: address)
-      {:ok, block_1} = Ethereumex.HttpClient.eth_block_number()
+      CounterContract.set(101)
+      |> Ethers.send!(from: @from, to: address)
+      |> wait_for_transaction!()
 
-      {:ok, _tx_hash} = CounterContract.set(102) |> Ethers.send(from: @from, to: address)
+      {:ok, block_1} = Ethers.current_block_number()
+
+      CounterContract.set(102)
+      |> Ethers.send!(from: @from, to: address)
+      |> wait_for_transaction!()
+
       {:ok, block_2} = Ethers.current_block_number()
 
       assert is_integer(block_2)
 
-      {:ok, _tx_hash} = CounterContract.set(103) |> Ethers.send(from: @from, to: address)
+      CounterContract.set(103)
+      |> Ethers.send!(from: @from, to: address)
+      |> wait_for_transaction!()
 
       assert CounterContract.get() |> Ethers.call!(to: address, block: "latest") == 103
       assert CounterContract.get() |> Ethers.call!(to: address, block: block_2) == 102
@@ -283,10 +304,7 @@ defmodule Ethers.CounterContractTest do
   defp deploy_counter_contract(_ctx) do
     encoded_constructor = CounterContract.constructor(100)
 
-    assert {:ok, tx_hash} =
-             Ethers.deploy(CounterContract, encoded_constructor: encoded_constructor, from: @from)
-
-    assert {:ok, address} = Ethers.deployed_address(tx_hash)
+    address = deploy(CounterContract, encoded_constructor: encoded_constructor, from: @from)
 
     [address: address]
   end

@@ -6,9 +6,11 @@ end
 defmodule Ethers.EventMixedIndexContractTest do
   use ExUnit.Case
 
+  import Ethers.TestHelpers
+
   alias Ethers.Contract.Test.EventMixedIndexContract
 
-  @from "0x90f8bf6a479f320ead074411a4b0e7944ea8c9c1"
+  @from "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
 
   describe "event filters" do
     test "works with mixed indexed events" do
@@ -28,8 +30,8 @@ defmodule Ethers.EventMixedIndexContractTest do
                },
                topics: [
                  "0x0f1459b71050cedb12633644ebaa16569e1bb49626ab8a0f4c7d1cf0d574abe7",
-                 "0x00000000000000000000000090f8bf6a479f320ead074411a4b0e7944ea8c9c1",
-                 "0x00000000000000000000000090f8bf6a479f320ead074411a4b0e7944ea8c9c1"
+                 "0x000000000000000000000000f39fd6e51aad88f6f4ce6ab8827279cfffb92266",
+                 "0x000000000000000000000000f39fd6e51aad88f6f4ce6ab8827279cfffb92266"
                ],
                default_address: nil
              } == EventMixedIndexContract.EventFilters.transfer(@from, @from)
@@ -44,10 +46,13 @@ defmodule Ethers.EventMixedIndexContractTest do
                  from: @from
                )
 
+      wait_for_transaction!(tx_hash)
+
       assert {:ok, address} = Ethers.deployed_address(tx_hash)
 
       EventMixedIndexContract.transfer(100, @from, true, @from)
       |> Ethers.send!(to: address, from: @from)
+      |> wait_for_transaction!()
 
       filter = EventMixedIndexContract.EventFilters.transfer(@from, @from)
 
@@ -61,8 +66,8 @@ defmodule Ethers.EventMixedIndexContractTest do
                  transaction_index: 0,
                  topics_raw: [
                    "0x0f1459b71050cedb12633644ebaa16569e1bb49626ab8a0f4c7d1cf0d574abe7",
-                   "0x00000000000000000000000090f8bf6a479f320ead074411a4b0e7944ea8c9c1",
-                   "0x00000000000000000000000090f8bf6a479f320ead074411a4b0e7944ea8c9c1"
+                   "0x000000000000000000000000f39fd6e51aad88f6f4ce6ab8827279cfffb92266",
+                   "0x000000000000000000000000f39fd6e51aad88f6f4ce6ab8827279cfffb92266"
                  ],
                  data_raw:
                    "0x00000000000000000000000000000000000000000000000000000000000000640000000000000000000000000000000000000000000000000000000000000001"

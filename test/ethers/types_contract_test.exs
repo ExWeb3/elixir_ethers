@@ -7,9 +7,11 @@ defmodule Ethers.TypesContractTest do
   use ExUnit.Case
   doctest Ethers.Contract
 
+  import Ethers.TestHelpers
+
   alias Ethers.Contract.Test.TypesContract
 
-  @from "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1"
+  @from "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
   @sample_address "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
 
   setup_all :deploy_types_contract
@@ -91,12 +93,7 @@ defmodule Ethers.TypesContractTest do
   end
 
   defp deploy_types_contract(_ctx) do
-    encoded_constructor = TypesContract.constructor()
-
-    assert {:ok, tx_hash} =
-             Ethers.deploy(TypesContract, encoded_constructor: encoded_constructor, from: @from)
-
-    assert {:ok, address} = Ethers.deployed_address(tx_hash)
+    address = deploy(TypesContract, encoded_constructor: TypesContract.constructor(), from: @from)
 
     [address: address]
   end

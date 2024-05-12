@@ -7,9 +7,11 @@ defmodule Ethers.OwnerContractTest do
   use ExUnit.Case
   doctest Ethers.Contract
 
+  import Ethers.TestHelpers
+
   alias Ethers.Contract.Test.OwnerContract
 
-  @from "0x90f8bf6a479f320ead074411a4b0e7944ea8c9c1"
+  @from "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
   @sample_address "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
 
   test "can deploy and get owner" do
@@ -17,6 +19,8 @@ defmodule Ethers.OwnerContractTest do
 
     assert {:ok, tx_hash} =
              Ethers.deploy(OwnerContract, encoded_constructor: encoded_constructor, from: @from)
+
+    wait_for_transaction!(tx_hash)
 
     assert {:ok, address} = Ethers.deployed_address(tx_hash)
 
@@ -40,6 +44,8 @@ defmodule Ethers.OwnerContractTest do
 
       assert {:ok, tx_hash} =
                Ethers.deploy(OwnerContract, encoded_constructor: encoded_constructor, from: @from)
+
+      wait_for_transaction!(tx_hash)
 
       assert {:ok, address} = Ethers.deployed_address(tx_hash)
 

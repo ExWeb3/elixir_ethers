@@ -6,9 +6,11 @@ end
 defmodule Ethers.MultiArityContractTest do
   use ExUnit.Case
 
+  import Ethers.TestHelpers
+
   alias Ethers.Contract.Test.MultiArityContract
 
-  @from "0x90f8bf6a479f320ead074411a4b0e7944ea8c9c1"
+  @from "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
 
   describe "next function" do
     test "can override RPC client" do
@@ -19,6 +21,8 @@ defmodule Ethers.MultiArityContractTest do
                  encoded_constructor: encoded_constructor,
                  from: @from
                )
+
+      wait_for_transaction!(tx_hash)
 
       assert {:ok, address} = Ethers.deployed_address(tx_hash)
 

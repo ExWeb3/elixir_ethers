@@ -292,11 +292,11 @@ brew install ethereum
 npm install -g solc
 ```
 
-- Run [ganache](https://github.com/trufflesuite/ganache).
-  After installing ganache, just run the following in a new window
+- Run [anvil (from foundry)](https://book.getfoundry.sh/getting-started/installation).
+  After installing anvil, just run the following in a new window
 
 ```
-> ganache --wallet.deterministic
+> anvil
 ```
 
 Then you should be able to run tests through `mix test`.

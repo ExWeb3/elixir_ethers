@@ -6,6 +6,10 @@
 
 - Rename `NotERC165CompatibleError` to `Errors.NotERC165CompatibleError`
 
+### Bug fixes
+
+- Handle unexpected errors in ExecutionError exceptions
+
 ## v0.4.5 (2024-04-27)
 
 ### Enhancements

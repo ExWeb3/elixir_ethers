@@ -4,8 +4,8 @@ defmodule Ethers.ExecutionError do
 
   The Exception struct will have these values:
 
-  - `message`: A string message regarding the exception.
-  - `evm_error`: Usually a map containing the error detail returned as is by the RPC server.
+  - `message`: Human readable error message
+  - `evm_error`: A custom error from the contract. (An Error Struct)
   """
 
   defexception [:message, :evm_error]
@@ -18,14 +18,16 @@ defmodule Ethers.ExecutionError do
     }
   end
 
-  def exception(error) when is_exception(error),
-    do: error
-
-  def exception(error) when is_atom(error) or is_binary(error) do
-    %__MODULE__{message: "Unexpected error: #{error}"}
-  end
+  def exception(error) when is_exception(error), do: error
 
   def exception(error) when is_struct(error) do
     %__MODULE__{message: inspect(error), evm_error: error}
   end
+
+  def exception(error) do
+    %__MODULE__{message: "Unexpected error: #{maybe_inspect_error(error)}"}
+  end
+
+  defp maybe_inspect_error(error) when is_atom(error), do: Atom.to_string(error)
+  defp maybe_inspect_error(error), do: inspect(error)
 end

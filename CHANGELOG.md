@@ -1,6 +1,6 @@
 # Changelog
 
-## Unrelease
+## v0.5.0 (2024-05-29)
 
 ### Breaking Changes
 

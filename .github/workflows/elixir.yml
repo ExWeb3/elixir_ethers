@@ -27,17 +27,18 @@ jobs:
     strategy:
       matrix:
         variation:
-          - otp: '26.x'
-            elixir: '1.16'
+          - otp: '27.x'
+            elixir: '1.17'
             report_coverage: true
+          # No OTP-27 and Elixir 1.16.x support
           - otp: '26.x'
-            elixir: '1.15'
+            elixir: '1.17'
             report_coverage: false
-          - otp: '25.x'
+          - otp: '26.x'
             elixir: '1.16'
             report_coverage: false
           - otp: '25.x'
-            elixir: '1.15'
+            elixir: '1.16'
             report_coverage: false
 
     steps:

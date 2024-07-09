@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Enhancements
+
+- Mark `ex_keccak` as optional using SKIP_EX_KECCAK environment variable
+
 ## v0.5.0 (2024-05-29)
 
 ### Breaking Changes

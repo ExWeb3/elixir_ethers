@@ -278,6 +278,21 @@ MyERC20Token.transfer("0x[Recipient]", 1000)
 )
 ```
 
+## Switching the ex_keccak library
+
+`ex_keccak` is a Rustler NIF that brings keccak256 hashing to elixir.
+It is the default used library in `ex_abi` and `ethers`. If for some reason you need to use a
+different library (e.g. target does not support rustler) you can use the Application config value
+and on top of that set the environment variable `SKIP_EX_KECCAK=true` so ex_keccak is marked as
+optional in hex dependencies.
+
+```elixir
+# config.exs
+config :ethers, keccak_module: MyKeccakModule
+
+# Also make sure to set SKIP_EX_KECCAK=true when fetching dependencies and building them
+```
+
 ## Contributing
 
 All contributions are very welcome (as simple as fixing typos). Please feel free to open issues and

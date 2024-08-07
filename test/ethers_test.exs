@@ -599,4 +599,18 @@ defmodule EthersTest do
       end
     end
   end
+
+  describe "call/2" do
+    test "works without selector (raw call)" do
+      address = deploy(HelloWorldContract, from: @from)
+
+      tx_data = HelloWorldContract.say_hello()
+
+      assert {:ok,
+              "0x000000000000000000000000000000000000000000000000000000000000002000000000000" <>
+                "0000000000000000000000000000000000000000000000000000c48656c6c6f20576f726c642100" <>
+                "00000000000000000000000000000000000000"} =
+               Ethers.call(%{data: tx_data.data}, to: address)
+    end
+  end
 end

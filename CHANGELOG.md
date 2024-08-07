@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Enhancements
+
+- Enable raw use of `Ethers.call/2` (usage without function selector)
+
 ## v0.5.1 (2024-08-02)
 
 ### Enhancements

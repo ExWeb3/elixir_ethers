@@ -667,15 +667,20 @@ defmodule Ethers do
 
   defp pre_process(data, [], _action, _opts), do: {:ok, data}
 
-  defp post_process({:ok, resp}, tx_data, :call) when valid_result(resp) do
-    tx_data.selector
+  defp post_process({:ok, resp}, %{selector: selector}, :call) when valid_result(resp) do
+    selector
     |> ABI.decode(Ethers.Utils.hex_decode!(resp), :output)
-    |> Enum.zip(tx_data.selector.returns)
+    |> Enum.zip(selector.returns)
     |> Enum.map(fn {return, type} -> Utils.human_arg(return, type) end)
     |> case do
       [element] -> {:ok, element}
       elements -> {:ok, elements}
     end
+  end
+
+  defp post_process({:ok, resp}, _tx_data, :call) when is_binary(resp) do
+    # Handle the case that call was used without a selector (raw call)
+    {:ok, resp}
   end
 
   defp post_process({:ok, tx_hash}, _tx_data, _action = :send) when valid_result(tx_hash),

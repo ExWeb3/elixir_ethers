@@ -344,7 +344,7 @@ defmodule Ethers.Utils do
   (The hex encoding *must* start with 0x prefix)
   """
   @spec get_block_timestamp(non_neg_integer() | String.t(), Keyword.t()) ::
-          {:ok, non_neg_integer()} | {:error, :negative_block_number | term()}
+          {:ok, non_neg_integer()} | {:error, :negative_block_number | :block_not_found | term()}
   def get_block_timestamp(block_number, opts \\ [])
 
   def get_block_timestamp(block_number, opts) when is_integer(block_number) and block_number >= 0,
@@ -356,8 +356,15 @@ defmodule Ethers.Utils do
   def get_block_timestamp("0x" <> _ = block_number, opts) do
     {rpc_client, rpc_opts} = Ethers.get_rpc_client(opts)
 
-    with {:ok, block} <- rpc_client.eth_get_block_by_number(block_number, false, rpc_opts) do
-      hex_to_integer(Map.fetch!(block, "timestamp"))
+    case rpc_client.eth_get_block_by_number(block_number, false, rpc_opts) do
+      {:ok, nil} ->
+        {:error, :block_not_found}
+
+      {:ok, block} when is_map(block) ->
+        block |> Map.fetch!("timestamp") |> hex_to_integer()
+
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 
@@ -372,6 +379,8 @@ defmodule Ethers.Utils do
     - acceptable_drift: Can be set to override the default acceptable_drift of
       #{@default_acceptable_drift} seconds. This value can be reduced for more accurate results.
     - sample_size: Can be set to override the default sample_size of #{@default_sample_size} blocks.
+    - backoff_timeout: An optional backoff in milliseconds that will happen between RPC calls.
+      (Useful to prevent quote errors)
   """
   @spec date_to_block_number(
           Date.t() | DateTime.t() | non_neg_integer(),
@@ -423,6 +432,7 @@ defmodule Ethers.Utils do
   end
 
   defp find_and_try_next_block_number(datetime, ref_block_number, current_timestamp, opts) do
+    maybe_backoff(opts)
     sample_size = opts[:sample_size] || @default_sample_size
     sample_start_block_number = max(ref_block_number - sample_size, 0)
 
@@ -433,6 +443,12 @@ defmodule Ethers.Utils do
       new_block_number = if sample_start_block_number > 0, do: max(new_block_number, 0), else: 0
 
       date_to_block_number(datetime, new_block_number, opts)
+    end
+  end
+
+  defp maybe_backoff(opts) do
+    if timeout = Keyword.get(opts, :backoff_timeout) do
+      Process.sleep(timeout)
     end
   end
 end

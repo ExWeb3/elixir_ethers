@@ -2,9 +2,14 @@
 
 ## Unreleased
 
+### Bug fixes
+
+- Handle `{:ok, nil}` from RPC get block by number request
+
 ### Enhancements
 
 - Enable raw use of `Ethers.call/2` (usage without function selector)
+- Add optional backoff to `Ethers.Utils.date_to_block_number/3`
 
 ## v0.5.1 (2024-08-02)
 

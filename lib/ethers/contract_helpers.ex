@@ -219,7 +219,7 @@ defmodule Ethers.ContractHelpers do
 
   def generate_event_typespecs(selectors, arity) do
     Enum.map(selectors, &Enum.take(&1.types, arity))
-    |> do_generate_typescpecs()
+    |> do_generate_typescpecs(true)
   end
 
   def generate_struct_typespecs(args, selector) do
@@ -229,12 +229,13 @@ defmodule Ethers.ContractHelpers do
     {:%, [], [{:__MODULE__, [], Elixir}, {:%{}, [], Enum.zip(args, types)}]}
   end
 
-  defp do_generate_typescpecs(types) do
+  defp do_generate_typescpecs(types, optional? \\ false) do
     Enum.zip_with(types, & &1)
     |> Enum.map(fn type_group ->
       type_group
       |> Enum.map(&Ethers.Types.to_elixir_type/1)
       |> Enum.uniq()
+      |> then(&if(optional?, do: [nil | &1], else: &1))
       |> Enum.reduce(fn type, acc ->
         quote do
           unquote(type) | unquote(acc)

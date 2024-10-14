@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.5.3 (2024-10-14)
+
+### Enhancements
+
+- Make event filter arguments optional in typespecs
+
 ## v0.5.2 (2024-08-08)
 
 ### Bug fixes

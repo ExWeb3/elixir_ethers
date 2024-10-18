@@ -267,6 +267,7 @@ defmodule Ethers.Transaction do
 
   defp do_post_process(_key, {:error, reason}), do: {:error, reason}
 
+  defp hex_decode(nil), do: ""
   defp hex_decode(""), do: ""
   defp hex_decode("0x"), do: ""
 

@@ -14,6 +14,7 @@ defmodule Ethers.CounterContractTest do
   alias Ethers.Contract.Test.CounterContract
 
   @from "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+  @from_private_key "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
 
   describe "contract deployment" do
     test "Can deploy a contract on blockchain" do
@@ -28,6 +29,23 @@ defmodule Ethers.CounterContractTest do
       wait_for_transaction!(tx_hash)
 
       assert {:ok, _address} = Ethers.deployed_address(tx_hash)
+    end
+
+    test "Can deploy a contract with local signer" do
+      encoded_constructor = CounterContract.constructor(100)
+
+      assert {:ok, tx_hash} =
+               Ethers.deploy(CounterContract,
+                 encoded_constructor: encoded_constructor,
+                 from: @from,
+                 signer: Ethers.Signer.Local,
+                 signer_opts: [private_key: @from_private_key]
+               )
+
+      wait_for_transaction!(tx_hash)
+
+      assert {:ok, address} = Ethers.deployed_address(tx_hash)
+      assert {:ok, 100} = CounterContract.get() |> Ethers.call(to: address)
     end
   end
 

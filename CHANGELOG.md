@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Bug fixes
+
+- Handle `nil` values when decoding transaction values for RLP encoding
+
 ## v0.5.3 (2024-10-14)
 
 ### Enhancements

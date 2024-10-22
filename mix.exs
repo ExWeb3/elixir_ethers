@@ -1,7 +1,7 @@
 defmodule Ethers.MixProject do
   use Mix.Project
 
-  @version "0.5.3"
+  @version "0.5.4"
   @source_url "https://github.com/ExWeb3/elixir_ethers"
 
   def project do

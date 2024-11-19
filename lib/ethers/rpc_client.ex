@@ -1,8 +1,13 @@
 defmodule Ethers.RpcClient do
   @doc false
   @spec rpc_client() :: atom()
-  def rpc_client,
-    do: Application.get_env(:ethers, :rpc_client, Ethers.RpcClient.EthereumexHttpClient)
+  def rpc_client do
+    case Application.get_env(:ethers, :rpc_client, Ethereumex.HttpClient) do
+      Ethereumex.HttpClient -> Ethers.RpcClient.EthereumexHttpClient
+      module when is_atom(module) -> module
+      _ -> raise ArgumentError, "Invalid ethers configuration. :rpc_client must be a module"
+    end
+  end
 
   @doc false
   @spec get_rpc_client(Keyword.t()) :: {atom(), Keyword.t()}

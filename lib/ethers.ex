@@ -459,8 +459,8 @@ defmodule Ethers do
   - `:address`: Indicates event emitter contract address. (nil means all contracts)
   - `:rpc_client`: The RPC Client to use. It should implement ethereum jsonRPC API. default: Ethereumex.HttpClient
   - `:rpc_opts`: Extra options to pass to rpc_client. (Like timeout, Server URL, etc.)
-  - `:fromBlock`: Minimum block number of logs to filter.
-  - `:toBlock`: Maximum block number of logs to filter.
+  - `:fromBlock` | `:from_block`: Minimum block number of logs to filter.
+  - `:toBlock` | `:to_block`: Maximum block number of logs to filter.
   """
   @spec get_logs(map(), Keyword.t()) :: {:ok, [Event.t()]} | {:error, atom()}
   def get_logs(event_filter, overrides \\ []) do
@@ -649,7 +649,9 @@ defmodule Ethers do
     log_params =
       event_filter
       |> EventFilter.to_map(overrides)
+      |> ensure_hex_value(:fromBlock)
       |> ensure_hex_value(:from_block)
+      |> ensure_hex_value(:toBlock)
       |> ensure_hex_value(:to_block)
 
     {:ok, log_params}

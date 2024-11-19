@@ -14,14 +14,10 @@ defmodule Ethers.RpcClient.EthereumexHttpClient do
 
   @impl true
   def eth_get_logs(params, opts) do
-    params =
-      params
-      |> replace_key(:from_block, :fromBlock)
-      |> replace_key(:to_block, :toBlock)
-
-    IO.inspect(params)
-
-    Ethereumex.HttpClient.eth_get_logs(params, opts)
+    params
+    |> replace_key(:from_block, :fromBlock)
+    |> replace_key(:to_block, :toBlock)
+    |> Ethereumex.HttpClient.eth_get_logs(opts)
   end
 
   defp replace_key(map, old_key, new_key) do

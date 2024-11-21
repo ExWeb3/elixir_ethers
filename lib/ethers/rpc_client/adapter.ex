@@ -1,4 +1,6 @@
 defmodule Ethers.RpcClient.Adapter do
+  @moduledoc false
+
   @type error :: {:error, map() | binary() | atom()}
 
   @callback batch_request([{atom(), list(boolean() | binary())}], keyword()) ::

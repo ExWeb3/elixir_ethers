@@ -1,4 +1,6 @@
 defmodule Ethers.RpcClient do
+  @moduledoc false
+
   @doc false
   @spec rpc_client() :: atom()
   def rpc_client do

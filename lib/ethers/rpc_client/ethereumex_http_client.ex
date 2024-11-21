@@ -5,15 +5,15 @@ defmodule Ethers.RpcClient.EthereumexHttpClient do
 
   for {func, arity} <- Ethers.RpcClient.Adapter.behaviour_info(:callbacks),
       func not in @exclude_delegation do
-    args = Macro.generate_arguments(arity, __MODULE__)
+    args = Macro.generate_arguments(arity - 1, __MODULE__)
     @impl true
-    def unquote(func)(unquote_splicing(args)) do
-      apply(Ethereumex.HttpClient, unquote(func), [unquote_splicing(args)])
+    def unquote(func)(unquote_splicing(args), opts \\ []) do
+      apply(Ethereumex.HttpClient, unquote(func), [unquote_splicing(args), opts])
     end
   end
 
   @impl true
-  def eth_get_logs(params, opts) do
+  def eth_get_logs(params, opts \\ []) do
     params
     |> replace_key(:from_block, :fromBlock)
     |> replace_key(:to_block, :toBlock)

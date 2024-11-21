@@ -14,6 +14,9 @@ defmodule Ethers.RpcClient.Adapter do
 
   @callback eth_get_balance(binary(), binary(), keyword()) :: {:ok, binary()} | error()
 
+  @callback eth_get_block_by_number(binary() | non_neg_integer(), boolean(), keyword()) ::
+              {:ok, map()} | error()
+
   @callback eth_get_transaction_by_hash(binary(), keyword()) :: {:ok, map()} | error()
 
   @callback eth_get_transaction_count(binary(), binary(), keyword()) :: {:ok, binary()} | error()
@@ -23,4 +26,8 @@ defmodule Ethers.RpcClient.Adapter do
   @callback eth_max_priority_fee_per_gas(keyword()) :: {:ok, binary()} | error()
 
   @callback eth_get_logs(map(), keyword()) :: {:ok, [binary()] | [map()]} | error()
+
+  @callback eth_send_transaction(map(), keyword()) :: {:ok, binary()} | error()
+
+  @callback eth_send_raw_transaction(binary(), keyword()) :: {:ok, binary()} | error()
 end

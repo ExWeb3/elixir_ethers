@@ -459,8 +459,8 @@ defmodule Ethers do
   - `:address`: Indicates event emitter contract address. (nil means all contracts)
   - `:rpc_client`: The RPC Client to use. It should implement ethereum jsonRPC API. default: Ethereumex.HttpClient
   - `:rpc_opts`: Extra options to pass to rpc_client. (Like timeout, Server URL, etc.)
-  - `:fromBlock`: Minimum block number of logs to filter.
-  - `:toBlock`: Maximum block number of logs to filter.
+  - `:fromBlock` | `:from_block`: Minimum block number of logs to filter.
+  - `:toBlock` | `:to_block`: Maximum block number of logs to filter.
   """
   @spec get_logs(map(), Keyword.t()) :: {:ok, [Event.t()]} | {:error, atom()}
   def get_logs(event_filter, overrides \\ []) do
@@ -564,19 +564,11 @@ defmodule Ethers do
 
   @doc false
   @spec rpc_client() :: atom()
-  def rpc_client, do: Application.get_env(:ethers, :rpc_client, Ethereumex.HttpClient)
+  defdelegate rpc_client(), to: Ethers.RpcClient
 
   @doc false
   @spec get_rpc_client(Keyword.t()) :: {atom(), Keyword.t()}
-  def get_rpc_client(opts) do
-    module =
-      case Keyword.fetch(opts, :rpc_client) do
-        {:ok, module} when is_atom(module) -> module
-        :error -> Ethers.rpc_client()
-      end
-
-    {module, Keyword.get(opts, :rpc_opts, [])}
-  end
+  defdelegate get_rpc_client(opts), to: Ethers.RpcClient
 
   defp pre_process(tx_data, overrides, :call = _action, _opts) do
     {block, overrides} = Keyword.pop(overrides, :block, "latest")
@@ -658,7 +650,9 @@ defmodule Ethers do
       event_filter
       |> EventFilter.to_map(overrides)
       |> ensure_hex_value(:fromBlock)
+      |> ensure_hex_value(:from_block)
       |> ensure_hex_value(:toBlock)
+      |> ensure_hex_value(:to_block)
 
     {:ok, log_params}
   end

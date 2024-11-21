@@ -274,7 +274,7 @@ defmodule Ethers.CounterContractTest do
       assert String.valid?(block_hash)
     end
 
-    test "can filter logs with fromBlock and toBlock options", %{address: address} do
+    test "can filter logs with from_block and to_block options", %{address: address} do
       {:ok, tx_hash} = CounterContract.set(101) |> Ethers.send(from: @from, to: address)
 
       wait_for_transaction!(tx_hash)
@@ -285,8 +285,29 @@ defmodule Ethers.CounterContractTest do
 
       assert [] ==
                Ethers.get_logs!(filter,
-                 fromBlock: current_block_number - 1,
-                 toBlock: current_block_number - 1
+                 from_block: current_block_number - 1,
+                 to_block: current_block_number - 1
+               )
+
+      assert [
+               %Ethers.Event{
+                 address: ^address,
+                 topics: ["SetCalled(uint256,uint256)", 100],
+                 data: [101],
+                 data_raw: "0x0000000000000000000000000000000000000000000000000000000000000065",
+                 log_index: 0,
+                 removed: false,
+                 topics_raw: [
+                   "0x9db4e91e99652c2cf1713076f100fca6a4f5b81f166bce406ff2b3012694f49f",
+                   "0x0000000000000000000000000000000000000000000000000000000000000064"
+                 ],
+                 transaction_hash: ^tx_hash,
+                 transaction_index: 0
+               }
+             ] =
+               Ethers.get_logs!(filter,
+                 from_block: current_block_number - 1,
+                 to_block: current_block_number
                )
     end
   end

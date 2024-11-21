@@ -20,12 +20,12 @@ defmodule Ethers.RpcClient.EthereumexHttpClient do
     |> Ethereumex.HttpClient.eth_get_logs(opts)
   end
 
-  defp replace_key(map, old_key, new_key) do
-    case Map.fetch(map, old_key) do
+  defp replace_key(map, ethers_key, ethereumex_key) do
+    case Map.fetch(map, ethers_key) do
       {:ok, value} ->
         map
-        |> Map.put(new_key, value)
-        |> Map.delete(old_key)
+        |> Map.put(ethereumex_key, value)
+        |> Map.delete(ethers_key)
 
       :error ->
         map

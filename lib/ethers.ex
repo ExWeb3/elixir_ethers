@@ -661,14 +661,10 @@ defmodule Ethers do
 
   defp pre_process(data, [], _action, _opts), do: {:ok, data}
 
-  defp post_process({:ok, resp}, %{selector: selector}, :call) when valid_result(resp) do
-    selector
-    |> ABI.decode(Ethers.Utils.hex_decode!(resp), :output)
-    |> Enum.zip(selector.returns)
-    |> Enum.map(fn {return, type} -> Utils.human_arg(return, type) end)
-    |> case do
-      [element] -> {:ok, element}
-      elements -> {:ok, elements}
+  defp post_process({:ok, resp}, %{selector: _selector} = tx_data, :call)
+       when valid_result(resp) do
+    with {:ok, data} <- Utils.hex_decode(resp) do
+      TxData.abi_decode(data, tx_data, :output)
     end
   end
 

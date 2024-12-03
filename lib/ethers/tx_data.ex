@@ -4,6 +4,8 @@ defmodule Ethers.TxData do
   and the target `to` address.
   """
 
+  alias Ethers.Utils
+
   @typedoc """
   Holds transaction data, the function selector and the default `to` address.
 
@@ -50,6 +52,33 @@ defmodule Ethers.TxData do
       {k, v} when is_integer(v) -> {k, Ethers.Utils.integer_to_hex(v)}
       kv -> kv
     end)
+  end
+
+  @doc """
+  ABI decodes a function input/output given a TxData or FunctionSelector
+  """
+  @spec abi_decode(binary(), ABI.FunctionSelector.t() | t(), type :: :input | :output) ::
+          {:ok, any() | [any()]}
+  def abi_decode(data, tx_data_or_selector, type \\ :output)
+
+  def abi_decode(data, %{selector: %ABI.FunctionSelector{} = selector}, type),
+    do: abi_decode(data, selector, type)
+
+  def abi_decode(data, %ABI.FunctionSelector{} = selector, type) do
+    types =
+      case type do
+        :input -> selector.types
+        :output -> selector.returns
+      end
+
+    selector
+    |> ABI.decode(data, type)
+    |> Enum.zip(types)
+    |> Enum.map(fn {return, type} -> Utils.human_arg(return, type) end)
+    |> case do
+      [element] -> {:ok, element}
+      elements -> {:ok, elements}
+    end
   end
 
   defp get_tx_map(%{selector: %{type: :function}} = tx_data) do

@@ -31,8 +31,12 @@ defmodule Ethers.TxData do
     }
   end
 
-  @doc false
+  @doc """
+  Converts a TxData struct and optional overrides to a map ready for RPC data.
+  """
   @spec to_map(t() | map(), Keyword.t()) :: map()
+  def to_map(tx_data, overrides \\ [])
+
   def to_map(%__MODULE__{} = tx_data, overrides) do
     tx_data
     |> get_tx_map()

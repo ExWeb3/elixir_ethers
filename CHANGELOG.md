@@ -4,6 +4,8 @@
 
 ### Enhancements
 
+- Add `from_block` and `to_block` options to `Ethers.get_logs/2`
+- Add RPC adapter behaviour and proxy for Ethereumex.HttpClient
 - Move and export abi decode functionality to `Ethers.TxData` module
 - Export `Ethers.TxData.to_map/2` in docs
 - Add `Ethers.Event.find_and_decode/2` function

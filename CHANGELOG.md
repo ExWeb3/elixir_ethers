@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Enhancements
+
+- Move and export abi decode functionality to `Ethers.TxData` module
+- Export `Ethers.TxData.to_map/2` in docs
+
 ## v0.5.4 (2024-10-22)
 
 ### Bug fixes

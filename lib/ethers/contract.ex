@@ -119,10 +119,10 @@ defmodule Ethers.Contract do
 
     events_mod_name = Module.concat(module, EventFilters)
 
-    events =
-      function_selectors_with_meta
-      |> Enum.filter(&(&1.type == :event))
-      |> Enum.map(&impl(&1, module, impl_opts))
+    events = Enum.filter(function_selectors_with_meta, &(&1.type == :event))
+
+    events_impl = Enum.map(events, &impl(&1, module, impl_opts))
+    event_selectors = Enum.flat_map(events, & &1.selectors)
 
     events_module_ast =
       quote context: module do
@@ -130,7 +130,9 @@ defmodule Ethers.Contract do
           @moduledoc "Events for `#{Macro.to_string(unquote(module))}`"
 
           defdelegate __default_address__, to: unquote(module)
-          unquote(events)
+          unquote(events_impl)
+
+          def __events__, do: unquote(Macro.escape(event_selectors))
         end
       end
 

@@ -92,4 +92,29 @@ defmodule Ethers.Event do
       transaction_index: transaction_index
     }
   end
+
+  @doc """
+  Given a log entry and an EventFilters module (e.g. `Ethers.Contracts.ERC20.EventFilters`)
+  will find a matching event filter in the given module and decodes the log using the event selector.
+  """
+  @spec find_and_decode(map(), module()) :: {:ok, t()} | {:error, :not_found}
+  def find_and_decode(log, event_filters_module) do
+    [topic | _] = Map.fetch!(log, "topics")
+
+    topic_raw = Utils.hex_decode!(topic)
+
+    selector =
+      Enum.find(
+        event_filters_module.__events__(),
+        fn %ABI.FunctionSelector{method_id: method_id} -> method_id == topic_raw end
+      )
+
+    case selector do
+      nil ->
+        {:error, :not_found}
+
+      %ABI.FunctionSelector{} ->
+        {:ok, decode(log, selector)}
+    end
+  end
 end

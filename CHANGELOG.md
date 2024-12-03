@@ -6,6 +6,7 @@
 
 - Move and export abi decode functionality to `Ethers.TxData` module
 - Export `Ethers.TxData.to_map/2` in docs
+- Add `Ethers.Event.find_and_decode/2` function
 
 ## v0.5.4 (2024-10-22)
 

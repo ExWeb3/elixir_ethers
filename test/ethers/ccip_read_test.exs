@@ -118,9 +118,13 @@ defmodule Ethers.CcipReadTest do
     end
 
     test "returns original error when it's not an OffchainLookup error", %{address: address} do
+      assert {:error, %Ethers.Contract.Test.CcipReadTestContract.Errors.InvalidValue{}} =
+               CcipReadTestContract.get_value(0)
+               |> CcipRead.call(to: address)
+
       # Sending value to a non-payable function should return the original error
       assert {:error, %{"code" => 3}} =
-               CcipReadTestContract.get_value(900)
+               CcipReadTestContract.get_value(1)
                |> CcipRead.call(to: address, value: 1000)
     end
   end

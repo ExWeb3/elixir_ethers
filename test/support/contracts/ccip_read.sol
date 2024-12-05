@@ -10,11 +10,17 @@ contract CcipReadTest {
         bytes extraData
     );
 
+    error InvalidValue();
+
     function getValue(uint256 value) external view returns (uint256) {
         string[] memory urls = new string[](3);
         urls[0] = "invalid://example.com/ccip/{sender}/{data}";
         urls[1] = "https://example.com/ccip/{sender}/{data}";
         urls[2] = "https://backup.example.com/ccip";
+
+        if (value == 0) {
+            revert InvalidValue();
+        }
 
         revert OffchainLookup(
             address(this),

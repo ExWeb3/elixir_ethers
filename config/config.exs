@@ -1,5 +1,5 @@
 import Config
 
-config :ethereumex, url: "https://cloudflare-eth.com/v1/mainnet"
+config :ethereumex, url: "https://eth.llamarpc.com"
 
 import_config "#{config_env()}.exs"

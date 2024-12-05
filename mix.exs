@@ -109,6 +109,7 @@ defmodule Ethers.MixProject do
       {:excoveralls, "~> 0.10", only: :test},
       {:idna, "~> 6.1"},
       {:jason, "~> 1.4"},
+      {:plug, ">= 1.0.0", only: :test},
       {:req, "~> 0.5"}
     ]
   end

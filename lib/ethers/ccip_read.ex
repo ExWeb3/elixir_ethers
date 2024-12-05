@@ -40,6 +40,9 @@ defmodule Ethers.CcipRead do
              {:ok, lookup_error} <- OffchainLookup.decode(decoded_error) do
           ccip_resolve(lookup_error, tx_data, opts)
         end
+
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 
@@ -64,7 +67,7 @@ defmodule Ethers.CcipRead do
         {:ok, data}
 
       {:error, reason} ->
-        Logger.error("CCIP READ: Failed resolving #{url} error: #{inspect(reason)}")
+        Logger.error("CCIP READ: failed resolving #{url} error: #{inspect(reason)}")
 
         resolve_first(rest, error)
     end
@@ -74,20 +77,24 @@ defmodule Ethers.CcipRead do
     sender = Ethers.Utils.hex_encode(error.sender)
     data = Ethers.Utils.hex_encode(error.call_data)
 
-    url = url_template |> String.replace("{sender}", sender) |> String.replace("{data}", data)
-
-    req =
+    req_opts =
       if String.contains?(url_template, "{data}") do
-        Req.new(method: :get, url: url)
+        [method: :get]
       else
-        Req.new(method: :post, url: url, json: %{data: data, sender: sender})
+        [method: :post, json: %{data: data, sender: sender}]
       end
+
+    url = url_template |> String.replace("{sender}", sender) |> String.replace("{data}", data)
+    req_opts = req_opts |> Keyword.put(:url, url) |> Keyword.merge(ccip_req_opts())
 
     Logger.debug("CCIP READ: trying #{url}")
 
-    case Req.request(req) do
+    case Req.request(req_opts) do
       {:ok, %Req.Response{status: 200, body: %{"data" => data}}} ->
-        Utils.hex_decode(data)
+        case Utils.hex_decode(data) do
+          {:ok, hex} -> {:ok, hex}
+          :error -> {:error, :hex_decode_failed}
+        end
 
       {:ok, resp} ->
         {:error, resp}
@@ -102,5 +109,9 @@ defmodule Ethers.CcipRead do
   rescue
     UndefinedFunctionError ->
       false
+  end
+
+  defp ccip_req_opts do
+    Application.get_env(:ethers, :ccip_req_opts, [])
   end
 end

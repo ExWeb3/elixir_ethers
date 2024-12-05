@@ -29,18 +29,5 @@
     ],
     "name": "OffchainLookup",
     "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "url",
-    "outputs": [
-      {
-        "internalType": "string",
-        "name": "url",
-        "type": "string"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
   }
 ]

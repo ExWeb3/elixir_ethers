@@ -210,7 +210,9 @@ defmodule EthersTest do
     end
 
     test "returns error if the module does not include the binary" do
-      assert {:error, :binary_not_found} = Ethers.deploy(NotFoundContract, from: @from)
+      assert_raise UndefinedFunctionError, fn ->
+        assert {:error, :binary_not_found} = Ethers.deploy(NotFoundContract, from: @from)
+      end
 
       assert {:error, :binary_not_found} =
                Ethers.deploy(Ethers.Contracts.ERC20, from: @from)

@@ -5,7 +5,10 @@ defmodule Ethers.NameService do
 
   import Ethers, only: [keccak_module: 0]
 
+  alias Ethers.CcipRead
   alias Ethers.Contracts.ENS
+  alias Ethers.Contracts.ERC165
+  alias Ethers.Utils
 
   @zero_address Ethers.Types.default(:address)
 
@@ -28,12 +31,60 @@ defmodule Ethers.NameService do
   @spec resolve(String.t(), Keyword.t()) ::
           {:ok, Ethers.Types.t_address()} | {:error, :domain_not_found | term()}
   def resolve(name, opts \\ []) do
-    name_hash = name_hash(name)
-
-    with {:ok, resolver} <- get_resolver(name_hash, opts) do
-      opts = Keyword.put(opts, :to, resolver)
-      Ethers.call(ENS.Resolver.addr(name_hash), opts)
+    with {:ok, resolver} <- get_last_resolver(name, opts) do
+      do_resolve(resolver, name, opts)
     end
+  end
+
+  defp do_resolve(resolver, name, opts) do
+    resolve_call =
+      name
+      |> name_hash()
+      |> ENS.Resolver.addr()
+
+    case supports_extended_resolver(resolver, opts) do
+      {:ok, true} ->
+        # ENSIP-10 support
+        opts = Keyword.put(opts, :to, resolver)
+
+        ensip10_resolve(name, resolve_call, opts)
+        |> handle_result()
+
+      {:ok, false} ->
+        opts = Keyword.put(opts, :to, resolver)
+
+        Ethers.call(resolve_call, opts)
+        |> handle_result()
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp handle_result(result) do
+    case result do
+      {:ok, @zero_address} -> {:error, :record_not_found}
+      {:ok, address} -> {:ok, address}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp ensip10_resolve(name, resolve_call, opts) do
+    resolve_call_data = Utils.hex_decode!(resolve_call.data)
+    dns_encoded_name = dns_encode(name)
+    wildcard_call = ENS.ExtendedResolver.resolve(dns_encoded_name, resolve_call_data)
+
+    with {:ok, result} <- CcipRead.call(wildcard_call, opts) do
+      Ethers.TxData.abi_decode(result, resolve_call)
+    end
+  end
+
+  defp supports_extended_resolver(resolver, opts) do
+    opts = Keyword.put(opts, :to, resolver)
+
+    call = ERC165.supports_interface(ENS.ExtendedResolver)
+
+    Ethers.call(call, opts)
   end
 
   @doc """
@@ -120,9 +171,7 @@ defmodule Ethers.NameService do
   @spec name_hash(String.t()) :: <<_::256>>
   def name_hash(name) do
     name
-    |> String.to_charlist()
-    |> :idna.encode(transitional: false, std3_rules: true, uts46: true)
-    |> to_string()
+    |> normalize_dns_name()
     |> String.split(".")
     |> do_name_hash()
   end
@@ -133,6 +182,30 @@ defmodule Ethers.NameService do
 
   defp do_name_hash([]), do: <<0::256>>
 
+  defp get_last_resolver(name, opts) do
+    # HACK: get all resolvers at once using Multicall
+    name
+    |> name_hash()
+    |> ENS.resolver()
+    |> Ethers.call(opts)
+    |> case do
+      {:ok, @zero_address} ->
+        parent = get_name_parent(name)
+
+        if parent != name do
+          get_last_resolver(parent, opts)
+        else
+          :error
+        end
+
+      {:ok, resolver} ->
+        {:ok, resolver}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
   defp get_resolver(name_hash, opts) do
     params = ENS.resolver(name_hash)
 
@@ -140,6 +213,37 @@ defmodule Ethers.NameService do
       {:ok, @zero_address} -> {:error, :domain_not_found}
       {:ok, resolver} -> {:ok, resolver}
       {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp normalize_dns_name(name) do
+    name
+    |> String.to_charlist()
+    |> :idna.encode(transitional: false, std3_rules: true, uts46: true)
+    |> to_string()
+  end
+
+  # Encodes a DNS name according to section 3.1 of RFC1035.
+  defp dns_encode(name) when is_binary(name) do
+    name
+    |> normalize_dns_name()
+    |> String.trim_trailing(".")
+    |> String.split(".")
+    |> encode_labels()
+  end
+
+  defp encode_labels(labels) do
+    labels
+    |> Enum.reduce(<<>>, fn label, acc ->
+      label_length = byte_size(label)
+      acc <> <<label_length>> <> label
+    end)
+  end
+
+  defp get_name_parent(name) do
+    case String.split(name, ".", parts: 2) do
+      [_, parent] -> parent
+      [tld] -> tld
     end
   end
 end

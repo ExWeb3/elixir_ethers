@@ -14,4 +14,20 @@ defmodule Ethers.Contracts.ENS do
 
     use Ethers.Contract, abi: :ens_resolver
   end
+
+  defmodule ExtendedResolver do
+    @moduledoc """
+    Extended ENS resolver as per [ENSIP-10](https://docs.ens.domains/ensip/10)
+    """
+
+    use Ethers.Contract, abi: :ens_extended_resolver
+
+    @behaviour Ethers.Contracts.ERC165
+
+    # ERC-165 Interface ID
+    @interface_id Ethers.Utils.hex_decode!("0x9061b923")
+
+    @impl Ethers.Contracts.ERC165
+    def erc165_interface_id, do: @interface_id
+  end
 end

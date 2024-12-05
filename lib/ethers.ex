@@ -221,11 +221,11 @@ defmodule Ethers do
   def deploy(contract_module_or_binary, overrides \\ [])
 
   def deploy(contract_module, overrides) when is_atom(contract_module) do
-    with true <- function_exported?(contract_module, :__contract_binary__, 0),
-         bin when not is_nil(bin) <- contract_module.__contract_binary__() do
-      deploy(bin, overrides)
-    else
-      _error ->
+    case contract_module.__contract_binary__() do
+      bin when is_binary(bin) ->
+        deploy(bin, overrides)
+
+      nil ->
         {:error, :binary_not_found}
     end
   end

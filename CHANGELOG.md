@@ -5,6 +5,7 @@
 ### Enhancements
 
 - Improve `Ethers.deploy/2` error handling
+- Implement `Ethers.CcipRead` to support EIP-3668
 
 ## v0.5.5 (2024-12-03)
 

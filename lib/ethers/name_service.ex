@@ -18,6 +18,8 @@ defmodule Ethers.NameService do
   ## Parameters
   - name: Domain name to resolve. (Example: `foo.eth`)
   - opts: Resolve options.
+    - resolve_call: TxData for resolution (Defaults to
+    `Ethers.Contracts.ENS.Resolver.addr(Ethers.NameService.name_hash(name))`)
     - to: Resolver contract address. Defaults to ENS
     - Accepts all other Execution options from `Ethers.call/2`.
 
@@ -37,23 +39,27 @@ defmodule Ethers.NameService do
   end
 
   defp do_resolve(resolver, name, opts) do
-    resolve_call =
-      name
-      |> name_hash()
-      |> ENS.Resolver.addr()
+    {resolve_call, opts} =
+      Keyword.pop_lazy(opts, :resolve_call, fn ->
+        name
+        |> name_hash()
+        |> ENS.Resolver.addr()
+      end)
 
     case supports_extended_resolver(resolver, opts) do
       {:ok, true} ->
         # ENSIP-10 support
         opts = Keyword.put(opts, :to, resolver)
 
-        ensip10_resolve(name, resolve_call, opts)
+        resolve_call
+        |> ensip10_resolve(name, opts)
         |> handle_result()
 
       {:ok, false} ->
         opts = Keyword.put(opts, :to, resolver)
 
-        Ethers.call(resolve_call, opts)
+        resolve_call
+        |> Ethers.call(opts)
         |> handle_result()
 
       {:error, reason} ->
@@ -69,7 +75,7 @@ defmodule Ethers.NameService do
     end
   end
 
-  defp ensip10_resolve(name, resolve_call, opts) do
+  defp ensip10_resolve(resolve_call, name, opts) do
     resolve_call_data = Utils.hex_decode!(resolve_call.data)
     dns_encoded_name = dns_encode(name)
     wildcard_call = ENS.ExtendedResolver.resolve(dns_encoded_name, resolve_call_data)
@@ -111,7 +117,8 @@ defmodule Ethers.NameService do
   ## Parameters
   - address: Address to resolve.
   - opts: Resolve options.
-    - to: Resolver contract address. Defaults to ENS
+    - to: Resolver contract address. Defaults to ENS.
+    - chain_id: Chain ID of the target chain Defaults to `1`.
     - Accepts all other Execution options from `Ethers.call/2`.
 
   ## Examples
@@ -124,16 +131,62 @@ defmodule Ethers.NameService do
   @spec reverse_resolve(Ethers.Types.t_address(), Keyword.t()) ::
           {:ok, String.t()} | {:error, :domain_not_found | term()}
   def reverse_resolve(address, opts \\ []) do
-    "0x" <> address_hash = Ethers.Utils.to_checksum_address(address)
+    "0x" <> address_part = String.downcase(address)
+    chain_id = Keyword.get(opts, :chain_id, 1)
 
-    name_hash =
-      address_hash
-      |> Kernel.<>(".addr.reverse")
-      |> name_hash()
+    with {reverse_name, coin_type} = get_reverse_name(address_part, chain_id),
+         name_hash = name_hash(reverse_name),
+         {:ok, resolver} <- get_resolver(name_hash, opts),
+         {:ok, name} <- resolve_name(resolver, name_hash, opts),
+         # Return early if no name found and we're not on default
+         {:ok, name} <- handle_empty_name(name, coin_type, address_part),
+         # Verify forward resolution matches
+         :ok <- verify_forward_resolution(name, address, opts) do
+      {:ok, name}
+    end
+  end
 
-    with {:ok, resolver} <- get_resolver(name_hash, opts) do
-      opts = Keyword.put(opts, :to, resolver)
-      Ethers.call(ENS.Resolver.name(name_hash), opts)
+  defp resolve_name(resolver, name_hash, opts) do
+    opts = Keyword.put(opts, :to, resolver)
+
+    name_hash
+    |> ENS.Resolver.name()
+    |> Ethers.call(opts)
+  end
+
+  defp get_reverse_name(address_hash, 1), do: {"#{address_hash}.addr.reverse", 60}
+
+  defp get_reverse_name(address_hash, chain_id) do
+    # ENSIP-11: coinType = 0x80000000 | chainId
+    coin_type = Bitwise.bor(0x80000000, chain_id)
+    coin_type_hex = Integer.to_string(coin_type, 16)
+    {"#{address_hash}.#{coin_type_hex}.reverse", coin_type}
+  end
+
+  defp handle_empty_name("", coin_type, address_hash) when coin_type != 0 do
+    # Try default reverse name
+    reverse_name = "#{address_hash}.default.reverse"
+    name_hash = name_hash(reverse_name)
+
+    with {:ok, resolver} <- get_resolver(name_hash, []),
+         {:ok, name} <- Ethers.call(ENS.Resolver.name(name_hash), to: resolver) do
+      {:ok, name}
+    else
+      _ -> {:ok, ""}
+    end
+  end
+
+  defp handle_empty_name(name, _coin_type, _address_hash), do: {:ok, name}
+
+  defp verify_forward_resolution("", _address, _opts), do: {:error, :invalid_name}
+
+  defp verify_forward_resolution(name, address, opts) do
+    with {:ok, resolved_addr} <- resolve(name, opts) do
+      if String.downcase(resolved_addr) == String.downcase(address) do
+        :ok
+      else
+        {:error, :forward_resolution_mismatch}
+      end
     end
   end
 
@@ -217,6 +270,7 @@ defmodule Ethers.NameService do
   end
 
   defp normalize_dns_name(name) do
+    # TODO: Update
     name
     |> String.to_charlist()
     |> :idna.encode(transitional: false, std3_rules: true, uts46: true)
@@ -224,12 +278,20 @@ defmodule Ethers.NameService do
   end
 
   # Encodes a DNS name according to section 3.1 of RFC1035.
-  defp dns_encode(name) when is_binary(name) do
+  def dns_encode(name) when is_binary(name) do
     name
     |> normalize_dns_name()
-    |> String.trim_trailing(".")
+    |> to_fqdn()
     |> String.split(".")
     |> encode_labels()
+  end
+
+  defp to_fqdn(dns_name) do
+    if String.ends_with?(dns_name, ".") do
+      dns_name
+    else
+      dns_name <> "."
+    end
   end
 
   defp encode_labels(labels) do

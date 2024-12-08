@@ -2,11 +2,14 @@
 
 ## Unreleased
 
+### New features
+- Implement `Ethers.CcipRead` to support EIP-3668
+- NameService now support off-chain/cross-chain lookups using CCIP-Read
+
 ### Enhancements
 
 - Improve `Ethers.deploy/2` error handling
-- Implement `Ethers.CcipRead` to support EIP-3668
-- NameService improvements and offchain lookup support using CCIP-Read
+- NameService improvements and support for ENSIP-10
 
 ## v0.5.5 (2024-12-03)
 

@@ -152,7 +152,7 @@ defmodule Ethers.NameService do
     with {:ok, resolver} <- get_resolver(name_hash, opts),
          {:ok, name} <- resolve_name(resolver, name_hash, opts),
          # Return early if no name found and we're not on default
-         {:ok, name} <- handle_empty_name(name, coin_type, address),
+         {:ok, name} <- handle_empty_name(name, coin_type, address, opts),
          # Verify forward resolution matches
          :ok <- verify_forward_resolution(name, address, opts) do
       {:ok, name}
@@ -168,19 +168,19 @@ defmodule Ethers.NameService do
     {"#{address}.#{coin_type_hex}.reverse", coin_type}
   end
 
-  defp handle_empty_name("", coin_type, address) when coin_type != 0 do
+  defp handle_empty_name("", coin_type, address, opts) when coin_type != 0 do
     "0x" <> address = address
     # Try default reverse name
     reverse_name = "#{address}.default.reverse"
     name_hash = name_hash(reverse_name)
 
-    with {:ok, resolver} <- get_resolver(name_hash, []),
-         {:ok, name} <- Ethers.call(ENS.Resolver.name(name_hash), to: resolver) do
-      {:ok, name}
+    case get_resolver(name_hash, []) do
+      {:ok, resolver} -> resolve_name(resolver, name_hash, opts)
+      {:error, reason} -> {:error, reason}
     end
   end
 
-  defp handle_empty_name(name, _coin_type, _address_hash), do: {:ok, name}
+  defp handle_empty_name(name, _coin_type, _address_hash, _opts), do: {:ok, name}
 
   defp verify_forward_resolution(name, address, opts) do
     with {:ok, resolved_addr} <- resolve(name, opts) do
@@ -280,7 +280,6 @@ defmodule Ethers.NameService do
   end
 
   defp normalize_dns_name(name) do
-    # TODO: Update to ENSIP-15 when finalized
     name
     |> String.to_charlist()
     |> :idna.encode(transitional: false, std3_rules: true, uts46: true)

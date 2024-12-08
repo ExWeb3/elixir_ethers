@@ -134,9 +134,10 @@ defmodule Ethers.NameService do
     "0x" <> address_part = String.downcase(address)
     chain_id = Keyword.get(opts, :chain_id, 1)
 
-    with {reverse_name, coin_type} = get_reverse_name(address_part, chain_id),
-         name_hash = name_hash(reverse_name),
-         {:ok, resolver} <- get_resolver(name_hash, opts),
+    {reverse_name, coin_type} = get_reverse_name(address_part, chain_id)
+    name_hash = name_hash(reverse_name)
+
+    with {:ok, resolver} <- get_resolver(name_hash, opts),
          {:ok, name} <- resolve_name(resolver, name_hash, opts),
          # Return early if no name found and we're not on default
          {:ok, name} <- handle_empty_name(name, coin_type, address_part),
@@ -270,7 +271,7 @@ defmodule Ethers.NameService do
   end
 
   defp normalize_dns_name(name) do
-    # TODO: Update
+    # TODO: Update to new standard
     name
     |> String.to_charlist()
     |> :idna.encode(transitional: false, std3_rules: true, uts46: true)

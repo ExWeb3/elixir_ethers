@@ -70,6 +70,7 @@ defmodule Ethers do
 
   @option_keys [:rpc_client, :rpc_opts, :signer, :signer_opts, :tx_type]
   @hex_decode_post_process [
+    :chain_id,
     :current_block_number,
     :current_gas_price,
     :estimate_gas,
@@ -94,6 +95,13 @@ defmodule Ethers do
   @type t_batch_request :: atom() | {atom, term()} | {atom, term(), Keyword.t()}
 
   defguardp valid_result(bin) when bin != "0x"
+
+  def chain_id(opts \\ []) do
+    {rpc_client, rpc_opts} = get_rpc_client(opts)
+
+    rpc_client.eth_chain_id(rpc_opts)
+    |> post_process(nil, :chain_id)
+  end
 
   @doc """
   Returns the current gas price from the RPC API
@@ -733,7 +741,7 @@ defmodule Ethers do
     case errors_module.find_and_decode(error_data) do
       {:ok, error} -> {:error, error}
       {:error, :undefined_error} -> {:error, full_error}
-      e -> e
+      {:error, reason} -> {:error, reason}
     end
   end
 

@@ -10,6 +10,8 @@ defmodule Ethers.RpcClient.Adapter do
 
   @callback eth_call(map(), binary(), keyword()) :: {:ok, binary()} | error()
 
+  @callback eth_chain_id(keyword()) :: {:ok, binary()} | error()
+
   @callback eth_estimate_gas(map(), keyword()) :: {:ok, binary()} | error()
 
   @callback eth_gas_price(keyword()) :: {:ok, binary()} | error()

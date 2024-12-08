@@ -280,7 +280,7 @@ defmodule Ethers.NameService do
   end
 
   defp normalize_dns_name(name) do
-    # TODO: Update to new standard
+    # TODO: Update to ENSIP-15 when finalized
     name
     |> String.to_charlist()
     |> :idna.encode(transitional: false, std3_rules: true, uts46: true)

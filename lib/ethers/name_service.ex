@@ -1,6 +1,16 @@
 defmodule Ethers.NameService do
   @moduledoc """
-  Name Service resolution implementation
+  Name Service resolution implementation for ENS (Ethereum Name Service).
+  Supports both forward and reverse resolution plus reverse lookups.
+
+  This module implements [Cross Chain / Offchain Resolvers](https://docs.ens.domains/resolvers/ccip-read)
+  (is CCIP-Read aware), allowing it to resolve names that are stored:
+  - On-chain (traditional L1 ENS resolution on Ethereum)
+  - Off-chain (via CCIP-Read gateway servers)
+  - Cross-chain (on other L2s and EVM-compatible blockchains)
+
+  The resolution process automatically handles these different scenarios transparently,
+  following the ENS standards for name resolution including ENSIP-10 and ENSIP-11.
   """
 
   import Ethers, only: [keccak_module: 0]
@@ -31,7 +41,8 @@ defmodule Ethers.NameService do
   ```
   """
   @spec resolve(String.t(), Keyword.t()) ::
-          {:ok, Ethers.Types.t_address()} | {:error, :domain_not_found | term()}
+          {:ok, Ethers.Types.t_address()}
+          | {:error, :domain_not_found | :record_not_found | term()}
   def resolve(name, opts \\ []) do
     with {:ok, resolver} <- get_last_resolver(name, opts) do
       do_resolve(resolver, name, opts)
@@ -103,7 +114,7 @@ defmodule Ethers.NameService do
   "0xd8da6bf26964af9d7eed9e03e53415d37aa96045"
   ```
   """
-  @spec resolve!(String.t(), Keyword.t()) :: Ethers.Types.t_address() | no_return
+  @spec resolve!(String.t(), Keyword.t()) :: Ethers.Types.t_address() | no_return()
   def resolve!(name, opts \\ []) do
     case resolve(name, opts) do
       {:ok, addr} -> addr
@@ -129,57 +140,47 @@ defmodule Ethers.NameService do
   ```
   """
   @spec reverse_resolve(Ethers.Types.t_address(), Keyword.t()) ::
-          {:ok, String.t()} | {:error, :domain_not_found | term()}
+          {:ok, String.t()}
+          | {:error, :domain_not_found | :invalid_name | :forward_resolution_mismatch | term()}
   def reverse_resolve(address, opts \\ []) do
-    "0x" <> address_part = String.downcase(address)
+    address = String.downcase(address)
     chain_id = Keyword.get(opts, :chain_id, 1)
 
-    {reverse_name, coin_type} = get_reverse_name(address_part, chain_id)
+    {reverse_name, coin_type} = get_reverse_name(address, chain_id)
     name_hash = name_hash(reverse_name)
 
     with {:ok, resolver} <- get_resolver(name_hash, opts),
          {:ok, name} <- resolve_name(resolver, name_hash, opts),
          # Return early if no name found and we're not on default
-         {:ok, name} <- handle_empty_name(name, coin_type, address_part),
+         {:ok, name} <- handle_empty_name(name, coin_type, address),
          # Verify forward resolution matches
          :ok <- verify_forward_resolution(name, address, opts) do
       {:ok, name}
     end
   end
 
-  defp resolve_name(resolver, name_hash, opts) do
-    opts = Keyword.put(opts, :to, resolver)
+  defp get_reverse_name("0x" <> address, 1), do: {"#{address}.addr.reverse", 60}
 
-    name_hash
-    |> ENS.Resolver.name()
-    |> Ethers.call(opts)
-  end
-
-  defp get_reverse_name(address_hash, 1), do: {"#{address_hash}.addr.reverse", 60}
-
-  defp get_reverse_name(address_hash, chain_id) do
+  defp get_reverse_name("0x" <> address, chain_id) do
     # ENSIP-11: coinType = 0x80000000 | chainId
     coin_type = Bitwise.bor(0x80000000, chain_id)
     coin_type_hex = Integer.to_string(coin_type, 16)
-    {"#{address_hash}.#{coin_type_hex}.reverse", coin_type}
+    {"#{address}.#{coin_type_hex}.reverse", coin_type}
   end
 
-  defp handle_empty_name("", coin_type, address_hash) when coin_type != 0 do
+  defp handle_empty_name("", coin_type, address) when coin_type != 0 do
+    "0x" <> address = address
     # Try default reverse name
-    reverse_name = "#{address_hash}.default.reverse"
+    reverse_name = "#{address}.default.reverse"
     name_hash = name_hash(reverse_name)
 
     with {:ok, resolver} <- get_resolver(name_hash, []),
          {:ok, name} <- Ethers.call(ENS.Resolver.name(name_hash), to: resolver) do
       {:ok, name}
-    else
-      _ -> {:ok, ""}
     end
   end
 
   defp handle_empty_name(name, _coin_type, _address_hash), do: {:ok, name}
-
-  defp verify_forward_resolution("", _address, _opts), do: {:error, :invalid_name}
 
   defp verify_forward_resolution(name, address, opts) do
     with {:ok, resolved_addr} <- resolve(name, opts) do
@@ -201,7 +202,7 @@ defmodule Ethers.NameService do
   "vitalik.eth"
   ```
   """
-  @spec reverse_resolve!(Ethers.Types.t_address(), Keyword.t()) :: String.t() | no_return
+  @spec reverse_resolve!(Ethers.Types.t_address(), Keyword.t()) :: String.t() | no_return()
   def reverse_resolve!(address, opts \\ []) do
     case reverse_resolve(address, opts) do
       {:ok, name} -> name
@@ -270,6 +271,14 @@ defmodule Ethers.NameService do
     end
   end
 
+  defp resolve_name(resolver, name_hash, opts) do
+    opts = Keyword.put(opts, :to, resolver)
+
+    name_hash
+    |> ENS.Resolver.name()
+    |> Ethers.call(opts)
+  end
+
   defp normalize_dns_name(name) do
     # TODO: Update to new standard
     name
@@ -279,7 +288,7 @@ defmodule Ethers.NameService do
   end
 
   # Encodes a DNS name according to section 3.1 of RFC1035.
-  def dns_encode(name) when is_binary(name) do
+  defp dns_encode(name) when is_binary(name) do
     name
     |> normalize_dns_name()
     |> to_fqdn()

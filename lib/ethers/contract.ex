@@ -356,9 +356,9 @@ defmodule Ethers.Contract do
     quote context: errors_module, location: :keep do
       @doc false
       def find_and_decode(<<error_id::binary-4, _::binary>> = error_data) do
-        case Map.get(error_mappings(), error_id) do
-          nil -> {:error, :undefined_error}
-          module when is_atom(module) -> module.decode(error_data)
+        case Map.fetch(error_mappings(), error_id) do
+          {:ok, module} -> module.decode(error_data)
+          :error -> {:error, :undefined_error}
         end
       end
 

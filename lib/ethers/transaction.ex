@@ -242,6 +242,10 @@ defmodule Ethers.Transaction do
     end
   end
 
+  defp do_post_process(:chain_id, {:ok, v_int}) when is_integer(v_int) do
+    {:ok, {:chain_id, Utils.integer_to_hex(v_int)}}
+  end
+
   defp do_post_process(:max_fee_per_gas, {:ok, v_hex}) do
     with {:ok, v} <- Utils.hex_to_integer(v_hex) do
       # Setting a higher value for max_fee_per gas since the actual base fee is

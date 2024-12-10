@@ -1,6 +1,11 @@
 defmodule Ethers.Transaction do
   @moduledoc """
-  Transaction struct and helper functions
+  Transaction struct and helper functions for handling EVM transactions.
+
+  This module provides functionality to:
+  - Create and manipulate transaction structs
+  - Encode transactions for network transmission
+  - Handle different transaction types (legacy, EIP-1559, etc.)
   """
 
   alias Ethers.Types
@@ -52,7 +57,7 @@ defmodule Ethers.Transaction do
           value: binary()
         }
 
-  @transaction_envelope_types %{eip1559: <<2>>, legacy: <<>>}
+  @transaction_envelope_types %{eip1559: <<2>>, eip2930: <<1>>, eip4844: <<3>>, legacy: <<>>}
   @legacy_parity_magic_number 27
   @legacy_parity_with_chain_magic_number 35
   @common_fillable_params [:chain_id, :nonce]
@@ -76,10 +81,41 @@ defmodule Ethers.Transaction do
 
   defguardp has_value(v) when not is_nil(v) and v != "" and v != "0x"
 
+  @doc """
+  Creates a new transaction struct with the given parameters.
+
+  ## Parameters
+    - `params` - Map of transaction parameters
+    - `type` - Transaction type (default: `:eip1559`)
+
+  ## Examples
+
+      iex> Ethers.Transaction.new(%{from: "0x123...", to: "0x456...", value: "0x0"})
+      %Ethers.Transaction{type: :eip1559, from: "0x123...", to: "0x456...", value: "0x0"}
+  """
+  @spec new(map(), t_transaction_type()) :: t()
   def new(params, type \\ :eip1559) do
     struct!(__MODULE__, Map.put(params, :type, type))
   end
 
+  @doc """
+  Fills missing transaction fields with default values from the network.
+
+  This function will attempt to fetch appropriate values for:
+  - chain_id
+  - nonce
+  - gas_price (for legacy transactions)
+  - max_fee_per_gas and max_priority_fee_per_gas (for EIP-1559 transactions)
+
+  ## Parameters
+    * `tx` - Transaction struct to fill
+    * `opts` - Options to pass to the RPC client
+
+  ## Returns
+    * `{:ok, transaction}` - Filled transaction struct
+    * `{:error, reason}` - If fetching defaults fails
+  """
+  @spec fill_with_defaults(t(), keyword()) :: {:ok, t()} | {:error, term()}
   def fill_with_defaults(%__MODULE__{type: type} = tx, opts) do
     {keys, actions} =
       tx
@@ -101,6 +137,18 @@ defmodule Ethers.Transaction do
     end
   end
 
+  @doc """
+  Encodes a transaction for network transmission following EIP-155/EIP-1559.
+
+  Handles both legacy and EIP-1559 transaction types, including signature data if present.
+
+  ## Parameters
+    * `transaction` - Transaction struct to encode
+
+  ## Returns
+    * `binary` - RLP encoded transaction with appropriate type envelope
+  """
+  @spec encode(t()) :: binary()
   def encode(%__MODULE__{type: type} = transaction) do
     transaction
     |> to_rlp_list()
@@ -109,6 +157,20 @@ defmodule Ethers.Transaction do
     |> prepend_type_envelope(type)
   end
 
+  @doc """
+  Converts a map (typically from JSON-RPC response) into a Transaction struct.
+
+  Handles different field naming conventions and transaction types.
+
+  ## Parameters
+    - `tx` - Map containing transaction data. Keys can be snakeCase strings or atoms.
+    (e.g `:chainId`, `"gasPrice"`)
+
+  ## Returns
+    - `{:ok, transaction}` - Converted transaction struct
+    - `{:error, :unsupported_tx_type}` - If transaction type is not supported
+  """
+  @spec from_map(map()) :: {:ok, t()} | {:error, :unsupported_tx_type}
   def from_map(tx) do
     with {:ok, tx_type} <- decode_tx_type(from_map_value(tx, :type)) do
       tx_struct =
@@ -138,6 +200,18 @@ defmodule Ethers.Transaction do
     end
   end
 
+  @doc """
+  Converts a Transaction struct to a map suitable for JSON-RPC requests.
+
+  Different transaction types (legacy vs EIP-1559) will produce different map structures.
+
+  ## Parameters
+    - `tx` - Transaction struct to convert
+
+  ## Returns
+    - `map` - Transaction data in JSON-RPC format
+  """
+  @spec to_map(t()) :: map()
   def to_map(%{type: :eip1559} = tx) do
     %{
       from: tx.from,
@@ -164,7 +238,18 @@ defmodule Ethers.Transaction do
   end
 
   @doc """
-  Decodes a transaction struct values in a new map.
+  Decodes hexadecimal values in a transaction struct to their native types.
+
+  Converts:
+  - Integer fields from hex to integers
+  - Binary fields from hex to raw binary
+  - Leaves other fields unchanged
+
+  ## Parameters
+    - `tx` - Transaction struct to decode
+
+  ## Returns
+    - `map` - Map with decoded values
   """
   @spec decode_values(t()) :: map()
   def decode_values(%__MODULE__{} = tx) do
@@ -177,6 +262,36 @@ defmodule Ethers.Transaction do
       {k, v} when k in @binary_type_values -> {k, Utils.hex_decode!(v)}
       {k, v} -> {k, v}
     end)
+  end
+
+  @doc """
+  Calculates the y-parity or v value for transaction signatures.
+
+  Handles both legacy and EIP-1559 transaction types according to their specifications.
+
+  ## Parameters
+    - `tx` - Transaction struct
+    - `recovery_id` - Recovery ID from the signature
+
+  ## Returns
+    - `integer` - Calculated y-parity or v value
+  """
+  @spec calculate_y_parity_or_v(t(), binary() | non_neg_integer()) :: non_neg_integer()
+  def calculate_y_parity_or_v(tx, recovery_id) when has_value(recovery_id) do
+    case tx do
+      %{type: :legacy, chain_id: chain_id} when has_value(chain_id) ->
+        # EIP-155
+        chain_id = Utils.hex_to_integer!(chain_id)
+        recovery_id + @legacy_parity_with_chain_magic_number + chain_id * 2
+
+      %{type: :legacy} ->
+        # EIP-155
+        recovery_id + @legacy_parity_magic_number
+
+      _ ->
+        # EIP-1559
+        recovery_id
+    end
   end
 
   defp maybe_append_signature(tx_list, tx) do
@@ -283,33 +398,15 @@ defmodule Ethers.Transaction do
     Enum.map(list, &hex_decode/1)
   end
 
-  def calculate_y_parity_or_v(tx, recovery_id) when has_value(recovery_id) do
-    case tx do
-      %{type: :legacy, chain_id: chain_id} when has_value(chain_id) ->
-        # EIP-155
-        chain_id = Utils.hex_to_integer!(chain_id)
-        recovery_id + @legacy_parity_with_chain_magic_number + chain_id * 2
+  defp decode_tx_type("0x" <> _ = type), do: decode_tx_type(Utils.hex_decode!(type))
 
-      %{type: :legacy} ->
-        # EIP-155
-        recovery_id + @legacy_parity_magic_number
+  Enum.each(@transaction_envelope_types, fn {name, value} ->
+    defp decode_tx_type(unquote(value)), do: {:ok, unquote(name)}
+  end)
 
-      _ ->
-        # EIP-1559
-        recovery_id
-    end
-  end
-
-  defp decode_tx_type(type) do
-    case type do
-      "0x3" -> {:ok, :eip4844}
-      "0x2" -> {:ok, :eip1559}
-      "0x1" -> {:ok, :eip2930}
-      "0x0" -> {:ok, :legacy}
-      nil -> {:ok, :legacy}
-      _ -> {:error, :unsupported_tx_type}
-    end
-  end
+  defp decode_tx_type(<<0>>), do: {:ok, :legacy}
+  defp decode_tx_type(nil), do: {:ok, :legacy}
+  defp decode_tx_type(_type), do: {:error, :unsupported_tx_type}
 
   defp from_map_value(tx, key) do
     Map.get_lazy(tx, key, fn -> Map.get(tx, to_string(key)) end)

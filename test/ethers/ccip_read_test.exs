@@ -125,7 +125,7 @@ defmodule Ethers.CcipReadTest do
       # Sending value to a non-payable function should return the original error
       assert {:error, %{"code" => 3}} =
                CcipReadTestContract.get_value(1)
-               |> CcipRead.call(to: address, value: 1000)
+               |> CcipRead.call(to: address, value: 1000, from: @from)
     end
   end
 end

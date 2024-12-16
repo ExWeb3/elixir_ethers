@@ -5,18 +5,15 @@ defmodule Ethers.Signer.JsonRPCTest do
 
   describe "sign_transaction/2" do
     test "signs the transaction with the correct data" do
-      transaction = %Ethers.Transaction{
-        type: :eip1559,
-        chain_id: "0x539",
-        nonce: "0xb66",
-        gas: "0x5A82",
-        from: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      transaction = %Ethers.Transaction.Eip1559{
         to: "0xFFcf8FDEE72ac11b5c542428B35EEF5769C409f0",
-        value: "0x0",
-        data: "0x06fdde03",
-        gas_price: "0x10e7467522",
-        max_fee_per_gas: "0x1448BAF2F5",
-        max_priority_fee_per_gas: "0x0"
+        input: "0x06fdde03",
+        value: 0,
+        chain_id: 31337,
+        nonce: 2918,
+        gas: 23170,
+        max_fee_per_gas: 87_119_557_365,
+        max_priority_fee_per_gas: 0
       }
 
       assert {:ok,
@@ -25,22 +22,21 @@ defmodule Ethers.Signer.JsonRPCTest do
     end
 
     test "fails signing transaction with wrong from address" do
-      transaction = %Ethers.Transaction{
-        type: :eip1559,
-        chain_id: "0x539",
-        nonce: "0xb66",
-        gas: "0x5A82",
-        from: "0xbba94ef8bd5ffee41947b4585a84bda5a3d3da6e",
+      transaction = %Ethers.Transaction.Eip1559{
         to: "0xFFcf8FDEE72ac11b5c542428B35EEF5769C409f0",
-        value: "0x0",
-        data: "0x06fdde03",
-        gas_price: "0x10e7467522",
-        max_fee_per_gas: "0x1448BAF2F5",
-        max_priority_fee_per_gas: "0x0"
+        input: "0x06fdde03",
+        value: 0,
+        chain_id: 31337,
+        nonce: 2918,
+        gas: 23170,
+        max_fee_per_gas: 87_119_557_365,
+        max_priority_fee_per_gas: 0
       }
 
       assert {:error, error} =
-               Signer.JsonRPC.sign_transaction(transaction, [])
+               Signer.JsonRPC.sign_transaction(transaction,
+                 from: "0xbba94ef8bd5ffee41947b4585a84bda5a3d3da6e"
+               )
 
       assert error["message"] =~ "No Signer available"
     end

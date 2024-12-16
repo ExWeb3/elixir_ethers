@@ -108,9 +108,7 @@ defmodule EthersTest do
       downcased_to_addr = String.downcase(@to)
 
       assert {:ok,
-              %Ethers.Transaction{
-                hash: ^tx_hash,
-                from: @from,
+              %Ethers.Transaction.Eip1559{
                 to: ^downcased_to_addr
               }} = Ethers.get_transaction(tx_hash)
     end
@@ -129,7 +127,7 @@ defmodule EthersTest do
 
       assert {:ok,
               [
-                ok: %Ethers.Transaction{hash: ^tx_hash}
+                ok: %Ethers.Transaction.Eip1559{}
               ]} =
                Ethers.batch([
                  {:get_transaction, tx_hash}
@@ -478,9 +476,9 @@ defmodule EthersTest do
 
       assert_receive %{
         from: @from,
-        gas: "0x119",
         to: "0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc",
-        value: "0x3E8"
+        value: "0x3E8",
+        type: "0x2"
       }
     end
   end
@@ -513,7 +511,7 @@ defmodule EthersTest do
                  from: @from,
                  to: address,
                  signer: Ethers.Signer.JsonRPC,
-                 tx_type: :legacy
+                 type: :legacy
                )
 
       refute String.starts_with?(signed, "0x02")
@@ -565,7 +563,7 @@ defmodule EthersTest do
           from: @from,
           gas: 10_000,
           max_fee_per_gas: 123_123_123,
-          chain_id: 1337,
+          chain_id: 31337,
           nonce: 100,
           to: "0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc",
           signer: Ethers.Signer.JsonRPC
@@ -582,7 +580,7 @@ defmodule EthersTest do
           gas: 10_000,
           max_fee_per_gas: 123_123_123,
           max_priority_fee_per_gas: 2_000_000_000,
-          chain_id: 1337,
+          chain_id: 31337,
           nonce: 100,
           to: "0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc",
           signer: Ethers.Signer.JsonRPC

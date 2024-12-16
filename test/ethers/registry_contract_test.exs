@@ -93,7 +93,8 @@ defmodule Ethers.RegistryContractTest do
   end
 
   defp deploy_registry_contract(_ctx) do
-    address = deploy(RegistryContract, constructor: RegistryContract.constructor(), from: @from)
+    address =
+      deploy(RegistryContract, encoded_constructor: RegistryContract.constructor(), from: @from)
 
     [address: address]
   end

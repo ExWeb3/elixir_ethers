@@ -76,7 +76,8 @@ defmodule Ethers do
     :estimate_gas,
     :get_balance,
     :get_transaction_count,
-    :max_priority_fee_per_gas
+    :max_priority_fee_per_gas,
+    :gas_price
   ]
   @rpc_actions_map %{
     call: :eth_call,
@@ -375,7 +376,7 @@ defmodule Ethers do
   """
   @spec send!(map() | TxData.t(), Keyword.t()) :: String.t() | no_return()
   def send!(tx_data, overrides \\ []) do
-    case Ethers.send(tx_data, overrides) do
+    case __MODULE__.send(tx_data, overrides) do
       {:ok, tx_hash} -> tx_hash
       {:error, reason} -> raise ExecutionError, reason
     end
@@ -619,9 +620,7 @@ defmodule Ethers do
         to: nil
       })
 
-    with {:ok, tx_params} <- Utils.maybe_add_gas_limit(tx_params, opts) do
-      maybe_use_signer(tx_params, opts)
-    end
+    maybe_use_signer(tx_params, opts)
   end
 
   defp pre_process("0x" <> _ = signed_tx, _overrides, :send, _opts) do
@@ -631,17 +630,16 @@ defmodule Ethers do
   defp pre_process(tx_data, overrides, :send = action, opts) do
     tx_params = TxData.to_map(tx_data, overrides)
 
-    with :ok <- check_params(tx_params, action),
-         {:ok, tx_params} <- Utils.maybe_add_gas_limit(tx_params, opts) do
+    with :ok <- check_params(tx_params, action) do
       maybe_use_signer(tx_params, opts)
     end
   end
 
-  defp pre_process(tx_data, overrides, :sign_transaction = action, opts) do
+  defp pre_process(tx_data, overrides, :sign_transaction = action, _opts) do
     tx_params = TxData.to_map(tx_data, overrides)
 
     with :ok <- check_params(tx_params, action) do
-      Utils.maybe_add_gas_limit(tx_params, opts)
+      {:ok, tx_params}
     end
   end
 
@@ -649,7 +647,7 @@ defmodule Ethers do
     tx_params = TxData.to_map(tx_data, overrides)
 
     with :ok <- check_params(tx_params, action) do
-      {:ok, tx_params}
+      {:ok, Transaction.to_rpc_map(tx_params)}
     end
   end
 
@@ -800,6 +798,8 @@ defmodule Ethers do
         use_signer(tx_params, signer, opts)
 
       {:error, :no_signer} ->
+        tx_params = Transaction.to_rpc_map(tx_params)
+
         {:ok, tx_params, :eth_send_transaction}
     end
   end
@@ -820,14 +820,26 @@ defmodule Ethers do
   end
 
   defp use_signer(tx_params, signer, opts) do
-    signer_opts = Keyword.get(opts, :signer_opts) || default_signer_opts()
-    tx_type = Keyword.get(opts, :tx_type, :eip1559)
+    with {:ok, tx_params} <- Transaction.add_auto_fetchable_fields(tx_params, opts),
+         {:ok, tx} <- Transaction.new(tx_params),
+         {:ok, signed_tx_hex} <- signer.sign_transaction(tx, build_signer_opts(tx_params, opts)) do
+      {:ok, signed_tx_hex, :eth_send_raw_transaction}
+    end
+  end
 
-    with {:ok, tx} <-
-           Transaction.new(tx_params, tx_type) |> Transaction.fill_with_defaults(opts),
-         {:ok, signed_tx} <-
-           signer.sign_transaction(tx, signer_opts) do
-      {:ok, signed_tx, :eth_send_raw_transaction}
+  defp build_signer_opts(tx_params, opts) do
+    signer_opts = Keyword.get(opts, :signer_opts, default_signer_opts())
+    tx_from = Map.get(tx_params, :from)
+    signer_from = Keyword.get(signer_opts, :from) || tx_from
+
+    if tx_from do
+      if tx_from != signer_from do
+        raise ArgumentError, ":signer_opts has a different from address than transaction"
+      end
+
+      Keyword.put(signer_opts, :from, tx_from)
+    else
+      signer_opts
     end
   end
 

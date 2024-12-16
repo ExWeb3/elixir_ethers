@@ -178,13 +178,12 @@ defmodule Ethers.MulticallTest do
 
     # Deploy Multicall3 to 0xcA11bde05977b3631167028862bE2a173976CA11.
     # ref: https://github.com/mds1/multicall#new-deployments
+
+    # First, fund the account used for transaction
     Ethers.send!(%{
       from: "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
       to: "0x05f32B3cC3888453ff71B01135B34FF8e41263F2",
-      gas: "0x76c0",
-      gasPrice: "0x9184e72a000",
-      value: "0xde0b6b3a7640000",
-      data: "0x"
+      value: 1_000_000_000_000_000_000
     })
     |> wait_for_transaction!()
 

@@ -165,6 +165,7 @@ defmodule Ethers.Utils do
   If option `mult` is given, a gas limit multiplied by `mult` divided by 1000 will be used.
   Default for `mult` is 100. (1%)
   """
+  @deprecated "Use Ethers.estimate_gas/2 instead"
   def maybe_add_gas_limit(params, opts \\ [])
 
   def maybe_add_gas_limit(%{gas: _} = params, _opts) do
@@ -449,6 +450,84 @@ defmodule Ethers.Utils do
   defp maybe_backoff(opts) do
     if timeout = Keyword.get(opts, :backoff_timeout) do
       Process.sleep(timeout)
+    end
+  end
+
+  @doc """
+  Decode a hex-encoded Ethereum address to its binary form.
+  Returns error if the address is invalid (wrong length or invalid hex).
+
+  ## Examples
+
+      iex> Ethers.Utils.decode_address("0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1")
+      {:ok, <<144, 248, 191, 106, 71, 159, 50, 14, 173, 7, 68, 17, 164, 176, 231, 148, 78, 168, 201, 193>>}
+
+      iex> Ethers.Utils.decode_address(nil)
+      {:error, :invalid_address}
+
+      iex> Ethers.Utils.decode_address("0xinvalid")
+      {:error, :invalid_address}
+  """
+  @spec decode_address(Types.t_address() | nil) :: {:ok, binary()} | {:error, :invalid_address}
+  def decode_address(<<"0x", address::binary-40>>) do
+    hex_decode(address)
+  end
+
+  def decode_address(_), do: {:error, :invalid_address}
+
+  @doc """
+  Same as `decode_address/1` but raises on error.
+
+  ## Examples
+
+      iex> Ethers.Utils.decode_address!("0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1")
+      <<144, 248, 191, 106, 71, 159, 50, 14, 173, 7, 68, 17, 164, 176, 231, 148, 78, 168, 201, 193>>
+  """
+  @spec decode_address!(Types.t_address() | nil) :: binary() | no_return()
+  def decode_address!(address) do
+    case decode_address(address) do
+      {:ok, decoded} ->
+        decoded
+
+      {:error, :invalid_address} ->
+        raise ArgumentError, "Invalid Ethereum address #{inspect(address)}"
+    end
+  end
+
+  @doc """
+  Encode a binary Ethereum address to its hex form.
+  Returns error if the address is invalid (wrong length).
+
+  ## Examples
+
+      iex> address = <<144, 248, 191, 106, 71, 159, 50, 14, 173, 7, 68, 17, 164, 176, 231, 148, 78, 168, 201, 193>>
+      iex> Ethers.Utils.encode_address(address)
+      {:ok, "0x90f8bf6a479f320ead074411a4b0e7944ea8c9c1"}
+
+      iex> Ethers.Utils.encode_address(<<1, 2, 3>>)
+      {:error, :invalid_address}
+  """
+  @spec encode_address(binary()) :: {:ok, Types.t_address()} | {:error, :invalid_address}
+  def encode_address(address) when byte_size(address) == 20, do: {:ok, hex_encode(address)}
+  def encode_address(_), do: {:error, :invalid_address}
+
+  @doc """
+  Same as `encode_address/1` but raises on error.
+
+  ## Examples
+
+      iex> address = <<144, 248, 191, 106, 71, 159, 50, 14, 173, 7, 68, 17, 164, 176, 231, 148, 78, 168, 201, 193>>
+      iex> Ethers.Utils.encode_address!(address)
+      "0x90f8bf6a479f320ead074411a4b0e7944ea8c9c1"
+  """
+  @spec encode_address!(binary()) :: Types.t_address() | no_return()
+  def encode_address!(address) do
+    case encode_address(address) do
+      {:ok, encoded} ->
+        encoded
+
+      {:error, :invalid_address} ->
+        raise ArgumentError, "Invalid Ethereum address binary #{inspect(address)}"
     end
   end
 end

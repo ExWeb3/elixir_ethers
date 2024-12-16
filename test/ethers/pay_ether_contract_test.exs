@@ -18,13 +18,23 @@ defmodule Ethers.PayEtherContractTest do
     test "can pay payable functions", %{address: address} do
       assert {:ok, tx_hash} =
                PayEtherContract.pay_me()
-               |> Ethers.send(to: address, value: Ethers.Utils.to_wei(1), from: @from)
+               |> Ethers.send(
+                 to: address,
+                 value: Ethers.Utils.to_wei(1),
+                 from: @from,
+                 signer: Ethers.Signer.JsonRPC
+               )
 
       wait_for_transaction!(tx_hash)
 
       assert {:error, %{"code" => 3}} =
                PayEtherContract.dont_pay_me()
-               |> Ethers.send(to: address, value: Ethers.Utils.to_wei(1), from: @from)
+               |> Ethers.send(
+                 to: address,
+                 value: Ethers.Utils.to_wei(1),
+                 from: @from,
+                 signer: Ethers.Signer.JsonRPC
+               )
     end
   end
 

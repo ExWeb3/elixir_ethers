@@ -18,9 +18,10 @@ defmodule Ethers.Signer.Local do
   import Ethers, only: [secp256k1_module: 0, keccak_module: 0]
 
   alias Ethers.Transaction
+  alias Ethers.Transaction.SignedTransaction
   alias Ethers.Utils
 
-  unless Code.ensure_loaded?(secp256k1_module()) do
+  if not Code.ensure_loaded?(secp256k1_module()) do
     @impl true
     def sign_transaction(_tx, _opts), do: {:error, :secp256k1_module_not_loaded}
 
@@ -29,26 +30,23 @@ defmodule Ethers.Signer.Local do
   end
 
   @impl true
-  def sign_transaction(%Transaction{} = tx, opts) do
+  def sign_transaction(transaction, opts) do
     with {:ok, private_key} <- private_key(opts),
-         :ok <- validate_private_key(private_key, tx.from),
-         {:ok, {r, s, recovery_id}} <-
-           Transaction.encode(tx)
-           |> keccak_module().hash_256()
-           |> secp256k1_module().sign(private_key) do
-      y_parity_or_v = Transaction.calculate_y_parity_or_v(tx, recovery_id)
-
-      signed =
-        %Ethers.Transaction{
-          tx
-          | signature_r: Utils.hex_encode(r),
-            signature_s: Utils.hex_encode(s),
-            signature_y_parity_or_v: Utils.integer_to_hex(y_parity_or_v)
+         :ok <- validate_private_key(private_key, Keyword.get(opts, :from)),
+         encoded = Transaction.encode(transaction),
+         sign_hash = keccak_module().hash_256(encoded),
+         {:ok, {r, s, recovery_id}} <- secp256k1_module().sign(sign_hash, private_key) do
+      signed_transaction =
+        %SignedTransaction{
+          transaction: transaction,
+          signature_r: r,
+          signature_s: s,
+          signature_y_parity_or_v: Transaction.calculate_y_parity_or_v(transaction, recovery_id)
         }
-        |> Transaction.encode()
-        |> Utils.hex_encode()
 
-      {:ok, signed}
+      encoded_signed_transaction = Transaction.encode(signed_transaction)
+
+      {:ok, Utils.hex_encode(encoded_signed_transaction)}
     end
   end
 
@@ -66,14 +64,14 @@ defmodule Ethers.Signer.Local do
     end
   end
 
-  defp validate_private_key(_private_key, nil), do: {:error, :no_from_address}
+  defp validate_private_key(_private_key, nil), do: :ok
 
   defp validate_private_key(private_key, address) do
     with {:ok, private_key_address} <- do_get_address(private_key) do
-      private_key_address = String.downcase(private_key_address)
-      address = String.downcase(address)
+      private_key_address_bin = Utils.decode_address!(private_key_address)
+      address_bin = Utils.decode_address!(address)
 
-      if address == private_key_address do
+      if address_bin == private_key_address_bin do
         :ok
       else
         {:error, :wrong_key}

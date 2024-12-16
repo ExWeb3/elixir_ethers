@@ -2,9 +2,19 @@
 
 ## Unreleased
 
+### Breaking Changes
+
+- `Ethers.Transaction` struct removed in favour of specific Eip1559 and Legacy structs
+- `Ethers.Utils.maybe_add_gas_limit/2` deprecated
+- Inputs to Ethers functions must be in their original form now (i.e. integer instead of hex)
+
 ### New features
+
 - Implement `Ethers.CcipRead` to support EIP-3668
 - NameService now support off-chain/cross-chain lookups using CCIP-Read
+- Added `Ethers.Transaction.Protocol`
+- Implement specific Eip1559 and Legacy transaction structs
+- Add `Ethers.Utils.decode_address/1` and `Ethers.Utils.encode_address/1`
 
 ### Enhancements
 

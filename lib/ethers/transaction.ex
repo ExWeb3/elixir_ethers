@@ -10,6 +10,7 @@ defmodule Ethers.Transaction do
 
   alias Ethers.Transaction.Eip1559
   alias Ethers.Transaction.Legacy
+  alias Ethers.Transaction.SignedTransaction
   alias Ethers.Transaction.Protocol, as: TxProtocol
   alias Ethers.Utils
 
@@ -20,7 +21,7 @@ defmodule Ethers.Transaction do
   @default_tx_type :eip1559
 
   @type t_transaction_type :: :legacy | :eip1559 | :eip2930 | :eip4844
-  @type t_transaction :: Eip1559.t() | Legacy.t()
+  @type t_transaction :: Eip1559.t() | Legacy.t() | SignedTransaction.t()
 
   # TODO: Add EIP-2930 and EIP-4844 support
   @transaction_type_map %{eip1559: Eip1559, legacy: Legacy}
@@ -126,9 +127,10 @@ defmodule Ethers.Transaction do
     - `{:ok, transaction}` - Converted transaction struct
     - `{:error, :unsupported_tx_type}` - If transaction type is not supported
   """
-  @spec from_map(map()) :: {:ok, t_transaction()} | {:error, :unsupported_tx_type}
-  def from_map(tx) do
+  @spec from_rpc_map(map()) :: {:ok, t_transaction()} | {:error, :unsupported_tx_type}
+  def from_rpc_map(tx) do
     with {:ok, tx_type} <- decode_tx_type(from_map_value(tx, :type)) do
+      # Convert from RPC-style field names to EVM field names.
       new(%{
         access_list: from_map_value(tx, :accessList),
         block_hash: from_map_value(tx, :blockHash),

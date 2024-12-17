@@ -4,7 +4,8 @@
 
 ### Breaking Changes
 
-- `Ethers.Transaction` struct removed in favour of specific Eip1559 and Legacy structs
+- Removed `Ethers.Transaction` struct in favour of specific Eip1559 and Legacy structs
+- Removed `Ethers.Transaction.from_map/1` in favour of `Ethers.Transaction.from_rpc_map/1`
 - `Ethers.Utils.maybe_add_gas_limit/2` deprecated
 - Inputs to Ethers functions must be in their original form now (i.e. integer instead of hex)
 

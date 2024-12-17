@@ -1,6 +1,9 @@
 defmodule Ethers.Transaction.Eip1559 do
   @moduledoc """
-  EIP1559 transaction struct and implementation of Transaction.Protocol.
+  Transaction struct and protocol implementation for Ethereum Improvement Proposal (EIP) 1559
+  transactions. EIP-1559 introduced a new fee market mechanism with base fee and priority fee.
+
+  See: https://eips.ethereum.org/EIPS/eip-1559
   """
 
   alias Ethers.Types
@@ -23,6 +26,18 @@ defmodule Ethers.Transaction.Eip1559 do
     access_list: []
   ]
 
+  @typedoc """
+  A transaction type following EIP-1559 (Type-2) and incorporating the following fields:
+  - `chain_id` - chain ID of network where the transaction is to be executed
+  - `nonce` - sequence number for the transaction from this sender
+  - `max_priority_fee_per_gas` - maximum fee per gas (in wei) to give to validators as priority fee (introduced in EIP-1559)
+  - `max_fee_per_gas` - maximum total fee per gas (in wei) willing to pay (introduced in EIP-1559)
+  - `gas` - maximum amount of gas allowed for transaction execution
+  - `to` - destination address for transaction, nil for contract creation
+  - `value` - amount of ether (in wei) to transfer
+  - `input` - data payload of the transaction
+  - `access_list` - list of addresses and storage keys to warm up (introduced in EIP-2930)
+  """
   @type t :: %__MODULE__{
           chain_id: non_neg_integer(),
           nonce: non_neg_integer(),

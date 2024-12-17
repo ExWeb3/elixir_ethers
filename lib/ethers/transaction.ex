@@ -138,13 +138,29 @@ defmodule Ethers.Transaction do
     * `binary` - RLP encoded transaction with appropriate type envelope
   """
   @spec encode(t()) :: binary()
-  def encode(transaction, mode \\ :payload) do
+  def encode(%mod{} = transaction) do
+    mode = if mod == Signed, do: :payload, else: :hash
+
     transaction
     |> TxProtocol.to_rlp_list(mode)
     |> ExRLP.encode()
     |> prepend_type_envelope(transaction)
   end
 
+  @doc """
+  Decodes a raw transaction from a binary or hex-encoded string.
+
+  Transaction strings must be prefixed with "0x" for hex-encoded inputs.
+  Handles both legacy and typed transactions (EIP-1559, etc).
+
+  ## Parameters
+    * `raw_transaction` - Raw transaction data as a binary or hex string starting with "0x"
+
+  ## Returns
+    * `{:ok, transaction}` - Decoded transaction struct
+    * `{:error, reason}` - Error decoding transaction
+  """
+  @spec decode(String.t()) :: {:ok, t()} | {:error, term()}
   def decode("0x" <> raw_transaction) do
     case raw_transaction
          |> Utils.hex_decode!()
@@ -183,7 +199,7 @@ defmodule Ethers.Transaction do
   def transaction_hash(transaction, format \\ :hex) do
     hash_bin =
       transaction
-      |> encode(:hash)
+      |> encode()
       |> Ethers.keccak_module().hash_256()
 
     case format do

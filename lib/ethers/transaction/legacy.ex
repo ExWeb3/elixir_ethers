@@ -21,6 +21,16 @@ defmodule Ethers.Transaction.Legacy do
     :chain_id
   ]
 
+  @typedoc """
+  Legacy transaction type (Type-0) incorporating the following fields:
+  - nonce: Transaction sequence number for the sending account
+  - gas_price: Price willing to pay for each unit of gas (in wei)
+  - gas: Maximum number of gas units willing to pay for
+  - to: Recipient address or nil for contract creation
+  - value: Amount of ether to transfer in wei
+  - input: Transaction data payload, also called 'data'
+  - chain_id: Network ID from [EIP-155](https://eips.ethereum.org/EIPS/eip-155), defaults to nil for legacy
+  """
   @type t :: %__MODULE__{
           nonce: non_neg_integer(),
           gas_price: non_neg_integer(),

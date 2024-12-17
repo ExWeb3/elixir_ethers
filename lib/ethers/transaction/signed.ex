@@ -14,6 +14,22 @@ defmodule Ethers.Transaction.Signed do
     :signature_y_parity_or_v
   ]
 
+  @typedoc """
+  A transaction signature envelope that wraps transaction data with its signature components.
+
+  This type supports both Legacy (pre-EIP-155), EIP-155 Legacy, and EIP-1559 transaction formats.
+  The signature components consist of:
+  - `signature_r`, `signature_s`: The ECDSA signature values as defined in Ethereum's Yellow Paper
+  - `signature_y_parity_or_v`: The recovery value that varies by transaction type:
+    - For pre-EIP-155 Legacy transactions: v = recovery_id + 27
+    - For EIP-155 Legacy transactions: v = recovery_id + chain_id * 2 + 35
+    - For EIP-1559 transactions: Just the recovery_id (0 or 1) as specified in EIP-2930
+
+  Related EIPs:
+  - [EIP-155](https://eips.ethereum.org/EIPS/eip-155): Simple replay attack protection
+  - [EIP-1559](https://eips.ethereum.org/EIPS/eip-1559): Fee market change for ETH 1.0 chain
+  - [EIP-2930](https://eips.ethereum.org/EIPS/eip-2930): Optional access lists
+  """
   @type t :: %__MODULE__{
           transaction: Transaction.Legacy.t() | Transaction.Eip1559.t(),
           signature_r: binary(),
@@ -24,6 +40,7 @@ defmodule Ethers.Transaction.Signed do
   @legacy_parity_magic_number 27
   @legacy_parity_with_chain_magic_number 35
 
+  @doc false
   def new(params) do
     {:ok,
      %__MODULE__{
@@ -34,6 +51,7 @@ defmodule Ethers.Transaction.Signed do
      }}
   end
 
+  @doc false
   def from_rlp_list(rlp_list, transaction) do
     case rlp_list do
       [signature_y_parity_or_v, signature_r, signature_s] ->
@@ -64,6 +82,18 @@ defmodule Ethers.Transaction.Signed do
 
   defp maybe_add_chain_id(%__MODULE__{} = tx), do: tx
 
+  @doc """
+  Calculates the from address of a signed transaction using its signature.
+
+  The from address is inferred from the signature of the transaction rather than being explicitly
+  specified. This is done by recovering the signer's public key from the signature and then
+  deriving the corresponding Ethereum address.
+
+  ## Returns
+    - `{:ok, address}` - Successfully recovered from address
+    - `{:error, reason}` - Failed to recover address
+  """
+  @spec from_address(t()) :: {:ok, Ethers.Types.t_address()} | {:error, atom()}
   def from_address(%__MODULE__{} = transaction) do
     hash_bin = Transaction.transaction_hash(transaction.transaction, :bin)
 
@@ -110,6 +140,7 @@ defmodule Ethers.Transaction.Signed do
     end
   end
 
+  @spec extract_chain_id_and_recovery_id(t()) :: {non_neg_integer() | nil, non_neg_integer()}
   defp extract_chain_id_and_recovery_id(%__MODULE__{transaction: tx, signature_y_parity_or_v: v}) do
     case tx do
       %Legacy{} ->

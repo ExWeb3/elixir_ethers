@@ -40,7 +40,7 @@ defmodule Ethers.Signer do
    - opts: Other options passed to the signer as `signer_opts`.
   """
   @callback sign_transaction(
-              tx :: Ethers.Transaction.t(),
+              tx :: Ethers.Transaction.t_payload(),
               opts :: Keyword.t()
             ) ::
               {:ok, encoded_signed_transaction :: binary()} | {:error, reason :: term()}

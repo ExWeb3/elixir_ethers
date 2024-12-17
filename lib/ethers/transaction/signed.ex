@@ -31,10 +31,10 @@ defmodule Ethers.Transaction.Signed do
   - [EIP-2930](https://eips.ethereum.org/EIPS/eip-2930): Optional access lists
   """
   @type t :: %__MODULE__{
-          transaction: Transaction.Legacy.t() | Transaction.Eip1559.t(),
+          transaction: Transaction.t_payload(),
           signature_r: binary(),
           signature_s: binary(),
-          signature_y_parity_or_v: binary() | non_neg_integer()
+          signature_y_parity_or_v: non_neg_integer()
         }
 
   @legacy_parity_magic_number 27
@@ -122,7 +122,7 @@ defmodule Ethers.Transaction.Signed do
   ## Returns
     - `integer` - Calculated y-parity or v value
   """
-  @spec calculate_y_parity_or_v(t(), binary() | non_neg_integer()) ::
+  @spec calculate_y_parity_or_v(Transaction.t_payload(), binary() | non_neg_integer()) ::
           non_neg_integer()
   def calculate_y_parity_or_v(tx, recovery_id) do
     case tx do
@@ -144,14 +144,12 @@ defmodule Ethers.Transaction.Signed do
   defp extract_chain_id_and_recovery_id(%__MODULE__{transaction: tx, signature_y_parity_or_v: v}) do
     case tx do
       %Legacy{} ->
-        cond do
-          v >= @legacy_parity_with_chain_magic_number ->
-            chain_id = div(v - @legacy_parity_with_chain_magic_number, 2)
-            recovery_id = v - chain_id * 2 - @legacy_parity_with_chain_magic_number
-            {chain_id, recovery_id}
-
-          true ->
-            {nil, v - @legacy_parity_magic_number}
+        if v >= @legacy_parity_with_chain_magic_number do
+          chain_id = div(v - @legacy_parity_with_chain_magic_number, 2)
+          recovery_id = v - chain_id * 2 - @legacy_parity_with_chain_magic_number
+          {chain_id, recovery_id}
+        else
+          {nil, v - @legacy_parity_magic_number}
         end
 
       _tx ->

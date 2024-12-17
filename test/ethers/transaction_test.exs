@@ -57,7 +57,7 @@ defmodule Ethers.TransactionTest do
 
       # Verify other transaction fields
       assert decoded_tx.transaction.chain_id == 1
-      assert decoded_tx.transaction.gas == 63628
+      assert decoded_tx.transaction.gas == 63_628
       assert decoded_tx.transaction.max_fee_per_gas == 11_890_834_482
       assert decoded_tx.transaction.nonce == 119
       assert decoded_tx.transaction.max_priority_fee_per_gas == 8_000_000

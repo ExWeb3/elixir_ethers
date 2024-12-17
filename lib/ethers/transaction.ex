@@ -17,7 +17,12 @@ defmodule Ethers.Transaction do
   @typedoc """
   EVM Transaction type
   """
-  @type t :: Eip1559.t() | Legacy.t() | Signed.t()
+  @type t :: t_payload() | Signed.t()
+
+  @typedoc """
+  EVM Transaction payload type
+  """
+  @type t_payload :: Eip1559.t() | Legacy.t()
 
   @doc "Creates a new transaction struct with the given parameters."
   @callback new(map()) :: {:ok, t()} | {:error, reason :: atom()}

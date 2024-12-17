@@ -9,9 +9,9 @@ defmodule Ethers.Signer.JsonRPCTest do
         to: "0xFFcf8FDEE72ac11b5c542428B35EEF5769C409f0",
         input: "0x06fdde03",
         value: 0,
-        chain_id: 31337,
+        chain_id: 31_337,
         nonce: 2918,
-        gas: 23170,
+        gas: 23_170,
         max_fee_per_gas: 87_119_557_365,
         max_priority_fee_per_gas: 0
       }
@@ -26,9 +26,9 @@ defmodule Ethers.Signer.JsonRPCTest do
         to: "0xFFcf8FDEE72ac11b5c542428B35EEF5769C409f0",
         input: "0x06fdde03",
         value: 0,
-        chain_id: 31337,
+        chain_id: 31_337,
         nonce: 2918,
-        gas: 23170,
+        gas: 23_170,
         max_fee_per_gas: 87_119_557_365,
         max_priority_fee_per_gas: 0
       }

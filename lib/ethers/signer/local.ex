@@ -33,7 +33,7 @@ defmodule Ethers.Signer.Local do
   def sign_transaction(transaction, opts) do
     with {:ok, private_key} <- private_key(opts),
          :ok <- validate_private_key(private_key, Keyword.get(opts, :from)),
-         encoded = Transaction.encode(transaction),
+         encoded = Transaction.encode(transaction, :hash),
          sign_hash = keccak_module().hash_256(encoded),
          {:ok, {r, s, recovery_id}} <- secp256k1_module().sign(sign_hash, private_key) do
       signed_transaction =

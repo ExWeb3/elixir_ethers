@@ -8,6 +8,8 @@ defmodule Ethers.Transaction.Eip1559 do
 
   @behaviour Ethers.Transaction
 
+  @type_id 2
+
   @enforce_keys [:chain_id, :nonce, :max_priority_fee_per_gas, :max_fee_per_gas, :gas]
   defstruct [
     :chain_id,
@@ -55,16 +57,18 @@ defmodule Ethers.Transaction.Eip1559 do
   end
 
   @impl Ethers.Transaction
-  def type_id, do: 2
+  def type_envelope, do: <<type_id()>>
+
+  @impl Ethers.Transaction
+  def type_id, do: @type_id
 
   defimpl Ethers.Transaction.Protocol do
-    def type(_transaction), do: :eip1559
-
     def type_id(_transaction), do: @for.type_id()
 
-    def type_envelope(transaction), do: <<type_id(transaction)>>
+    def type_envelope(_transaction), do: @for.type_envelope()
 
-    def to_rlp_list(tx) do
+    def to_rlp_list(tx, _mode) do
+      # Eip1559 does not descriminate in RLP encoding between payload and hash
       [
         tx.chain_id,
         tx.nonce,

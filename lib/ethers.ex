@@ -68,7 +68,7 @@ defmodule Ethers do
   alias Ethers.Types
   alias Ethers.Utils
 
-  @option_keys [:rpc_client, :rpc_opts, :signer, :signer_opts, :tx_type]
+  @option_keys [:rpc_client, :rpc_opts, :signer, :signer_opts]
   @hex_decode_post_process [
     :chain_id,
     :current_block_number,
@@ -348,7 +348,7 @@ defmodule Ethers do
   - `:rpc_opts`: Extra options to pass to rpc_client. (Like timeout, Server URL, etc.)
   - `:signer`: The signer module to use for signing transaction. Default is nil and will rely on the RPC server for signing.
   - `:signer_opts`: Options for signer module. See your signer docs for more details.
-  - `:tx_type`: Transaction type. Either `:eip1559` (default) or `:legacy`.
+  - `:type`: Transaction type. Either `Ethers.Transaction.Eip1559` (default) or `Ethers.Transaction.Legacy`.
   - `:to`: Address of the contract or a receiver of this transaction. (required if TxData does not have default_address)
   - `:value`: Ether value to send with the transaction to the receiver (`from => to`).
 

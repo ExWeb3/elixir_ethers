@@ -8,6 +8,8 @@ defmodule Ethers.Transaction.Legacy do
 
   @behaviour Ethers.Transaction
 
+  @type_id 0
+
   @enforce_keys [:nonce, :gas_price, :gas]
   defstruct [
     :nonce,
@@ -48,17 +50,19 @@ defmodule Ethers.Transaction.Legacy do
     [:chain_id, :nonce, :gas_price, :gas]
   end
 
+  # Legacy transactions do not have a type envelope
   @impl Ethers.Transaction
-  def type_id, do: 0
+  def type_envelope, do: ""
+
+  @impl Ethers.Transaction
+  def type_id, do: @type_id
 
   defimpl Ethers.Transaction.Protocol do
-    def type(_transaction), do: :legacy
-
     def type_id(_transaction), do: @for.type_id()
 
-    def type_envelope(_transaction), do: ""
+    def type_envelope(_transaction), do: @for.type_envelope()
 
-    def to_rlp_list(tx) do
+    def to_rlp_list(tx, mode) do
       [
         tx.nonce,
         tx.gas_price,
@@ -67,6 +71,15 @@ defmodule Ethers.Transaction.Legacy do
         tx.value,
         Utils.hex_decode!(tx.input)
       ]
+      |> maybe_add_eip_155(tx, mode)
+    end
+
+    defp maybe_add_eip_155(base_list, _tx, :payload), do: base_list
+
+    defp maybe_add_eip_155(base_list, %@for{chain_id: nil}, :hash), do: base_list
+
+    defp maybe_add_eip_155(base_list, %@for{chain_id: chain_id}, :hash) do
+      base_list ++ [chain_id, 0, 0]
     end
   end
 end

@@ -4,7 +4,8 @@ defmodule Ethers.Transaction.SignedTransaction do
   """
 
   alias Ethers.Transaction
-  alias Ethers.Transaction.Legacy
+
+  @behaviour Ethers.Transaction
 
   @enforce_keys [:transaction, :signature_r, :signature_s, :signature_y_parity_or_v]
   defstruct [
@@ -21,24 +22,35 @@ defmodule Ethers.Transaction.SignedTransaction do
           signature_y_parity_or_v: binary() | non_neg_integer()
         }
 
-  defimpl Transaction.Protocol do
-    def type(signed_tx), do: Transaction.Protocol.type(signed_tx.transaction)
+  @impl Ethers.Transaction
+  def new(params) do
+    {:ok,
+     %__MODULE__{
+       transaction: params.transaction,
+       signature_r: params.signature_r,
+       signature_s: params.signature_s,
+       signature_y_parity_or_v: params.signature_y_parity_or_v
+     }}
+  end
 
+  @impl Ethers.Transaction
+  def auto_fetchable_fields, do: []
+
+  @impl Ethers.Transaction
+  def type_envelope, do: raise("Not supported")
+
+  @impl Ethers.Transaction
+  def type_id, do: raise("Not supported")
+
+  defimpl Transaction.Protocol do
     def type_id(signed_tx), do: Transaction.Protocol.type_id(signed_tx.transaction)
 
     def type_envelope(signed_tx), do: Transaction.Protocol.type_envelope(signed_tx.transaction)
 
-    def to_rlp_list(signed_tx) do
-      base_list = Transaction.Protocol.to_rlp_list(signed_tx.transaction)
+    def to_rlp_list(signed_tx, mode) do
+      base_list = Transaction.Protocol.to_rlp_list(signed_tx.transaction, mode)
 
       base_list ++ signature_fields(signed_tx)
-    end
-
-    defp signature_fields(%@for{
-           transaction: %Legacy{chain_id: chain_id}
-         })
-         when not is_nil(chain_id) do
-      [chain_id, 0, 0]
     end
 
     defp signature_fields(signed_tx) do

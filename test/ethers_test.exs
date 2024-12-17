@@ -108,8 +108,10 @@ defmodule EthersTest do
       downcased_to_addr = String.downcase(@to)
 
       assert {:ok,
-              %Ethers.Transaction.Eip1559{
-                to: ^downcased_to_addr
+              %Ethers.Transaction.SignedTransaction{
+                transaction: %Ethers.Transaction.Eip1559{
+                  to: ^downcased_to_addr
+                }
               }} = Ethers.get_transaction(tx_hash)
     end
 
@@ -127,7 +129,9 @@ defmodule EthersTest do
 
       assert {:ok,
               [
-                ok: %Ethers.Transaction.Eip1559{}
+                ok: %Ethers.Transaction.SignedTransaction{
+                  transaction: %Ethers.Transaction.Eip1559{}
+                }
               ]} =
                Ethers.batch([
                  {:get_transaction, tx_hash}
@@ -446,19 +450,23 @@ defmodule EthersTest do
     test "signs and sends a legacy transaction using a signer" do
       address = deploy(HelloWorldContract, from: @from)
 
-      assert {:ok, _tx_hash} =
-               HelloWorldContract.set_hello("hello local signer")
-               |> Ethers.send(
-                 from: @from,
-                 to: address,
-                 tx_type: :legacy,
-                 signer: Ethers.Signer.Local,
-                 signer_opts: [
-                   private_key: @from_private_key
-                 ]
-               )
+      {:ok, tx_hash} =
+        HelloWorldContract.set_hello("hello local signer")
+        |> Ethers.send(
+          from: @from,
+          to: address,
+          type: Ethers.Transaction.Legacy,
+          signer: Ethers.Signer.Local,
+          signer_opts: [
+            private_key: @from_private_key
+          ]
+        )
 
-      Process.sleep(50)
+      wait_for_transaction!(tx_hash)
+
+      assert {:ok,
+              %Ethers.Transaction.SignedTransaction{transaction: %Ethers.Transaction.Legacy{}}} =
+               Ethers.get_transaction(tx_hash)
 
       assert {:ok, "hello local signer"} =
                Ethers.call(HelloWorldContract.say_hello(), to: address)
@@ -493,7 +501,7 @@ defmodule EthersTest do
                  from: @from,
                  to: address,
                  signer: Ethers.Signer.JsonRPC,
-                 tx_type: :eip1559
+                 type: Ethers.Transaction.Eip1559
                )
 
       assert {:ok, tx_hash} = Ethers.send(signed)
@@ -511,7 +519,7 @@ defmodule EthersTest do
                  from: @from,
                  to: address,
                  signer: Ethers.Signer.JsonRPC,
-                 type: :legacy
+                 type: Ethers.Transaction.Legacy
                )
 
       refute String.starts_with?(signed, "0x02")
@@ -563,7 +571,7 @@ defmodule EthersTest do
           from: @from,
           gas: 10_000,
           max_fee_per_gas: 123_123_123,
-          chain_id: 31337,
+          chain_id: 31_337,
           nonce: 100,
           to: "0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc",
           signer: Ethers.Signer.JsonRPC
@@ -580,7 +588,7 @@ defmodule EthersTest do
           gas: 10_000,
           max_fee_per_gas: 123_123_123,
           max_priority_fee_per_gas: 2_000_000_000,
-          chain_id: 31337,
+          chain_id: 31_337,
           nonce: 100,
           to: "0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc",
           signer: Ethers.Signer.JsonRPC

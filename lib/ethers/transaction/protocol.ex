@@ -4,12 +4,6 @@ defprotocol Ethers.Transaction.Protocol do
   """
 
   @doc """
-  Returns the type of a given transaction.
-  """
-  @spec type(t) :: Ethers.Transaction.t_transaction_type()
-  def type(transaction)
-
-  @doc """
   Returns the binary value of the transaction type envelope or empty binary if legacy transaction.
   """
   @fallback_to_any true
@@ -25,25 +19,27 @@ defprotocol Ethers.Transaction.Protocol do
 
   @doc """
   Returns a list ready to be RLP encoded for a given transaction.
+
+  ## Parameters
+    - `transaction` - Transaction struct
+    - `mode` - Specifies what RLP mode is. `:payload` for encoding the transaction payload,
+    `:hash` for encoding the transaction hash
   """
-  @spec to_rlp_list(t) :: [binary() | [binary()]]
-  def to_rlp_list(transaction)
+  @spec to_rlp_list(t, mode :: :payload | :hash) :: [binary() | [binary()]]
+  def to_rlp_list(transaction, mode)
 end
 
 defimpl Ethers.Transaction.Protocol, for: Any do
   alias Ethers.Transaction
 
-  def type(transaction) do
-    Map.get(transaction, :type, Transaction.default_tx_type())
-  end
-
   def type_id(transaction) do
-    Transaction.transaction_module!(type(transaction)).type_id()
+    type = Map.get(transaction, :type, Transaction.default_transaction_type())
+    type.type_id()
   end
 
   def type_envelope(transaction), do: raise_no_impl(transaction)
 
-  def to_rlp_list(transaction), do: raise_no_impl(transaction)
+  def to_rlp_list(transaction, _mode), do: raise_no_impl(transaction)
 
   defp raise_no_impl(transaction) do
     raise ArgumentError, "Transaction protocol not implemented for #{inspect(transaction)}"

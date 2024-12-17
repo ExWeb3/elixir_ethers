@@ -10,24 +10,25 @@ defmodule Ethers.Transaction do
 
   alias Ethers.Transaction.Eip1559
   alias Ethers.Transaction.Legacy
-  alias Ethers.Transaction.SignedTransaction
   alias Ethers.Transaction.Protocol, as: TxProtocol
+  alias Ethers.Transaction.SignedTransaction
   alias Ethers.Utils
 
   @callback new(map()) :: {:ok, struct()} | {:error, atom()}
   @callback auto_fetchable_fields() :: [atom()]
+  @callback type_envelope() :: non_neg_integer()
   @callback type_id() :: non_neg_integer()
 
-  @default_tx_type :eip1559
+  @default_transaction_type Eip1559
 
-  @type t_transaction_type :: :legacy | :eip1559 | :eip2930 | :eip4844
   @type t_transaction :: Eip1559.t() | Legacy.t() | SignedTransaction.t()
 
   # TODO: Add EIP-2930 and EIP-4844 support
-  @transaction_type_map %{eip1559: Eip1559, legacy: Legacy}
-  @transaction_envelope_types %{eip1559: <<2>>, eip2930: <<1>>, eip4844: <<3>>, legacy: <<>>}
+  @transaction_type_modules Application.compile_env(:ethers, :transaction_types, [Legacy, Eip1559])
+
   @legacy_parity_magic_number 27
   @legacy_parity_with_chain_magic_number 35
+
   @rpc_fields %{
     access_list: :accessList,
     blob_versioned_hashes: :blobVersionedHashes,
@@ -43,23 +44,42 @@ defmodule Ethers.Transaction do
 
   ## Parameters
     - `params` - Map of transaction parameters
-    - `type` - Transaction type (default: `:eip1559`)
+    - `type` - Transaction type (default: `Ethers.Transaction.Eip1559`)
 
   ## Examples
 
       iex> Ethers.Transaction.new(%{from: "0x123...", to: "0x456...", value: "0x0"})
       %Ethers.Transaction.Eip1559{from: "0x123...", to: "0x456...", value: "0x0"}
   """
-  @spec new(map()) :: {:ok, Eip1559.t() | Legacy.t()}
+  @spec new(map()) :: {:ok, t_transaction()}
   def new(params) do
     case Map.fetch(params, :type) do
-      {:ok, type} ->
-        transaction_module!(type).new(params)
+      {:ok, type} when type in @transaction_type_modules ->
+        params
+        |> type.new()
+        |> maybe_wrap_signed(params)
+
+      {:ok, _type} ->
+        {:error, :unsupported_transaction_type}
 
       :error ->
-        {:error, :missing_tx_type}
+        {:error, :missing_type}
     end
   end
+
+  defp maybe_wrap_signed({:ok, transaction}, params) do
+    case Map.fetch(params, :signature_r) do
+      {:ok, sig_r} when not is_nil(sig_r) ->
+        params
+        |> Map.put(:transaction, transaction)
+        |> SignedTransaction.new()
+
+      :error ->
+        {:ok, transaction}
+    end
+  end
+
+  defp maybe_wrap_signed({:error, reason}, _params), do: {:error, reason}
 
   @doc """
   Fills missing transaction fields with default values from the network based on transaction type.
@@ -74,11 +94,10 @@ defmodule Ethers.Transaction do
   """
   @spec add_auto_fetchable_fields(map(), keyword()) :: {:ok, map()} | {:error, term()}
   def add_auto_fetchable_fields(params, opts) do
-    params = Map.put_new(params, :type, @default_tx_type)
-    tx_module = transaction_module!(params.type)
+    params = Map.put_new(params, :type, @default_transaction_type)
 
     {keys, actions} =
-      tx_module.auto_fetchable_fields()
+      params.type.auto_fetchable_fields()
       |> Enum.reject(&Map.get(params, &1))
       |> Enum.map(&{&1, fill_action(&1, params)})
       |> Enum.unzip()
@@ -102,14 +121,16 @@ defmodule Ethers.Transaction do
 
   ## Parameters
     * `transaction` - Transaction struct to encode
+    * `mode` - Specifies what RLP mode is. `:payload` for encoding the transaction payload,
+    `:hash` for encoding the transaction hash
 
   ## Returns
     * `binary` - RLP encoded transaction with appropriate type envelope
   """
   @spec encode(t_transaction()) :: binary()
-  def encode(transaction) do
+  def encode(transaction, mode \\ :payload) do
     transaction
-    |> TxProtocol.to_rlp_list()
+    |> TxProtocol.to_rlp_list(mode)
     |> ExRLP.encode()
     |> prepend_type_envelope(transaction)
   end
@@ -125,11 +146,11 @@ defmodule Ethers.Transaction do
 
   ## Returns
     - `{:ok, transaction}` - Converted transaction struct
-    - `{:error, :unsupported_tx_type}` - If transaction type is not supported
+    - `{:error, :unsupported_type}` - If transaction type is not supported
   """
-  @spec from_rpc_map(map()) :: {:ok, t_transaction()} | {:error, :unsupported_tx_type}
+  @spec from_rpc_map(map()) :: {:ok, t_transaction()} | {:error, :unsupported_type}
   def from_rpc_map(tx) do
-    with {:ok, tx_type} <- decode_tx_type(from_map_value(tx, :type)) do
+    with {:ok, type} <- decode_type(from_map_value(tx, :type)) do
       # Convert from RPC-style field names to EVM field names.
       new(%{
         access_list: from_map_value(tx, :accessList),
@@ -150,7 +171,7 @@ defmodule Ethers.Transaction do
         to: from_map_value(tx, :to),
         transaction_index: from_map_value(tx, :transactionIndex),
         value: from_map_value(tx, :value),
-        type: tx_type
+        type: type
       })
     end
   end
@@ -177,7 +198,7 @@ defmodule Ethers.Transaction do
 
       %Legacy{chain_id: chain_id} ->
         # EIP-155
-        recovery_id + @legacy_parity_with_chain_magic_number + chain_id * 2
+        recovery_id + chain_id * 2 + @legacy_parity_with_chain_magic_number
 
       _tx ->
         # EIP-1559
@@ -264,30 +285,22 @@ defmodule Ethers.Transaction do
 
   defp do_post_process(_key, {:error, reason}), do: {:error, reason}
 
-  defp decode_tx_type("0x" <> _ = type), do: decode_tx_type(Utils.hex_decode!(type))
+  defp decode_type("0x" <> _ = type), do: decode_type(Utils.hex_decode!(type))
 
-  Enum.each(@transaction_envelope_types, fn {name, value} ->
-    defp decode_tx_type(unquote(value)), do: {:ok, unquote(name)}
+  Enum.each(@transaction_type_modules, fn module ->
+    type_envelope = module.type_envelope()
+    defp decode_type(unquote(type_envelope)), do: {:ok, unquote(module)}
   end)
 
-  defp decode_tx_type(<<0>>), do: {:ok, :legacy}
-  defp decode_tx_type(nil), do: {:ok, :legacy}
-  defp decode_tx_type(_type), do: {:error, :unsupported_tx_type}
+  defp decode_type(<<0>>), do: {:ok, Legacy}
+  defp decode_type(nil), do: {:ok, Legacy}
+  defp decode_type(_type), do: {:error, :unsupported_type}
 
   defp from_map_value(tx, key) do
     Map.get_lazy(tx, key, fn -> Map.get(tx, to_string(key)) end)
   end
 
   @doc false
-  @spec transaction_module!(atom()) :: module()
-  def transaction_module!(type) do
-    case Map.get(@transaction_type_map, type) do
-      nil -> raise ArgumentError, "Invalid transaction type: #{inspect(type)}"
-      module -> module
-    end
-  end
-
-  @doc false
-  @spec default_tx_type() :: atom()
-  def default_tx_type, do: @default_tx_type
+  @spec default_transaction_type() :: atom()
+  def default_transaction_type, do: @default_transaction_type
 end

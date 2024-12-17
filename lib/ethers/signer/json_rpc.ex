@@ -17,8 +17,16 @@ defmodule Ethers.Signer.JsonRPC do
   alias Ethers.Transaction
 
   @impl true
-  def sign_transaction(%Transaction{} = tx, opts) do
-    tx_map = Transaction.to_map(tx)
+  def sign_transaction(tx, opts) do
+    tx_map = Transaction.to_rpc_map(tx)
+
+    tx_map =
+      if from = Keyword.get(opts, :from) do
+        Map.put_new(tx_map, :from, from)
+      else
+        tx_map
+      end
+
     {rpc_module, opts} = Keyword.pop(opts, :rpc_module, Ethereumex.HttpClient)
 
     rpc_module.request("eth_signTransaction", [tx_map], opts)

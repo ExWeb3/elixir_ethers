@@ -2,14 +2,27 @@
 
 ## Unreleased
 
+### Breaking Changes
+
+- Removed `Ethers.Transaction` struct and replaced with separate EIP-1559 and Legacy transaction structs for improved type safety
+- Deprecated `Ethers.Transaction.from_map/1` - use `Ethers.Transaction.from_rpc_map/1` instead for RPC response parsing
+- Deprecated `Ethers.Utils.maybe_add_gas_limit/2` - gas limits should now be set explicitly
+- Changed input format requirements: All inputs to `Ethers` functions must use native types (e.g., integers) instead of hex strings encoded values.
+- Removed auto-gas estimation from send_transaction calls
+- `tx_type` option in transaction overrides has been replaced with `type`, now requiring explicit struct modules (e.g. `Ethers.Transaction.Eip1559`, `Ethers.Transaction.Legacy`).
+
 ### New features
-- Implement `Ethers.CcipRead` to support EIP-3668
-- NameService now support off-chain/cross-chain lookups using CCIP-Read
+
+- Added **EIP-3668 CCIP-Read** support via `Ethers.CcipRead` module for off-chain data resolution
+- Extended NameService to handle off-chain and cross-chain name resolution using CCIP-Read protocol
+- Introduced `Ethers.Transaction.Protocol` behaviour for improved transaction handling.
+- Added dedicated *EIP-1559* and *Legacy* transaction struct types with validation
+- New address utilities: `Ethers.Utils.decode_address/1` and `Ethers.Utils.encode_address/1`
 
 ### Enhancements
 
-- Improve `Ethers.deploy/2` error handling
-- NameService improvements and support for ENSIP-10
+- Improved error handling and reporting in `Ethers.deploy/2`
+- Enhanced NameService with ENSIP-10 wildcard resolution support
 
 ## v0.5.5 (2024-12-03)
 

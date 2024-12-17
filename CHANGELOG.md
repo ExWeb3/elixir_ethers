@@ -10,6 +10,7 @@
 - Changed input format requirements: All inputs to `Ethers` functions must use native types (e.g., integers) instead of hex strings encoded values.
 - Removed auto-gas estimation from send_transaction calls
 - `tx_type` option in transaction overrides has been replaced with `type`, now requiring explicit struct modules (e.g. `Ethers.Transaction.Eip1559`, `Ethers.Transaction.Legacy`).
+- Moved `Ethers.Transaction.calculate_y_parity_or_v/1` to `Ethers.Transaction.SignedTransaction` module
 
 ### New features
 

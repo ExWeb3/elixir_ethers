@@ -41,7 +41,8 @@ defmodule Ethers.Signer.Local do
           transaction: transaction,
           signature_r: r,
           signature_s: s,
-          signature_y_parity_or_v: Transaction.calculate_y_parity_or_v(transaction, recovery_id)
+          signature_y_parity_or_v:
+            SignedTransaction.calculate_y_parity_or_v(transaction, recovery_id)
         }
 
       encoded_signed_transaction = Transaction.encode(signed_transaction)

@@ -62,6 +62,34 @@ defmodule Ethers.Transaction.Eip1559 do
   @impl Ethers.Transaction
   def type_id, do: @type_id
 
+  @impl Ethers.Transaction
+  def from_rlp_list([
+        chain_id,
+        nonce,
+        max_priority_fee_per_gas,
+        max_fee_per_gas,
+        gas,
+        to,
+        value,
+        input,
+        access_list | rest
+      ]) do
+    {:ok,
+     %__MODULE__{
+       chain_id: :binary.decode_unsigned(chain_id),
+       nonce: :binary.decode_unsigned(nonce),
+       max_priority_fee_per_gas: :binary.decode_unsigned(max_priority_fee_per_gas),
+       max_fee_per_gas: :binary.decode_unsigned(max_fee_per_gas),
+       gas: :binary.decode_unsigned(gas),
+       to: (to != "" && Utils.encode_address!(to)) || nil,
+       value: :binary.decode_unsigned(value),
+       input: Utils.hex_encode(input),
+       access_list: access_list
+     }, rest}
+  end
+
+  def from_rlp_list(_rlp_list), do: {:error, :transaction_decode_failed}
+
   defimpl Ethers.Transaction.Protocol do
     def type_id(_transaction), do: @for.type_id()
 

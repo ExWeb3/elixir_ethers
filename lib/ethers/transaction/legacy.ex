@@ -57,6 +57,21 @@ defmodule Ethers.Transaction.Legacy do
   @impl Ethers.Transaction
   def type_id, do: @type_id
 
+  @impl Ethers.Transaction
+  def from_rlp_list([nonce, gas_price, gas, to, value, input | rest]) do
+    {:ok,
+     %__MODULE__{
+       nonce: :binary.decode_unsigned(nonce),
+       gas_price: :binary.decode_unsigned(gas_price),
+       gas: :binary.decode_unsigned(gas),
+       to: (to != "" && Utils.encode_address!(to)) || nil,
+       value: :binary.decode_unsigned(value),
+       input: Utils.hex_encode(input)
+     }, rest}
+  end
+
+  def from_rlp_list(_rlp_list), do: {:error, :transaction_decode_failed}
+
   defimpl Ethers.Transaction.Protocol do
     def type_id(_transaction), do: @for.type_id()
 

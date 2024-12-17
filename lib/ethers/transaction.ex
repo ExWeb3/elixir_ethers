@@ -20,7 +20,7 @@ defmodule Ethers.Transaction do
   @type t :: Eip1559.t() | Legacy.t() | SignedTransaction.t()
 
   @doc "Creates a new transaction struct with the given parameters."
-  @callback new(map()) :: {:ok, struct()} | {:error, atom()}
+  @callback new(map()) :: {:ok, t()} | {:error, reason :: atom()}
 
   @doc "Returns a list of fields that can be auto-fetched from the network."
   @callback auto_fetchable_fields() :: [atom()]
@@ -31,12 +31,13 @@ defmodule Ethers.Transaction do
   @doc "Returns the type ID for the transaction. e.g Legacy: 0, EIP-1559: 2"
   @callback type_id() :: non_neg_integer()
 
+  @doc "Constructs a transaction from a decoded RLP list"
+  @callback from_rlp_list([binary() | [binary()]]) ::
+              {:ok, t(), rest :: [binary() | [binary()]]} | {:error, reason :: term()}
+
   @default_transaction_type Eip1559
 
-  @transaction_type_modules Application.compile_env(:ethers, :transaction_types, [Legacy, Eip1559])
-
-  @legacy_parity_magic_number 27
-  @legacy_parity_with_chain_magic_number 35
+  @transaction_type_modules Application.compile_env(:ethers, :transaction_types, [Eip1559, Legacy])
 
   @rpc_fields %{
     access_list: :accessList,
@@ -144,6 +145,53 @@ defmodule Ethers.Transaction do
     |> prepend_type_envelope(transaction)
   end
 
+  def decode("0x" <> raw_transaction) do
+    case raw_transaction
+         |> Utils.hex_decode!()
+         |> decode_transaction_data() do
+      {:ok, transaction, signature} ->
+        maybe_decode_signature(transaction, signature)
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  Enum.each(@transaction_type_modules, fn module ->
+    type_envelope = module.type_envelope()
+
+    defp decode_transaction_data(<<unquote(type_envelope)::binary, rest::binary>>) do
+      rlp_decoded = ExRLP.decode(rest)
+      unquote(module).from_rlp_list(rlp_decoded)
+    end
+  end)
+
+  defp decode_transaction_data(legacy_transaction) when is_binary(legacy_transaction) do
+    rlp_decoded = ExRLP.decode(legacy_transaction)
+
+    Legacy.from_rlp_list(rlp_decoded)
+  end
+
+  defp maybe_decode_signature(transaction, rlp_list) do
+    case SignedTransaction.from_rlp_list(rlp_list, transaction) do
+      {:ok, signed_transaction} -> {:ok, signed_transaction}
+      {:error, :no_signature} -> {:ok, transaction}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  def transaction_hash(transaction, format \\ :hex) do
+    hash_bin =
+      transaction
+      |> encode(:hash)
+      |> Ethers.keccak_module().hash_256()
+
+    case format do
+      :bin -> hash_bin
+      :hex -> Utils.hex_encode(hash_bin)
+    end
+  end
+
   @doc """
   Converts a map (typically from JSON-RPC response) into a Transaction struct.
 
@@ -182,36 +230,6 @@ defmodule Ethers.Transaction do
         value: from_map_value(tx, :value),
         type: type
       })
-    end
-  end
-
-  @doc """
-  Calculates the y-parity or v value for transaction signatures.
-
-  Handles both legacy and EIP-1559 transaction types according to their specifications.
-
-  ## Parameters
-    - `tx` - Transaction struct
-    - `recovery_id` - Recovery ID from the signature
-
-  ## Returns
-    - `integer` - Calculated y-parity or v value
-  """
-  @spec calculate_y_parity_or_v(t(), binary() | non_neg_integer()) ::
-          non_neg_integer()
-  def calculate_y_parity_or_v(tx, recovery_id) do
-    case tx do
-      %Legacy{chain_id: nil} ->
-        # EIP-155
-        recovery_id + @legacy_parity_magic_number
-
-      %Legacy{chain_id: chain_id} ->
-        # EIP-155
-        recovery_id + chain_id * 2 + @legacy_parity_with_chain_magic_number
-
-      _tx ->
-        # EIP-1559
-        recovery_id
     end
   end
 
@@ -255,6 +273,10 @@ defmodule Ethers.Transaction do
       |> Utils.integer_to_hex()
     )
   end
+
+  @doc false
+  @deprecated "Use Transaction.SignedTransaction.calculate_y_parity_or_v/2 instead"
+  defdelegate calculate_y_parity_or_v(tx, recovery_id), to: SignedTransaction
 
   defp prepend_type_envelope(encoded_tx, transaction) do
     TxProtocol.type_envelope(transaction) <> encoded_tx

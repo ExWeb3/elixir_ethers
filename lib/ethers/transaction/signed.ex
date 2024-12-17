@@ -1,4 +1,4 @@
-defmodule Ethers.Transaction.SignedTransaction do
+defmodule Ethers.Transaction.Signed do
   @moduledoc """
   A struct that wraps a transaction and its signature values.
   """

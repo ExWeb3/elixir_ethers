@@ -108,7 +108,7 @@ defmodule EthersTest do
       downcased_to_addr = String.downcase(@to)
 
       assert {:ok,
-              %Ethers.Transaction.SignedTransaction{
+              %Ethers.Transaction.Signed{
                 transaction: %Ethers.Transaction.Eip1559{
                   to: ^downcased_to_addr
                 }
@@ -129,7 +129,7 @@ defmodule EthersTest do
 
       assert {:ok,
               [
-                ok: %Ethers.Transaction.SignedTransaction{
+                ok: %Ethers.Transaction.Signed{
                   transaction: %Ethers.Transaction.Eip1559{}
                 }
               ]} =
@@ -464,8 +464,7 @@ defmodule EthersTest do
 
       wait_for_transaction!(tx_hash)
 
-      assert {:ok,
-              %Ethers.Transaction.SignedTransaction{transaction: %Ethers.Transaction.Legacy{}}} =
+      assert {:ok, %Ethers.Transaction.Signed{transaction: %Ethers.Transaction.Legacy{}}} =
                Ethers.get_transaction(tx_hash)
 
       assert {:ok, "hello local signer"} =

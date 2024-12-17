@@ -18,7 +18,7 @@ defmodule Ethers.Signer.Local do
   import Ethers, only: [secp256k1_module: 0, keccak_module: 0]
 
   alias Ethers.Transaction
-  alias Ethers.Transaction.SignedTransaction
+  alias Ethers.Transaction.Signed
   alias Ethers.Utils
 
   if not Code.ensure_loaded?(secp256k1_module()) do
@@ -37,12 +37,11 @@ defmodule Ethers.Signer.Local do
          sign_hash = keccak_module().hash_256(encoded),
          {:ok, {r, s, recovery_id}} <- secp256k1_module().sign(sign_hash, private_key) do
       signed_transaction =
-        %SignedTransaction{
+        %Signed{
           transaction: transaction,
           signature_r: r,
           signature_s: s,
-          signature_y_parity_or_v:
-            SignedTransaction.calculate_y_parity_or_v(transaction, recovery_id)
+          signature_y_parity_or_v: Signed.calculate_y_parity_or_v(transaction, recovery_id)
         }
 
       encoded_signed_transaction = Transaction.encode(signed_transaction)

@@ -11,13 +11,13 @@ defmodule Ethers.Transaction do
   alias Ethers.Transaction.Eip1559
   alias Ethers.Transaction.Legacy
   alias Ethers.Transaction.Protocol, as: TxProtocol
-  alias Ethers.Transaction.SignedTransaction
+  alias Ethers.Transaction.Signed
   alias Ethers.Utils
 
   @typedoc """
   EVM Transaction type
   """
-  @type t :: Eip1559.t() | Legacy.t() | SignedTransaction.t()
+  @type t :: Eip1559.t() | Legacy.t() | Signed.t()
 
   @doc "Creates a new transaction struct with the given parameters."
   @callback new(map()) :: {:ok, t()} | {:error, reason :: atom()}
@@ -82,7 +82,7 @@ defmodule Ethers.Transaction do
       {:ok, sig_r} when not is_nil(sig_r) ->
         params
         |> Map.put(:transaction, transaction)
-        |> SignedTransaction.new()
+        |> Signed.new()
 
       :error ->
         {:ok, transaction}
@@ -173,7 +173,7 @@ defmodule Ethers.Transaction do
   end
 
   defp maybe_decode_signature(transaction, rlp_list) do
-    case SignedTransaction.from_rlp_list(rlp_list, transaction) do
+    case Signed.from_rlp_list(rlp_list, transaction) do
       {:ok, signed_transaction} -> {:ok, signed_transaction}
       {:error, :no_signature} -> {:ok, transaction}
       {:error, reason} -> {:error, reason}
@@ -275,8 +275,8 @@ defmodule Ethers.Transaction do
   end
 
   @doc false
-  @deprecated "Use Transaction.SignedTransaction.calculate_y_parity_or_v/2 instead"
-  defdelegate calculate_y_parity_or_v(tx, recovery_id), to: SignedTransaction
+  @deprecated "Use Transaction.Signed.calculate_y_parity_or_v/2 instead"
+  defdelegate calculate_y_parity_or_v(tx, recovery_id), to: Signed
 
   defp prepend_type_envelope(encoded_tx, transaction) do
     TxProtocol.type_envelope(transaction) <> encoded_tx

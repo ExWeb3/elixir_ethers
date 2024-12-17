@@ -23,7 +23,6 @@ defmodule Ethers.Transaction do
 
   @type t_transaction :: Eip1559.t() | Legacy.t() | SignedTransaction.t()
 
-  # TODO: Add EIP-2930 and EIP-4844 support
   @transaction_type_modules Application.compile_env(:ethers, :transaction_types, [Legacy, Eip1559])
 
   @legacy_parity_magic_number 27

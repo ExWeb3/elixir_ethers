@@ -68,7 +68,7 @@ defmodule Ethers.Transaction.Eip1559 do
     def type_envelope(_transaction), do: @for.type_envelope()
 
     def to_rlp_list(tx, _mode) do
-      # Eip1559 does not descriminate in RLP encoding between payload and hash
+      # Eip1559 does not discriminate in RLP encoding between payload and hash
       [
         tx.chain_id,
         tx.nonce,

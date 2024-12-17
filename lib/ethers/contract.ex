@@ -32,7 +32,7 @@ defmodule Ethers.Contract do
   ```
 
   ## Valid `use` options
-  - `abi`: Used to pass in the decoded (or even encoded json binay) ABI of contract.
+  - `abi`: Used to pass in the decoded (or even encoded json binary) ABI of contract.
   - `abi_file`: Used to pass in the file path to the json ABI of contract.
   - `default_address`: Default contract deployed address to include in the parameters. (Optional)
   - `skip_docs`: Determines if Ethers should skip generating docs and typespecs. (Default: false)

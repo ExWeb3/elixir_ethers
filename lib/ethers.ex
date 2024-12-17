@@ -280,7 +280,7 @@ defmodule Ethers do
   Other than what stated below, any other option given in the overrides keyword list will be merged
   with the map that the RPC client will receive.
 
-  - `:to`: Indicates recepient address. (Contract address in this case)
+  - `:to`: Indicates recipient address. (Contract address in this case)
   - `:block`: The block number or block alias. Defaults to `latest`
   - `:rpc_client`: The RPC Client to use. It should implement ethereum jsonRPC API. default: Ethereumex.HttpClient
   - `:rpc_opts`: Extra options to pass to rpc_client. (Like timeout, Server URL, etc.)
@@ -417,7 +417,7 @@ defmodule Ethers do
 
   ## Overrides and Options
 
-  - `:to`: Indicates recepient address. (Contract address in this case)
+  - `:to`: Indicates recipient address. (Contract address in this case)
   - `:rpc_client`: The RPC Client to use. It should implement ethereum jsonRPC API. default: Ethereumex.HttpClient
   - `:rpc_opts`: Extra options to pass to rpc_client. (Like timeout, Server URL, etc.)
 

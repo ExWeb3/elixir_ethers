@@ -222,7 +222,7 @@
   To execute an explicit call to `Ethers.send/2` or `Ethers.call/2` is required
 - Events no longer accept `address` overrides. Overriding now happens at `Ethers.get_logs/2`
 - Function `Ethers.get_logs/3` is now changed to `Ethers.get_logs/2`
-- Generated contract modules and EventFilter modules `default_address/0` function is now renamed to `__default_adress__/0` to prevent collision
+- Generated contract modules and EventFilter modules `default_address/0` function is now renamed to `__default_address__/0` to prevent collision
 - Removal of `Ethers.RPC` module
 - Remove `Ethers.Types.dynamically_sized_types/0` function
 - `Ethers.call/2` response is not always a list
@@ -267,7 +267,7 @@
 
 - Improved generative documentation for modules
 - Improved gas estimation API
-- Add gas limit to sending trasnactions
+- Add gas limit to sending transactions
 - Remove redundant gas estimation function
 
 ### Bug fixes

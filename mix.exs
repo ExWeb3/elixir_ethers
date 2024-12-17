@@ -78,7 +78,7 @@ defmodule Ethers.MixProject do
           ~r/^Ethers\.Signer\.[A-Za-z0-9.]+$/,
           ~r/^Ethers\.Signer$/
         ],
-        "Buitin Contract Errors": [
+        "Builtin Contract Errors": [
           ~r/^Ethers\.Contracts\..*$/
         ]
       ],

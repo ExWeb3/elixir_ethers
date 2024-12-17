@@ -37,10 +37,13 @@ defimpl Ethers.Transaction.Protocol, for: Any do
     type.type_id()
   end
 
+  @dialyzer {:no_return, {:type_envelope, 1}}
   def type_envelope(transaction), do: raise_no_impl(transaction)
 
+  @dialyzer {:no_return, {:to_rlp_list, 2}}
   def to_rlp_list(transaction, _mode), do: raise_no_impl(transaction)
 
+  @dialyzer {:nowarn_function, {:raise_no_impl, 1}}
   defp raise_no_impl(transaction) do
     raise ArgumentError, "Transaction protocol not implemented for #{inspect(transaction)}"
   end

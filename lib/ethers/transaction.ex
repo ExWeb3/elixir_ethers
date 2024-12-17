@@ -14,14 +14,24 @@ defmodule Ethers.Transaction do
   alias Ethers.Transaction.SignedTransaction
   alias Ethers.Utils
 
+  @typedoc """
+  EVM Transaction type
+  """
+  @type t :: Eip1559.t() | Legacy.t() | SignedTransaction.t()
+
+  @doc "Creates a new transaction struct with the given parameters."
   @callback new(map()) :: {:ok, struct()} | {:error, atom()}
+
+  @doc "Returns a list of fields that can be auto-fetched from the network."
   @callback auto_fetchable_fields() :: [atom()]
-  @callback type_envelope() :: non_neg_integer()
+
+  @doc "Returns the type envelope for the transaction."
+  @callback type_envelope() :: binary()
+
+  @doc "Returns the type ID for the transaction. e.g Legacy: 0, EIP-1559: 2"
   @callback type_id() :: non_neg_integer()
 
   @default_transaction_type Eip1559
-
-  @type t_transaction :: Eip1559.t() | Legacy.t() | SignedTransaction.t()
 
   @transaction_type_modules Application.compile_env(:ethers, :transaction_types, [Legacy, Eip1559])
 
@@ -50,7 +60,7 @@ defmodule Ethers.Transaction do
       iex> Ethers.Transaction.new(%{from: "0x123...", to: "0x456...", value: "0x0"})
       %Ethers.Transaction.Eip1559{from: "0x123...", to: "0x456...", value: "0x0"}
   """
-  @spec new(map()) :: {:ok, t_transaction()}
+  @spec new(map()) :: {:ok, t()}
   def new(params) do
     case Map.fetch(params, :type) do
       {:ok, type} when type in @transaction_type_modules ->
@@ -126,7 +136,7 @@ defmodule Ethers.Transaction do
   ## Returns
     * `binary` - RLP encoded transaction with appropriate type envelope
   """
-  @spec encode(t_transaction()) :: binary()
+  @spec encode(t()) :: binary()
   def encode(transaction, mode \\ :payload) do
     transaction
     |> TxProtocol.to_rlp_list(mode)
@@ -147,7 +157,7 @@ defmodule Ethers.Transaction do
     - `{:ok, transaction}` - Converted transaction struct
     - `{:error, :unsupported_type}` - If transaction type is not supported
   """
-  @spec from_rpc_map(map()) :: {:ok, t_transaction()} | {:error, :unsupported_type}
+  @spec from_rpc_map(map()) :: {:ok, t()} | {:error, :unsupported_type}
   def from_rpc_map(tx) do
     with {:ok, type} <- decode_type(from_map_value(tx, :type)) do
       # Convert from RPC-style field names to EVM field names.
@@ -187,7 +197,7 @@ defmodule Ethers.Transaction do
   ## Returns
     - `integer` - Calculated y-parity or v value
   """
-  @spec calculate_y_parity_or_v(t_transaction(), binary() | non_neg_integer()) ::
+  @spec calculate_y_parity_or_v(t(), binary() | non_neg_integer()) ::
           non_neg_integer()
   def calculate_y_parity_or_v(tx, recovery_id) do
     case tx do
@@ -300,6 +310,5 @@ defmodule Ethers.Transaction do
   end
 
   @doc false
-  @spec default_transaction_type() :: atom()
   def default_transaction_type, do: @default_transaction_type
 end

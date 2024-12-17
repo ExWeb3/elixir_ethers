@@ -3,6 +3,8 @@ defmodule Ethers.Utils do
   Utilities for interacting with ethereum blockchain
   """
 
+  alias Ethers.Types
+
   @wei_multiplier trunc(:math.pow(10, 18))
   # Use 5 thousand blocks to determine the average block time
   @default_sample_size 5_000

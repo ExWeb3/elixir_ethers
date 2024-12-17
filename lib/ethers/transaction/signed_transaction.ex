@@ -36,9 +36,11 @@ defmodule Ethers.Transaction.SignedTransaction do
   @impl Ethers.Transaction
   def auto_fetchable_fields, do: []
 
+  @dialyzer {:nowarn_function, {:type_envelope, 0}}
   @impl Ethers.Transaction
   def type_envelope, do: raise("Not supported")
 
+  @dialyzer {:nowarn_function, {:type_id, 0}}
   @impl Ethers.Transaction
   def type_id, do: raise("Not supported")
 

@@ -109,7 +109,7 @@ defmodule EthersTest do
 
       assert {:ok,
               %Ethers.Transaction.Signed{
-                transaction: %Ethers.Transaction.Eip1559{
+                payload: %Ethers.Transaction.Eip1559{
                   to: ^downcased_to_addr
                 }
               }} = Ethers.get_transaction(tx_hash)
@@ -130,7 +130,7 @@ defmodule EthersTest do
       assert {:ok,
               [
                 ok: %Ethers.Transaction.Signed{
-                  transaction: %Ethers.Transaction.Eip1559{}
+                  payload: %Ethers.Transaction.Eip1559{}
                 }
               ]} =
                Ethers.batch([
@@ -464,7 +464,7 @@ defmodule EthersTest do
 
       wait_for_transaction!(tx_hash)
 
-      assert {:ok, %Ethers.Transaction.Signed{transaction: %Ethers.Transaction.Legacy{}}} =
+      assert {:ok, %Ethers.Transaction.Signed{payload: %Ethers.Transaction.Legacy{}}} =
                Ethers.get_transaction(tx_hash)
 
       assert {:ok, "hello local signer"} =

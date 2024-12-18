@@ -38,7 +38,7 @@ defmodule Ethers.Signer.Local do
          {:ok, {r, s, recovery_id}} <- secp256k1_module().sign(sign_hash, private_key) do
       signed_transaction =
         %Signed{
-          transaction: transaction,
+          payload: transaction,
           signature_r: r,
           signature_s: s,
           signature_y_parity_or_v: Signed.calculate_y_parity_or_v(transaction, recovery_id)

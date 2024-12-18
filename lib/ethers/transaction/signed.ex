@@ -6,9 +6,9 @@ defmodule Ethers.Transaction.Signed do
   alias Ethers.Transaction
   alias Ethers.Transaction.Legacy
 
-  @enforce_keys [:transaction, :signature_r, :signature_s, :signature_y_parity_or_v]
+  @enforce_keys [:payload, :signature_r, :signature_s, :signature_y_parity_or_v]
   defstruct [
-    :transaction,
+    :payload,
     :signature_r,
     :signature_s,
     :signature_y_parity_or_v
@@ -31,7 +31,7 @@ defmodule Ethers.Transaction.Signed do
   - [EIP-2930](https://eips.ethereum.org/EIPS/eip-2930): Optional access lists
   """
   @type t :: %__MODULE__{
-          transaction: Transaction.t_payload(),
+          payload: Transaction.t_payload(),
           signature_r: binary(),
           signature_s: binary(),
           signature_y_parity_or_v: non_neg_integer()
@@ -44,7 +44,7 @@ defmodule Ethers.Transaction.Signed do
   def new(params) do
     {:ok,
      %__MODULE__{
-       transaction: params.transaction,
+       payload: params.payload,
        signature_r: params.signature_r,
        signature_s: params.signature_s,
        signature_y_parity_or_v: params.signature_y_parity_or_v
@@ -52,12 +52,12 @@ defmodule Ethers.Transaction.Signed do
   end
 
   @doc false
-  def from_rlp_list(rlp_list, transaction) do
+  def from_rlp_list(rlp_list, payload) do
     case rlp_list do
       [signature_y_parity_or_v, signature_r, signature_s] ->
         signed_tx =
           maybe_add_chain_id(%__MODULE__{
-            transaction: transaction,
+            payload: payload,
             signature_r: signature_r,
             signature_s: signature_s,
             signature_y_parity_or_v: :binary.decode_unsigned(signature_y_parity_or_v)
@@ -73,11 +73,9 @@ defmodule Ethers.Transaction.Signed do
     end
   end
 
-  defp maybe_add_chain_id(
-         %__MODULE__{transaction: %Legacy{chain_id: nil} = legacy_tx} = signed_tx
-       ) do
+  defp maybe_add_chain_id(%__MODULE__{payload: %Legacy{chain_id: nil} = legacy_tx} = signed_tx) do
     {chain_id, _recovery_id} = extract_chain_id_and_recovery_id(signed_tx)
-    %__MODULE__{signed_tx | transaction: %Legacy{legacy_tx | chain_id: chain_id}}
+    %__MODULE__{signed_tx | payload: %Legacy{legacy_tx | chain_id: chain_id}}
   end
 
   defp maybe_add_chain_id(%__MODULE__{} = tx), do: tx
@@ -95,7 +93,7 @@ defmodule Ethers.Transaction.Signed do
   """
   @spec from_address(t()) :: {:ok, Ethers.Types.t_address()} | {:error, atom()}
   def from_address(%__MODULE__{} = transaction) do
-    hash_bin = Transaction.transaction_hash(transaction.transaction, :bin)
+    hash_bin = Transaction.transaction_hash(transaction.payload, :bin)
 
     {_chain_id, recovery_id} = extract_chain_id_and_recovery_id(transaction)
 
@@ -141,7 +139,7 @@ defmodule Ethers.Transaction.Signed do
   end
 
   @spec extract_chain_id_and_recovery_id(t()) :: {non_neg_integer() | nil, non_neg_integer()}
-  defp extract_chain_id_and_recovery_id(%__MODULE__{transaction: tx, signature_y_parity_or_v: v}) do
+  defp extract_chain_id_and_recovery_id(%__MODULE__{payload: tx, signature_y_parity_or_v: v}) do
     case tx do
       %Legacy{} ->
         if v >= @legacy_parity_with_chain_magic_number do
@@ -158,12 +156,12 @@ defmodule Ethers.Transaction.Signed do
   end
 
   defimpl Transaction.Protocol do
-    def type_id(signed_tx), do: Transaction.Protocol.type_id(signed_tx.transaction)
+    def type_id(signed_tx), do: Transaction.Protocol.type_id(signed_tx.pyalod)
 
-    def type_envelope(signed_tx), do: Transaction.Protocol.type_envelope(signed_tx.transaction)
+    def type_envelope(signed_tx), do: Transaction.Protocol.type_envelope(signed_tx.payload)
 
     def to_rlp_list(signed_tx, mode) do
-      base_list = Transaction.Protocol.to_rlp_list(signed_tx.transaction, mode)
+      base_list = Transaction.Protocol.to_rlp_list(signed_tx.payload, mode)
 
       base_list ++ signature_fields(signed_tx)
     end

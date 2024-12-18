@@ -46,7 +46,7 @@ defmodule Ethers.TransactionTest do
       expected_hash = "0x224d121387e3bbabfc7bad271b22dddc0dc2743aaf49d850161f628ac9514179"
 
       assert {:ok, decoded_tx} = Transaction.decode(raw_tx)
-      assert %Transaction.Signed{transaction: %Transaction.Eip1559{}} = decoded_tx
+      assert %Transaction.Signed{payload: %Transaction.Eip1559{}} = decoded_tx
 
       # Verify transaction hash matches
       assert Transaction.transaction_hash(decoded_tx) == expected_hash
@@ -56,13 +56,13 @@ defmodule Ethers.TransactionTest do
       assert String.downcase(recovered_from) == String.downcase(expected_from)
 
       # Verify other transaction fields
-      assert decoded_tx.transaction.chain_id == 1
-      assert decoded_tx.transaction.gas == 63_628
-      assert decoded_tx.transaction.max_fee_per_gas == 11_890_834_482
-      assert decoded_tx.transaction.nonce == 119
-      assert decoded_tx.transaction.max_priority_fee_per_gas == 8_000_000
-      assert decoded_tx.transaction.to == "0x8881562783028f5c1bcb985d2283d5e170d88888"
-      assert decoded_tx.transaction.value == 0
+      assert decoded_tx.payload.chain_id == 1
+      assert decoded_tx.payload.gas == 63_628
+      assert decoded_tx.payload.max_fee_per_gas == 11_890_834_482
+      assert decoded_tx.payload.nonce == 119
+      assert decoded_tx.payload.max_priority_fee_per_gas == 8_000_000
+      assert decoded_tx.payload.to == "0x8881562783028f5c1bcb985d2283d5e170d88888"
+      assert decoded_tx.payload.value == 0
     end
 
     test "decodes raw legacy transaction correctly" do
@@ -73,7 +73,7 @@ defmodule Ethers.TransactionTest do
       expected_hash = "0x5a456fc4bb92a075552d1b8b2ce0e61c75b87a237a8108819ea735d13b7d52aa"
 
       assert {:ok, decoded_tx} = Transaction.decode(raw_tx)
-      assert %Transaction.Signed{transaction: %Transaction.Legacy{}} = decoded_tx
+      assert %Transaction.Signed{payload: %Transaction.Legacy{}} = decoded_tx
 
       # Verify transaction hash matches
       assert Transaction.transaction_hash(decoded_tx) == expected_hash
@@ -83,12 +83,12 @@ defmodule Ethers.TransactionTest do
       assert String.downcase(recovered_from) == String.downcase(expected_from)
 
       # Verify other transaction fields
-      assert decoded_tx.transaction.chain_id == 1
-      assert decoded_tx.transaction.gas == 21_000
-      assert decoded_tx.transaction.nonce == 198
-      assert decoded_tx.transaction.gas_price == 54_000_000_000
-      assert decoded_tx.transaction.to == "0xe48c9a989438606a79a7560cfba3d34bafbac38e"
-      assert decoded_tx.transaction.value == 25_173_818_188_182_582
+      assert decoded_tx.payload.chain_id == 1
+      assert decoded_tx.payload.gas == 21_000
+      assert decoded_tx.payload.nonce == 198
+      assert decoded_tx.payload.gas_price == 54_000_000_000
+      assert decoded_tx.payload.to == "0xe48c9a989438606a79a7560cfba3d34bafbac38e"
+      assert decoded_tx.payload.value == 25_173_818_188_182_582
     end
   end
 end

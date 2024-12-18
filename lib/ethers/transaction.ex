@@ -86,7 +86,7 @@ defmodule Ethers.Transaction do
     case Map.fetch(params, :signature_r) do
       {:ok, sig_r} when not is_nil(sig_r) ->
         params
-        |> Map.put(:transaction, transaction)
+        |> Map.put(:payload, transaction)
         |> Signed.new()
 
       :error ->

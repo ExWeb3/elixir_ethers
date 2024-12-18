@@ -201,6 +201,18 @@ defmodule Ethers.Transaction do
     end
   end
 
+  @doc """
+  Calculates the transaction hash.
+
+  ## Parameters
+  - `transaction` - Transaction struct to hash
+  - `format` - Format to return the hash in (default: `:hex`)
+
+  ## Returns
+  - `binary` - Transaction hash in binary format (when `format` is `:bin`)
+  - `String.t()` - Transaction hash in hex format prefixed with "0x" (when `format` is `:hex`)
+  """
+  @spec transaction_hash(t(), :bin | :hex) :: binary() | String.t()
   def transaction_hash(transaction, format \\ :hex) do
     hash_bin =
       transaction
@@ -233,27 +245,37 @@ defmodule Ethers.Transaction do
       new(%{
         access_list: from_map_value(tx, :accessList),
         block_hash: from_map_value(tx, :blockHash),
-        block_number: from_map_value(tx, :blockNumber),
-        chain_id: from_map_value(tx, :chainId),
+        block_number: from_map_value_int(tx, :blockNumber),
+        chain_id: from_map_value_int(tx, :chainId),
         input: from_map_value(tx, :input),
         from: from_map_value(tx, :from),
-        gas: from_map_value(tx, :gas),
-        gas_price: from_map_value(tx, :gasPrice),
+        gas: from_map_value_int(tx, :gas),
+        gas_price: from_map_value_int(tx, :gasPrice),
         hash: from_map_value(tx, :hash),
-        max_fee_per_gas: from_map_value(tx, :maxFeePerGas),
-        max_priority_fee_per_gas: from_map_value(tx, :maxPriorityFeePerGas),
-        nonce: from_map_value(tx, :nonce),
-        signature_r: from_map_value(tx, :r),
-        signature_s: from_map_value(tx, :s),
-        signature_y_parity_or_v: from_map_value(tx, :yParity) || from_map_value(tx, :v),
+        max_fee_per_gas: from_map_value_int(tx, :maxFeePerGas),
+        max_priority_fee_per_gas: from_map_value_int(tx, :maxPriorityFeePerGas),
+        nonce: from_map_value_int(tx, :nonce),
+        signature_r: from_map_value_bin(tx, :r),
+        signature_s: from_map_value_bin(tx, :s),
+        signature_y_parity_or_v: from_map_value_int(tx, :yParity) || from_map_value_int(tx, :v),
         to: from_map_value(tx, :to),
-        transaction_index: from_map_value(tx, :transactionIndex),
-        value: from_map_value(tx, :value),
+        transaction_index: from_map_value_int(tx, :transactionIndex),
+        value: from_map_value_int(tx, :value),
         type: type
       })
     end
   end
 
+  @doc """
+  Converts a Transaction struct into a map suitable for JSON-RPC.
+
+  ## Parameters
+  - `transaction` - Transaction struct to convert
+
+  ## Returns
+  - map containing transaction parameters with RPC field names and "0x" prefixed hex values
+  """
+  @spec to_rpc_map(t()) :: map()
   def to_rpc_map(transaction) do
     transaction
     |> then(fn
@@ -347,6 +369,20 @@ defmodule Ethers.Transaction do
   defp decode_type(<<0>>), do: {:ok, Legacy}
   defp decode_type(nil), do: {:ok, Legacy}
   defp decode_type(_type), do: {:error, :unsupported_type}
+
+  defp from_map_value_bin(tx, key) do
+    case from_map_value(tx, key) do
+      nil -> nil
+      hex -> Utils.hex_decode!(hex)
+    end
+  end
+
+  defp from_map_value_int(tx, key) do
+    case from_map_value(tx, key) do
+      nil -> nil
+      hex -> Utils.hex_to_integer!(hex)
+    end
+  end
 
   defp from_map_value(tx, key) do
     Map.get_lazy(tx, key, fn -> Map.get(tx, to_string(key)) end)

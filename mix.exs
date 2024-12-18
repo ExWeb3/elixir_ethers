@@ -68,6 +68,9 @@ defmodule Ethers.MixProject do
         Ethers.Contracts
       ],
       groups_for_modules: [
+        "Transaction Types": [
+          ~r/^Ethers\.Transaction\..*$/
+        ],
         "Builtin Contracts": [
           ~r/^Ethers\.Contracts\.(?:(?!EventFilters$|Errors\.).)*$/
         ],

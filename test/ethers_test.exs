@@ -105,14 +105,23 @@ defmodule EthersTest do
           ]
         )
 
+      wait_for_transaction!(tx_hash)
+
       downcased_to_addr = String.downcase(@to)
 
       assert {:ok,
               %Ethers.Transaction.Signed{
                 payload: %Ethers.Transaction.Eip1559{
                   to: ^downcased_to_addr
+                },
+                metadata: %Ethers.Transaction.Metadata{
+                  block_hash: "0x" <> _,
+                  block_number: block_number,
+                  transaction_index: 0
                 }
               }} = Ethers.get_transaction(tx_hash)
+
+      assert is_integer(block_number) and block_number >= 0
     end
 
     test "works in batch requests" do

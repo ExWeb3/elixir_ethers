@@ -5,13 +5,15 @@ defmodule Ethers.Transaction.Signed do
 
   alias Ethers.Transaction
   alias Ethers.Transaction.Legacy
+  alias Ethers.Transaction.Metadata
 
   @enforce_keys [:payload, :signature_r, :signature_s, :signature_y_parity_or_v]
   defstruct [
     :payload,
     :signature_r,
     :signature_s,
-    :signature_y_parity_or_v
+    :signature_y_parity_or_v,
+    metadata: nil
   ]
 
   @typedoc """
@@ -34,7 +36,8 @@ defmodule Ethers.Transaction.Signed do
           payload: Transaction.t_payload(),
           signature_r: binary(),
           signature_s: binary(),
-          signature_y_parity_or_v: non_neg_integer()
+          signature_y_parity_or_v: non_neg_integer(),
+          metadata: Metadata.t() | nil
         }
 
   @legacy_parity_magic_number 27
@@ -47,7 +50,8 @@ defmodule Ethers.Transaction.Signed do
        payload: params.payload,
        signature_r: params.signature_r,
        signature_s: params.signature_s,
-       signature_y_parity_or_v: params.signature_y_parity_or_v
+       signature_y_parity_or_v: params.signature_y_parity_or_v,
+       metadata: Metadata.new!(params)
      }}
   end
 

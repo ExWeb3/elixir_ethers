@@ -180,6 +180,8 @@ defmodule EthersTest do
           ]
         )
 
+      wait_for_transaction!(tx_hash)
+
       assert {:ok,
               [
                 ok: %Ethers.Transaction.Signed{
@@ -216,9 +218,9 @@ defmodule EthersTest do
           ]
         )
 
-      downcased_to_addr = String.downcase(@to)
+      wait_for_transaction!(tx_hash)
 
-      Process.sleep(50)
+      downcased_to_addr = String.downcase(@to)
 
       assert {:ok,
               %{
@@ -240,7 +242,7 @@ defmodule EthersTest do
           ]
         )
 
-      Process.sleep(50)
+      wait_for_transaction!(tx_hash)
 
       receipt = Ethers.get_transaction_receipt!(tx_hash)
       assert receipt["transactionHash"] == tx_hash
@@ -311,7 +313,7 @@ defmodule EthersTest do
         HelloWorldContract.set_hello("Bye")
         |> Ethers.send_transaction(to: contract_address, from: @from)
 
-      Process.sleep(50)
+      wait_for_transaction!(tx_hash)
 
       assert {:error, :no_contract_address} = Ethers.deployed_address(tx_hash)
 

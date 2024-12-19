@@ -18,7 +18,7 @@
 - Added **EIP-3668 CCIP-Read** support via `Ethers.CcipRead` module for off-chain data resolution
 - Extended NameService to handle off-chain and cross-chain name resolution using CCIP-Read protocol
 - Introduced `Ethers.Transaction.Protocol` behaviour for improved transaction handling
-- Added dedicated *EIP-1559* and *Legacy* transaction struct types with validation
+- Added dedicated _EIP-1559_ and _Legacy_ transaction struct types with validation
 - New address utilities: `Ethers.Utils.decode_address/1` and `Ethers.Utils.encode_address/1`
 - Added `Transaction.decode/1` to decode raw transactions
 
@@ -27,6 +27,7 @@
 - Improved error handling and reporting in `Ethers.deploy/2`
 - Enhanced NameService with ENSIP-10 wildcard resolution support
 - Use checksum addresses when decoding transactions
+- Add bang versions of `Ethers` top module functions which were missing
 
 ## v0.5.5 (2024-12-03)
 

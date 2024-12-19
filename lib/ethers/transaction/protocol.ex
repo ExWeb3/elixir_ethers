@@ -1,17 +1,18 @@
 defprotocol Ethers.Transaction.Protocol do
   @moduledoc """
-  EVM Transaction Protocol
+  Protocol for handling Ethereum Virtual Machine (EVM) transactions.
   """
 
   @doc """
-  Returns the binary value of the transaction type envelope or empty binary if legacy transaction.
+  Returns the binary value of the transaction type envelope.
+  For legacy transactions, returns an empty binary.
   """
   @fallback_to_any true
   @spec type_envelope(t) :: binary()
   def type_envelope(transaction)
 
   @doc """
-  Returns type of transaction as an integer (e.g. Legacy: 0, EIP-1559: 2)
+  Returns type of transaction as an integer.
   """
   @fallback_to_any true
   @spec type_id(t) :: non_neg_integer()
@@ -21,9 +22,10 @@ defprotocol Ethers.Transaction.Protocol do
   Returns a list ready to be RLP encoded for a given transaction.
 
   ## Parameters
-    - `transaction` - Transaction struct
-    - `mode` - Specifies what RLP mode is. `:payload` for encoding the transaction payload,
-    `:hash` for encoding the transaction hash
+  - `transaction` - Transaction struct containing the transaction data
+  - `mode` - Encoding mode:
+    - `:payload` - For encoding the transaction payload
+    - `:hash` - For encoding the transaction hash
   """
   @spec to_rlp_list(t, mode :: :payload | :hash) :: [binary() | [binary()]]
   def to_rlp_list(transaction, mode)

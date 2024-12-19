@@ -11,16 +11,21 @@ defmodule Ethers.Transaction do
   alias Ethers.Transaction.Eip1559
   alias Ethers.Transaction.Legacy
   alias Ethers.Transaction.Protocol, as: TxProtocol
-  alias Ethers.Transaction.SignedTransaction
+  alias Ethers.Transaction.Signed
   alias Ethers.Utils
 
   @typedoc """
   EVM Transaction type
   """
-  @type t :: Eip1559.t() | Legacy.t() | SignedTransaction.t()
+  @type t :: t_payload() | Signed.t()
+
+  @typedoc """
+  EVM Transaction payload type
+  """
+  @type t_payload :: Eip1559.t() | Legacy.t()
 
   @doc "Creates a new transaction struct with the given parameters."
-  @callback new(map()) :: {:ok, struct()} | {:error, atom()}
+  @callback new(map()) :: {:ok, t()} | {:error, reason :: atom()}
 
   @doc "Returns a list of fields that can be auto-fetched from the network."
   @callback auto_fetchable_fields() :: [atom()]
@@ -31,12 +36,13 @@ defmodule Ethers.Transaction do
   @doc "Returns the type ID for the transaction. e.g Legacy: 0, EIP-1559: 2"
   @callback type_id() :: non_neg_integer()
 
+  @doc "Constructs a transaction from a decoded RLP list"
+  @callback from_rlp_list([binary() | [binary()]]) ::
+              {:ok, t(), rest :: [binary() | [binary()]]} | {:error, reason :: term()}
+
   @default_transaction_type Eip1559
 
-  @transaction_type_modules Application.compile_env(:ethers, :transaction_types, [Legacy, Eip1559])
-
-  @legacy_parity_magic_number 27
-  @legacy_parity_with_chain_magic_number 35
+  @transaction_type_modules Application.compile_env(:ethers, :transaction_types, [Eip1559, Legacy])
 
   @rpc_fields %{
     access_list: :accessList,
@@ -80,8 +86,8 @@ defmodule Ethers.Transaction do
     case Map.fetch(params, :signature_r) do
       {:ok, sig_r} when not is_nil(sig_r) ->
         params
-        |> Map.put(:transaction, transaction)
-        |> SignedTransaction.new()
+        |> Map.put(:payload, transaction)
+        |> Signed.new()
 
       :error ->
         {:ok, transaction}
@@ -137,11 +143,86 @@ defmodule Ethers.Transaction do
     * `binary` - RLP encoded transaction with appropriate type envelope
   """
   @spec encode(t()) :: binary()
-  def encode(transaction, mode \\ :payload) do
+  def encode(%mod{} = transaction) do
+    mode = if mod == Signed, do: :payload, else: :hash
+
     transaction
     |> TxProtocol.to_rlp_list(mode)
     |> ExRLP.encode()
     |> prepend_type_envelope(transaction)
+  end
+
+  @doc """
+  Decodes a raw transaction from a binary or hex-encoded string.
+
+  Transaction strings must be prefixed with "0x" for hex-encoded inputs.
+  Handles both legacy and typed transactions (EIP-1559, etc).
+
+  ## Parameters
+    * `raw_transaction` - Raw transaction data as a binary or hex string starting with "0x"
+
+  ## Returns
+    * `{:ok, transaction}` - Decoded transaction struct
+    * `{:error, reason}` - Error decoding transaction
+  """
+  @spec decode(String.t()) :: {:ok, t()} | {:error, term()}
+  def decode("0x" <> raw_transaction) do
+    case raw_transaction
+         |> Utils.hex_decode!()
+         |> decode_transaction_data() do
+      {:ok, transaction, signature} ->
+        maybe_decode_signature(transaction, signature)
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  Enum.each(@transaction_type_modules, fn module ->
+    type_envelope = module.type_envelope()
+
+    defp decode_transaction_data(<<unquote(type_envelope)::binary, rest::binary>>) do
+      rlp_decoded = ExRLP.decode(rest)
+      unquote(module).from_rlp_list(rlp_decoded)
+    end
+  end)
+
+  defp decode_transaction_data(legacy_transaction) when is_binary(legacy_transaction) do
+    rlp_decoded = ExRLP.decode(legacy_transaction)
+
+    Legacy.from_rlp_list(rlp_decoded)
+  end
+
+  defp maybe_decode_signature(transaction, rlp_list) do
+    case Signed.from_rlp_list(rlp_list, transaction) do
+      {:ok, signed_transaction} -> {:ok, signed_transaction}
+      {:error, :no_signature} -> {:ok, transaction}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  @doc """
+  Calculates the transaction hash.
+
+  ## Parameters
+  - `transaction` - Transaction struct to hash
+  - `format` - Format to return the hash in (default: `:hex`)
+
+  ## Returns
+  - `binary` - Transaction hash in binary format (when `format` is `:bin`)
+  - `String.t()` - Transaction hash in hex format prefixed with "0x" (when `format` is `:hex`)
+  """
+  @spec transaction_hash(t(), :bin | :hex) :: binary() | String.t()
+  def transaction_hash(transaction, format \\ :hex) do
+    hash_bin =
+      transaction
+      |> encode()
+      |> Ethers.keccak_module().hash_256()
+
+    case format do
+      :bin -> hash_bin
+      :hex -> Utils.hex_encode(hash_bin)
+    end
   end
 
   @doc """
@@ -164,57 +245,37 @@ defmodule Ethers.Transaction do
       new(%{
         access_list: from_map_value(tx, :accessList),
         block_hash: from_map_value(tx, :blockHash),
-        block_number: from_map_value(tx, :blockNumber),
-        chain_id: from_map_value(tx, :chainId),
+        block_number: from_map_value_int(tx, :blockNumber),
+        chain_id: from_map_value_int(tx, :chainId),
         input: from_map_value(tx, :input),
         from: from_map_value(tx, :from),
-        gas: from_map_value(tx, :gas),
-        gas_price: from_map_value(tx, :gasPrice),
+        gas: from_map_value_int(tx, :gas),
+        gas_price: from_map_value_int(tx, :gasPrice),
         hash: from_map_value(tx, :hash),
-        max_fee_per_gas: from_map_value(tx, :maxFeePerGas),
-        max_priority_fee_per_gas: from_map_value(tx, :maxPriorityFeePerGas),
-        nonce: from_map_value(tx, :nonce),
-        signature_r: from_map_value(tx, :r),
-        signature_s: from_map_value(tx, :s),
-        signature_y_parity_or_v: from_map_value(tx, :yParity) || from_map_value(tx, :v),
+        max_fee_per_gas: from_map_value_int(tx, :maxFeePerGas),
+        max_priority_fee_per_gas: from_map_value_int(tx, :maxPriorityFeePerGas),
+        nonce: from_map_value_int(tx, :nonce),
+        signature_r: from_map_value_bin(tx, :r),
+        signature_s: from_map_value_bin(tx, :s),
+        signature_y_parity_or_v: from_map_value_int(tx, :yParity) || from_map_value_int(tx, :v),
         to: from_map_value(tx, :to),
-        transaction_index: from_map_value(tx, :transactionIndex),
-        value: from_map_value(tx, :value),
+        transaction_index: from_map_value_int(tx, :transactionIndex),
+        value: from_map_value_int(tx, :value),
         type: type
       })
     end
   end
 
   @doc """
-  Calculates the y-parity or v value for transaction signatures.
-
-  Handles both legacy and EIP-1559 transaction types according to their specifications.
+  Converts a Transaction struct into a map suitable for JSON-RPC.
 
   ## Parameters
-    - `tx` - Transaction struct
-    - `recovery_id` - Recovery ID from the signature
+  - `transaction` - Transaction struct to convert
 
   ## Returns
-    - `integer` - Calculated y-parity or v value
+  - map containing transaction parameters with RPC field names and "0x" prefixed hex values
   """
-  @spec calculate_y_parity_or_v(t(), binary() | non_neg_integer()) ::
-          non_neg_integer()
-  def calculate_y_parity_or_v(tx, recovery_id) do
-    case tx do
-      %Legacy{chain_id: nil} ->
-        # EIP-155
-        recovery_id + @legacy_parity_magic_number
-
-      %Legacy{chain_id: chain_id} ->
-        # EIP-155
-        recovery_id + chain_id * 2 + @legacy_parity_with_chain_magic_number
-
-      _tx ->
-        # EIP-1559
-        recovery_id
-    end
-  end
-
+  @spec to_rpc_map(t()) :: map()
   def to_rpc_map(transaction) do
     transaction
     |> then(fn
@@ -255,6 +316,10 @@ defmodule Ethers.Transaction do
       |> Utils.integer_to_hex()
     )
   end
+
+  @doc false
+  @deprecated "Use Transaction.Signed.calculate_y_parity_or_v/2 instead"
+  defdelegate calculate_y_parity_or_v(tx, recovery_id), to: Signed
 
   defp prepend_type_envelope(encoded_tx, transaction) do
     TxProtocol.type_envelope(transaction) <> encoded_tx
@@ -304,6 +369,20 @@ defmodule Ethers.Transaction do
   defp decode_type(<<0>>), do: {:ok, Legacy}
   defp decode_type(nil), do: {:ok, Legacy}
   defp decode_type(_type), do: {:error, :unsupported_type}
+
+  defp from_map_value_bin(tx, key) do
+    case from_map_value(tx, key) do
+      nil -> nil
+      hex -> Utils.hex_decode!(hex)
+    end
+  end
+
+  defp from_map_value_int(tx, key) do
+    case from_map_value(tx, key) do
+      nil -> nil
+      hex -> Utils.hex_to_integer!(hex)
+    end
+  end
 
   defp from_map_value(tx, key) do
     Map.get_lazy(tx, key, fn -> Map.get(tx, to_string(key)) end)

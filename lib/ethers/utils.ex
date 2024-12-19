@@ -504,13 +504,21 @@ defmodule Ethers.Utils do
 
       iex> address = <<144, 248, 191, 106, 71, 159, 50, 14, 173, 7, 68, 17, 164, 176, 231, 148, 78, 168, 201, 193>>
       iex> Ethers.Utils.encode_address(address)
-      {:ok, "0x90f8bf6a479f320ead074411a4b0e7944ea8c9c1"}
+      {:ok, "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1"}
 
       iex> Ethers.Utils.encode_address(<<1, 2, 3>>)
       {:error, :invalid_address}
   """
   @spec encode_address(binary()) :: {:ok, Types.t_address()} | {:error, :invalid_address}
-  def encode_address(address) when byte_size(address) == 20, do: {:ok, hex_encode(address)}
+  def encode_address(address) when byte_size(address) == 20 do
+    checksummed_address =
+      address
+      |> hex_encode()
+      |> to_checksum_address()
+
+    {:ok, checksummed_address}
+  end
+
   def encode_address(_), do: {:error, :invalid_address}
 
   @doc """
@@ -520,7 +528,7 @@ defmodule Ethers.Utils do
 
       iex> address = <<144, 248, 191, 106, 71, 159, 50, 14, 173, 7, 68, 17, 164, 176, 231, 148, 78, 168, 201, 193>>
       iex> Ethers.Utils.encode_address!(address)
-      "0x90f8bf6a479f320ead074411a4b0e7944ea8c9c1"
+      "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1"
   """
   @spec encode_address!(binary()) :: Types.t_address() | no_return()
   def encode_address!(address) do

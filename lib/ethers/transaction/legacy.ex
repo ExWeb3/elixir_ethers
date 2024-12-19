@@ -43,12 +43,14 @@ defmodule Ethers.Transaction.Legacy do
 
   @impl Ethers.Transaction
   def new(params) do
+    to = params[:to]
+
     {:ok,
      %__MODULE__{
        nonce: params.nonce,
        gas_price: params.gas_price,
        gas: params.gas,
-       to: params[:to],
+       to: to && Utils.to_checksum_address(to),
        value: params[:value] || 0,
        input: params[:input] || params[:data] || "",
        chain_id: params[:chain_id]
@@ -76,7 +78,7 @@ defmodule Ethers.Transaction.Legacy do
        gas: :binary.decode_unsigned(gas),
        to: (to != "" && Utils.encode_address!(to)) || nil,
        value: :binary.decode_unsigned(value),
-       input: Utils.hex_encode(input)
+       input: input
      }, rest}
   end
 
@@ -94,7 +96,7 @@ defmodule Ethers.Transaction.Legacy do
         tx.gas,
         (tx.to && Utils.decode_address!(tx.to)) || "",
         tx.value,
-        Utils.hex_decode!(tx.input)
+        tx.input
       ]
       |> maybe_add_eip_155(tx, mode)
     end

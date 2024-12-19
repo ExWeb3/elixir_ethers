@@ -2,13 +2,14 @@ defmodule Ethers.TransactionTest do
   use ExUnit.Case
 
   alias Ethers.Transaction
+  alias Ethers.Utils
 
   describe "encode/1" do
     test "encodes transaction with address having leading zeros" do
       transaction = %Ethers.Transaction.Eip1559{
         chain_id: 1337,
         gas: 4660,
-        input: "0x0006fdde03",
+        input: Utils.hex_decode!("0x0006fdde03"),
         max_fee_per_gas: 87_119_557_365,
         max_priority_fee_per_gas: 0,
         nonce: 1,
@@ -61,7 +62,7 @@ defmodule Ethers.TransactionTest do
       assert decoded_tx.payload.max_fee_per_gas == 11_890_834_482
       assert decoded_tx.payload.nonce == 119
       assert decoded_tx.payload.max_priority_fee_per_gas == 8_000_000
-      assert decoded_tx.payload.to == "0x8881562783028f5c1bcb985d2283d5e170d88888"
+      assert decoded_tx.payload.to == "0x8881562783028F5c1BCB985d2283D5E170D88888"
       assert decoded_tx.payload.value == 0
     end
 
@@ -87,7 +88,7 @@ defmodule Ethers.TransactionTest do
       assert decoded_tx.payload.gas == 21_000
       assert decoded_tx.payload.nonce == 198
       assert decoded_tx.payload.gas_price == 54_000_000_000
-      assert decoded_tx.payload.to == "0xe48c9a989438606a79a7560cfba3d34bafbac38e"
+      assert decoded_tx.payload.to == "0xe48C9A989438606a79a7560cfba3d34BAfBAC38E"
       assert decoded_tx.payload.value == 25_173_818_188_182_582
     end
   end

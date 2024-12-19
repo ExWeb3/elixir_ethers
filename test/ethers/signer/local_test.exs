@@ -3,6 +3,7 @@ defmodule Ethers.Signer.LocalTest do
 
   alias Ethers.Signer
   alias Ethers.Transaction.Eip1559
+  alias Ethers.Utils
 
   @private_key "0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d"
 
@@ -14,7 +15,7 @@ defmodule Ethers.Signer.LocalTest do
         gas: 23_170,
         to: "0xFFcf8FDEE72ac11b5c542428B35EEF5769C409f0",
         value: 0,
-        input: "0x06fdde03",
+        input: Utils.hex_decode!("0x06fdde03"),
         max_fee_per_gas: 87_119_557_365,
         max_priority_fee_per_gas: 0
       }

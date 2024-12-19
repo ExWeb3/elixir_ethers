@@ -52,6 +52,8 @@ defmodule Ethers.Transaction.Eip1559 do
 
   @impl Ethers.Transaction
   def new(params) do
+    to = params[:to]
+
     {:ok,
      %__MODULE__{
        chain_id: params.chain_id,
@@ -59,7 +61,7 @@ defmodule Ethers.Transaction.Eip1559 do
        max_priority_fee_per_gas: params.max_priority_fee_per_gas,
        max_fee_per_gas: params.max_fee_per_gas,
        gas: params.gas,
-       to: params[:to],
+       to: to && Utils.to_checksum_address(to),
        value: params[:value] || 0,
        input: params[:input] || params[:data] || "",
        access_list: params[:access_list] || []
@@ -98,7 +100,7 @@ defmodule Ethers.Transaction.Eip1559 do
        gas: :binary.decode_unsigned(gas),
        to: (to != "" && Utils.encode_address!(to)) || nil,
        value: :binary.decode_unsigned(value),
-       input: Utils.hex_encode(input),
+       input: input,
        access_list: access_list
      }, rest}
   end
@@ -120,7 +122,7 @@ defmodule Ethers.Transaction.Eip1559 do
         tx.gas,
         (tx.to && Utils.decode_address!(tx.to)) || "",
         tx.value,
-        Utils.hex_decode!(tx.input),
+        tx.input,
         tx.access_list || []
       ]
     end

@@ -25,6 +25,7 @@
 
 - Improved error handling and reporting in `Ethers.deploy/2`
 - Enhanced NameService with ENSIP-10 wildcard resolution support
+- Use checksum addresses when decoding transactions
 
 ## v0.5.5 (2024-12-03)
 

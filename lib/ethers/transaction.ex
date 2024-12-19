@@ -70,7 +70,13 @@ defmodule Ethers.Transaction do
   def new(params) do
     case Map.fetch(params, :type) do
       {:ok, type} when type in @transaction_type_modules ->
+        input =
+          params
+          |> Map.get(:input, Map.get(params, :data))
+          |> Utils.hex_decode!()
+
         params
+        |> Map.put(:input, input)
         |> type.new()
         |> maybe_wrap_signed(params)
 
@@ -247,7 +253,7 @@ defmodule Ethers.Transaction do
         block_hash: from_map_value(tx, :blockHash),
         block_number: from_map_value_int(tx, :blockNumber),
         chain_id: from_map_value_int(tx, :chainId),
-        input: from_map_value(tx, :input),
+        input: from_map_value(tx, :input) || from_map_value(tx, :data),
         from: from_map_value(tx, :from),
         gas: from_map_value_int(tx, :gas),
         gas_price: from_map_value_int(tx, :gasPrice),

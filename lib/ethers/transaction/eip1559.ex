@@ -100,7 +100,7 @@ defmodule Ethers.Transaction.Eip1559 do
        gas: :binary.decode_unsigned(gas),
        to: (to != "" && Utils.encode_address!(to)) || nil,
        value: :binary.decode_unsigned(value),
-       input: Utils.hex_encode(input),
+       input: input,
        access_list: access_list
      }, rest}
   end
@@ -122,7 +122,7 @@ defmodule Ethers.Transaction.Eip1559 do
         tx.gas,
         (tx.to && Utils.decode_address!(tx.to)) || "",
         tx.value,
-        Utils.hex_decode!(tx.input),
+        tx.input,
         tx.access_list || []
       ]
     end

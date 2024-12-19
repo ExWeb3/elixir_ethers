@@ -78,7 +78,7 @@ defmodule Ethers.Transaction.Legacy do
        gas: :binary.decode_unsigned(gas),
        to: (to != "" && Utils.encode_address!(to)) || nil,
        value: :binary.decode_unsigned(value),
-       input: Utils.hex_encode(input)
+       input: input
      }, rest}
   end
 
@@ -96,7 +96,7 @@ defmodule Ethers.Transaction.Legacy do
         tx.gas,
         (tx.to && Utils.decode_address!(tx.to)) || "",
         tx.value,
-        Utils.hex_decode!(tx.input)
+        tx.input
       ]
       |> maybe_add_eip_155(tx, mode)
     end

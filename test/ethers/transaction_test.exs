@@ -2,13 +2,14 @@ defmodule Ethers.TransactionTest do
   use ExUnit.Case
 
   alias Ethers.Transaction
+  alias Ethers.Utils
 
   describe "encode/1" do
     test "encodes transaction with address having leading zeros" do
       transaction = %Ethers.Transaction.Eip1559{
         chain_id: 1337,
         gas: 4660,
-        input: "0x0006fdde03",
+        input: Utils.hex_decode!("0x0006fdde03"),
         max_fee_per_gas: 87_119_557_365,
         max_priority_fee_per_gas: 0,
         nonce: 1,

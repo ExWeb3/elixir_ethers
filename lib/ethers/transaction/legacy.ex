@@ -43,12 +43,14 @@ defmodule Ethers.Transaction.Legacy do
 
   @impl Ethers.Transaction
   def new(params) do
+    to = params[:to]
+
     {:ok,
      %__MODULE__{
        nonce: params.nonce,
        gas_price: params.gas_price,
        gas: params.gas,
-       to: params[:to],
+       to: to && Utils.to_checksum_address(to),
        value: params[:value] || 0,
        input: params[:input] || params[:data] || "",
        chain_id: params[:chain_id]

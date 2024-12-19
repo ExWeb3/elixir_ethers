@@ -52,6 +52,8 @@ defmodule Ethers.Transaction.Eip1559 do
 
   @impl Ethers.Transaction
   def new(params) do
+    to = params[:to]
+
     {:ok,
      %__MODULE__{
        chain_id: params.chain_id,
@@ -59,7 +61,7 @@ defmodule Ethers.Transaction.Eip1559 do
        max_priority_fee_per_gas: params.max_priority_fee_per_gas,
        max_fee_per_gas: params.max_fee_per_gas,
        gas: params.gas,
-       to: params[:to],
+       to: to && Utils.to_checksum_address(to),
        value: params[:value] || 0,
        input: params[:input] || params[:data] || "",
        access_list: params[:access_list] || []

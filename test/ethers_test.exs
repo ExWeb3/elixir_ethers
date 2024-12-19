@@ -107,12 +107,12 @@ defmodule EthersTest do
 
       wait_for_transaction!(tx_hash)
 
-      downcased_to_addr = String.downcase(@to)
+      checksum_to_addr = Ethers.Utils.to_checksum_address(@to)
 
       assert {:ok,
               %Ethers.Transaction.Signed{
                 payload: %Ethers.Transaction.Eip1559{
-                  to: ^downcased_to_addr
+                  to: ^checksum_to_addr
                 },
                 metadata: %Ethers.Transaction.Metadata{
                   block_hash: "0x" <> _,

@@ -730,12 +730,12 @@ defmodule EthersTest do
   describe "chain_id" do
     test "returns the chain id" do
       assert {:ok, chain_id} = Ethers.chain_id()
-      # Hardhat's default chain id
-      assert chain_id == 31337
+      # Anvil's default chain id
+      assert chain_id == 31_337
     end
 
     test "bang version returns unwrapped value" do
-      assert Ethers.chain_id!() == 31337
+      assert Ethers.chain_id!() == 31_337
     end
   end
 end

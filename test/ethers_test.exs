@@ -37,6 +37,10 @@ defmodule EthersTest do
       assert {:ok, max_priority_fee_per_gas} = Ethers.max_priority_fee_per_gas()
       assert is_integer(max_priority_fee_per_gas)
     end
+
+    test "bang version returns unwrapped value" do
+      assert is_integer(Ethers.max_priority_fee_per_gas!())
+    end
   end
 
   describe "current_block_number" do
@@ -60,6 +64,17 @@ defmodule EthersTest do
 
       assert {:ok, 10_000_000_000_000_000_000_000} ==
                Ethers.get_balance("0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc")
+    end
+
+    test "bang version returns unwrapped value" do
+      assert 10_000_000_000_000_000_000_000 ==
+               Ethers.get_balance!("0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc")
+    end
+
+    test "bang version raises on error" do
+      assert_raise ExecutionError, fn ->
+        Ethers.get_balance!("invalid account")
+      end
     end
 
     test "works with binary accounts" do
@@ -124,6 +139,35 @@ defmodule EthersTest do
       assert is_integer(block_number) and block_number >= 0
     end
 
+    test "bang version returns unwrapped value" do
+      {:ok, tx_hash} =
+        HelloWorldContract.set_hello("hello local signer")
+        |> Ethers.send(
+          from: @from,
+          to: @to,
+          signer: Ethers.Signer.Local,
+          signer_opts: [
+            private_key: @from_private_key
+          ]
+        )
+
+      wait_for_transaction!(tx_hash)
+
+      assert %Ethers.Transaction.Signed{
+               payload: %Ethers.Transaction.Eip1559{
+                 to: checksum_to_addr
+               }
+             } = Ethers.get_transaction!(tx_hash)
+
+      assert checksum_to_addr == Ethers.Utils.to_checksum_address(@to)
+    end
+
+    test "bang version raises on error" do
+      assert_raise ExecutionError, fn ->
+        Ethers.get_transaction!("invalid tx_hash")
+      end
+    end
+
     test "works in batch requests" do
       {:ok, tx_hash} =
         HelloWorldContract.set_hello("hello local signer")
@@ -135,6 +179,8 @@ defmodule EthersTest do
             private_key: @from_private_key
           ]
         )
+
+      wait_for_transaction!(tx_hash)
 
       assert {:ok,
               [
@@ -172,9 +218,9 @@ defmodule EthersTest do
           ]
         )
 
-      downcased_to_addr = String.downcase(@to)
+      wait_for_transaction!(tx_hash)
 
-      Process.sleep(50)
+      downcased_to_addr = String.downcase(@to)
 
       assert {:ok,
               %{
@@ -182,6 +228,32 @@ defmodule EthersTest do
                 "from" => @from,
                 "to" => ^downcased_to_addr
               }} = Ethers.get_transaction_receipt(tx_hash)
+    end
+
+    test "bang version returns unwrapped value" do
+      {:ok, tx_hash} =
+        HelloWorldContract.set_hello("hello local signer")
+        |> Ethers.send(
+          from: @from,
+          to: @to,
+          signer: Ethers.Signer.Local,
+          signer_opts: [
+            private_key: @from_private_key
+          ]
+        )
+
+      wait_for_transaction!(tx_hash)
+
+      receipt = Ethers.get_transaction_receipt!(tx_hash)
+      assert receipt["transactionHash"] == tx_hash
+      assert receipt["from"] == @from
+      assert receipt["to"] == String.downcase(@to)
+    end
+
+    test "bang version raises on error" do
+      assert_raise ExecutionError, fn ->
+        Ethers.get_transaction_receipt!("invalid tx_hash")
+      end
     end
 
     test "returns error by non-existent tx_hash" do
@@ -241,7 +313,7 @@ defmodule EthersTest do
         HelloWorldContract.set_hello("Bye")
         |> Ethers.send_transaction(to: contract_address, from: @from)
 
-      Process.sleep(50)
+      wait_for_transaction!(tx_hash)
 
       assert {:error, :no_contract_address} = Ethers.deployed_address(tx_hash)
 
@@ -654,6 +726,18 @@ defmodule EthersTest do
       wait_for_transaction!(tx_hash)
 
       assert {:ok, "hi send!"} = Ethers.call(HelloWorldContract.say_hello(), to: address)
+    end
+  end
+
+  describe "chain_id" do
+    test "returns the chain id" do
+      assert {:ok, chain_id} = Ethers.chain_id()
+      # Anvil's default chain id
+      assert chain_id == 31_337
+    end
+
+    test "bang version returns unwrapped value" do
+      assert Ethers.chain_id!() == 31_337
     end
   end
 end

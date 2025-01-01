@@ -108,6 +108,17 @@ defmodule Ethers do
   end
 
   @doc """
+  Same as `Ethers.chain_id/1` but raises on error.
+  """
+  @spec chain_id!(Keyword.t()) :: non_neg_integer() | no_return()
+  def chain_id!(opts \\ []) do
+    case chain_id(opts) do
+      {:ok, chain_id} -> chain_id
+      {:error, reason} -> raise ExecutionError, reason
+    end
+  end
+
+  @doc """
   Returns the current gas price from the RPC API
   """
   @spec current_gas_price(Keyword.t()) :: {:ok, non_neg_integer()}
@@ -153,6 +164,17 @@ defmodule Ethers do
   end
 
   @doc """
+  Same as `Ethers.get_balance/2` but raises on error.
+  """
+  @spec get_balance!(Types.t_address(), Keyword.t()) :: non_neg_integer() | no_return()
+  def get_balance!(account, overrides \\ []) do
+    case get_balance(account, overrides) do
+      {:ok, balance} -> balance
+      {:error, reason} -> raise ExecutionError, reason
+    end
+  end
+
+  @doc """
   Returns the transaction count of an address.
 
   ## Parameters
@@ -194,6 +216,17 @@ defmodule Ethers do
   end
 
   @doc """
+  Same as `Ethers.get_transaction/2` but raises on error.
+  """
+  @spec get_transaction!(Types.t_hash(), Keyword.t()) :: Transaction.t() | no_return()
+  def get_transaction!(tx_hash, opts \\ []) do
+    case get_transaction(tx_hash, opts) do
+      {:ok, transaction} -> transaction
+      {:error, reason} -> raise ExecutionError, reason
+    end
+  end
+
+  @doc """
   Returns the receipt of a transaction by it's hash.
 
   ## Parameters
@@ -209,6 +242,17 @@ defmodule Ethers do
 
     rpc_client.eth_get_transaction_receipt(tx_hash, rpc_opts)
     |> post_process(nil, :get_transaction_receipt)
+  end
+
+  @doc """
+  Same as `Ethers.get_transaction_receipt/2` but raises on error.
+  """
+  @spec get_transaction_receipt!(Types.t_hash(), Keyword.t()) :: map() | no_return()
+  def get_transaction_receipt!(tx_hash, opts \\ []) do
+    case get_transaction_receipt(tx_hash, opts) do
+      {:ok, receipt} -> receipt
+      {:error, reason} -> raise ExecutionError, reason
+    end
   end
 
   @doc """
@@ -461,12 +505,24 @@ defmodule Ethers do
   @doc """
   Returns the current max priority fee per gas from the RPC API
   """
-  @spec max_priority_fee_per_gas(Keyword.t()) :: {:ok, non_neg_integer()}
+  @spec max_priority_fee_per_gas(Keyword.t()) ::
+          {:ok, non_neg_integer()} | {:error, reason :: term()}
   def max_priority_fee_per_gas(opts \\ []) do
     {rpc_client, rpc_opts} = get_rpc_client(opts)
 
     rpc_client.eth_max_priority_fee_per_gas(rpc_opts)
     |> post_process(nil, :max_priority_fee_per_gas)
+  end
+
+  @doc """
+  Same as `Ethers.max_priority_fee_per_gas/1` but raises on error.
+  """
+  @spec max_priority_fee_per_gas!(Keyword.t()) :: non_neg_integer() | no_return()
+  def max_priority_fee_per_gas!(opts \\ []) do
+    case max_priority_fee_per_gas(opts) do
+      {:ok, fee} -> fee
+      {:error, reason} -> raise ExecutionError, reason
+    end
   end
 
   @doc """

@@ -11,6 +11,7 @@
 - Removed auto-gas estimation from send_transaction calls
 - `tx_type` option in transaction overrides has been replaced with `type`, now requiring explicit struct modules (e.g. `Ethers.Transaction.Eip1559`, `Ethers.Transaction.Legacy`)
 - Moved `Ethers.Transaction.calculate_y_parity_or_v/1` to `Ethers.Transaction.Signed` module
+- Deprecate `Ethers.send/2` in favor of `Ethers.send_transaction/2` for clarity and prevent collision with `Kernel.send/2`.
 
 ### New features
 

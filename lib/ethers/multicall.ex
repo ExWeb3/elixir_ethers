@@ -5,7 +5,7 @@ defmodule Ethers.Multicall do
 
   The primary function of this module is to aggregate multiple Ethereum contract calls
   into a single operation. This aggregated call can be subsequently submitted using `Ethers.call/2`
-  or `Ethers.send/2` (If you know what you are doing!).
+  or `Ethers.send_transaction/2` (If you know what you are doing!).
 
   Upon receiving the response, it can be decoded using `Ethers.Multicall.decode/2` to interpret the
   results returned by the `Multicall3` contract.

@@ -20,7 +20,7 @@ defmodule Ethers.RegistryContractTest do
   describe "can send and receive structs" do
     test "can send transaction with structs", %{address: address} do
       RegistryContract.register({"alisina", 27})
-      |> Ethers.send!(from: @from, to: address)
+      |> Ethers.send_transaction!(from: @from, to: address)
       |> wait_for_transaction!()
     end
 
@@ -28,7 +28,7 @@ defmodule Ethers.RegistryContractTest do
       {:ok, {"", 0}} = RegistryContract.info(@from) |> Ethers.call(to: address)
 
       RegistryContract.register({"alisina", 27})
-      |> Ethers.send!(from: @from, to: address)
+      |> Ethers.send_transaction!(from: @from, to: address)
       |> wait_for_transaction!()
 
       {:ok, {"alisina", 27}} = RegistryContract.info(@from) |> Ethers.call(to: address)
@@ -38,15 +38,15 @@ defmodule Ethers.RegistryContractTest do
   describe "can handle tuples and arrays" do
     test "can call functions returning array of structs", %{address: address} do
       RegistryContract.register({"alisina", 27})
-      |> Ethers.send!(from: @from, to: address)
+      |> Ethers.send_transaction!(from: @from, to: address)
       |> wait_for_transaction!()
 
       RegistryContract.register({"bob", 13})
-      |> Ethers.send!(from: @from1, to: address)
+      |> Ethers.send_transaction!(from: @from1, to: address)
       |> wait_for_transaction!()
 
       RegistryContract.register({"blaze", 37})
-      |> Ethers.send!(from: @from2, to: address)
+      |> Ethers.send_transaction!(from: @from2, to: address)
       |> wait_for_transaction!()
 
       {:ok, [{"alisina", 27}, {"bob", 13}, {"blaze", 37}]} =
@@ -55,7 +55,7 @@ defmodule Ethers.RegistryContractTest do
 
     test "can call functions returning tuple", %{address: address} do
       RegistryContract.register({"alisina", 27})
-      |> Ethers.send!(from: @from, to: address)
+      |> Ethers.send_transaction!(from: @from, to: address)
       |> wait_for_transaction!()
 
       {:ok, ["alisina", 27]} = RegistryContract.info_as_tuple(@from) |> Ethers.call(to: address)
@@ -65,7 +65,7 @@ defmodule Ethers.RegistryContractTest do
   describe "event filters" do
     test "can create event filters and fetch register events", %{address: address} do
       RegistryContract.register({"alisina", 27})
-      |> Ethers.send!(from: @from, to: address)
+      |> Ethers.send_transaction!(from: @from, to: address)
       |> wait_for_transaction!()
 
       empty_filter = RegistryContract.EventFilters.registered(nil)
@@ -80,7 +80,7 @@ defmodule Ethers.RegistryContractTest do
 
     test "does not return any events for a non existing contract", %{address: address} do
       RegistryContract.register({"alisina", 27})
-      |> Ethers.send!(from: @from, to: address)
+      |> Ethers.send_transaction!(from: @from, to: address)
       |> wait_for_transaction!()
 
       empty_filter = RegistryContract.EventFilters.registered(nil)

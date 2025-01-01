@@ -9,7 +9,7 @@ defmodule Ethers.TxData do
   @typedoc """
   Holds transaction data, the function selector and the default `to` address.
 
-  Can be passed in to `Ethers.call/2` or `Ethers.send/2` to execute.
+  Can be passed in to `Ethers.call/2` or `Ethers.send_transaction/2` to execute.
   """
   @type t :: %__MODULE__{
           data: binary() | [binary()],

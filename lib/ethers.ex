@@ -505,7 +505,8 @@ defmodule Ethers do
   @doc """
   Returns the current max priority fee per gas from the RPC API
   """
-  @spec max_priority_fee_per_gas(Keyword.t()) :: {:ok, non_neg_integer()}
+  @spec max_priority_fee_per_gas(Keyword.t()) ::
+          {:ok, non_neg_integer()} | {:error, reason :: term()}
   def max_priority_fee_per_gas(opts \\ []) do
     {rpc_client, rpc_opts} = get_rpc_client(opts)
 

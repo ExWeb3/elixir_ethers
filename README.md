@@ -43,15 +43,16 @@ Version 0.6.x introduces some breaking changes to improve type safety and explic
 
 Key function changes:
 
+- Use `Ethers.send_transaction/2` instead of `Ethers.send/2`
 - Use `Ethers.Transaction.from_rpc_map/1` instead of `from_map/1`
 - Specify gas limits explicitly instead of using `maybe_add_gas_limit/2`
 - Use `type` instead of `tx_type` in transaction overrides, with explicit struct modules:
   ```elixir
   # Before
-  Ethers.send(tx, tx_type: :eip1559)
+  Ethers.send_transaction(tx, tx_type: :eip1559)
 
   # After
-  Ethers.send(tx, type: Ethers.Transaction.Eip1559)
+  Ethers.send_transaction(tx, type: Ethers.Transaction.Eip1559)
   ```
 
 Most existing code should continue to work with minimal changes. The main adjustments needed are:

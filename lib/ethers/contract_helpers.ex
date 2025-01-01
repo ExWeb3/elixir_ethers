@@ -60,13 +60,13 @@ defmodule Ethers.ContractHelpers do
 
         :non_payable ->
           """
-          This function can be used for a transaction or additionally called for results (Use `Ethers.send/2`).
+          This function can be used for a transaction or additionally called for results (Use `Ethers.send_transaction/2`).
           No amount of Ether can be sent with this function.
           """
 
         :payable ->
           """
-          This function can be used for a transaction or additionally called for results (Use `Ethers.send/2`).
+          This function can be used for a transaction or additionally called for results (Use `Ethers.send_transaction/2`).
           It also supports receiving ether from the transaction origin.
           """
       end
@@ -81,7 +81,7 @@ defmodule Ethers.ContractHelpers do
   defp do_document_help_message(state_mutabilities) do
     """
     This function has multiple state mutabilities based on the overload that you use.
-    You may use the correct function (`Ethers.call/2` or `Ethers.send/2`) to interact with this function
+    You may use the correct function (`Ethers.call/2` or `Ethers.send_transaction/2`) to interact with this function
     based on the overload you choose.
 
     State mutabilities: #{document_state_mutabilities(state_mutabilities)}

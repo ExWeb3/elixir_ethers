@@ -51,7 +51,7 @@ defmodule Ethers.EventMixedIndexContractTest do
       assert {:ok, address} = Ethers.deployed_address(tx_hash)
 
       EventMixedIndexContract.transfer(100, @from, true, @from)
-      |> Ethers.send!(to: address, from: @from)
+      |> Ethers.send_transaction!(to: address, from: @from)
       |> wait_for_transaction!()
 
       filter = EventMixedIndexContract.EventFilters.transfer(@from, @from)

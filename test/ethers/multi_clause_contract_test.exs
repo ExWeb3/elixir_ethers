@@ -54,7 +54,7 @@ defmodule Ethers.MultiClauseContractTest do
   describe "multi clause events" do
     test "listens on the right event", %{address: address} do
       MultiClauseContract.emit_event(typed({:uint, 256}, 10))
-      |> Ethers.send!(to: address, from: @from)
+      |> Ethers.send_transaction!(to: address, from: @from)
       |> wait_for_transaction!()
 
       uint_filter = MultiClauseContract.EventFilters.multi_event(typed({:uint, 256}, 10))
@@ -63,7 +63,7 @@ defmodule Ethers.MultiClauseContractTest do
                Ethers.get_logs(uint_filter, address: address)
 
       MultiClauseContract.emit_event(typed({:int, 256}, -20))
-      |> Ethers.send!(to: address, from: @from)
+      |> Ethers.send_transaction!(to: address, from: @from)
       |> wait_for_transaction!()
 
       int_filter = MultiClauseContract.EventFilters.multi_event(typed({:int, 256}, -20))
@@ -72,7 +72,7 @@ defmodule Ethers.MultiClauseContractTest do
                Ethers.get_logs(int_filter, address: address)
 
       MultiClauseContract.emit_event("Hello")
-      |> Ethers.send!(to: address, from: @from)
+      |> Ethers.send_transaction!(to: address, from: @from)
       |> wait_for_transaction!()
 
       string_filter = MultiClauseContract.EventFilters.multi_event(typed(:string, "Hello"))
@@ -87,7 +87,7 @@ defmodule Ethers.MultiClauseContractTest do
 
     test "listens on the right event with nil values", %{address: address} do
       MultiClauseContract.emit_event(typed({:uint, 256}, 10))
-      |> Ethers.send!(to: address, from: @from)
+      |> Ethers.send_transaction!(to: address, from: @from)
       |> wait_for_transaction!()
 
       uint_filter = MultiClauseContract.EventFilters.multi_event(typed({:uint, 256}, nil))
@@ -96,7 +96,7 @@ defmodule Ethers.MultiClauseContractTest do
                Ethers.get_logs(uint_filter, address: address)
 
       MultiClauseContract.emit_event(typed({:int, 256}, -20))
-      |> Ethers.send!(to: address, from: @from)
+      |> Ethers.send_transaction!(to: address, from: @from)
       |> wait_for_transaction!()
 
       int_filter = MultiClauseContract.EventFilters.multi_event(typed({:int, 256}, nil))

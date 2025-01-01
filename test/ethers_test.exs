@@ -81,7 +81,7 @@ defmodule EthersTest do
       assert is_integer(c)
       assert c >= 0
 
-      Ethers.send!(%{
+      Ethers.send_transaction!(%{
         from: @address,
         to: "0xaadA6BF26964aF9D7eEd9e03E53415D37aA96045",
         value: 1000
@@ -96,7 +96,7 @@ defmodule EthersTest do
     test "returns correct transaction by tx_hash" do
       {:ok, tx_hash} =
         HelloWorldContract.set_hello("hello local signer")
-        |> Ethers.send(
+        |> Ethers.send_transaction(
           from: @from,
           to: @to,
           signer: Ethers.Signer.Local,
@@ -127,7 +127,7 @@ defmodule EthersTest do
     test "works in batch requests" do
       {:ok, tx_hash} =
         HelloWorldContract.set_hello("hello local signer")
-        |> Ethers.send(
+        |> Ethers.send_transaction(
           from: @from,
           to: @to,
           signer: Ethers.Signer.Local,
@@ -163,7 +163,7 @@ defmodule EthersTest do
     test "returns correct transaction receipt by tx_hash" do
       {:ok, tx_hash} =
         HelloWorldContract.set_hello("hello local signer")
-        |> Ethers.send(
+        |> Ethers.send_transaction(
           from: @from,
           to: @to,
           signer: Ethers.Signer.Local,
@@ -238,7 +238,8 @@ defmodule EthersTest do
       contract_address = deploy(HelloWorldContract, from: @from)
 
       {:ok, tx_hash} =
-        HelloWorldContract.set_hello("Bye") |> Ethers.send(to: contract_address, from: @from)
+        HelloWorldContract.set_hello("Bye")
+        |> Ethers.send_transaction(to: contract_address, from: @from)
 
       Process.sleep(50)
 
@@ -366,7 +367,7 @@ defmodule EthersTest do
       address = deploy(HelloWorldContract, from: @from)
 
       HelloWorldContract.set_hello("Hello Batch!")
-      |> Ethers.send!(to: address, from: @from)
+      |> Ethers.send_transaction!(to: address, from: @from)
       |> wait_for_transaction!()
 
       assert {:ok, results} =
@@ -425,11 +426,11 @@ defmodule EthersTest do
     end
   end
 
-  describe "send/2" do
+  describe "send_transaction/2" do
     test "accepts signer and signer_opts" do
       assert {:error, :no_private_key} =
                HelloWorldContract.set_hello("hello")
-               |> Ethers.send(
+               |> Ethers.send_transaction(
                  from: @from,
                  to: "0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc",
                  signer: Ethers.Signer.Local
@@ -441,7 +442,7 @@ defmodule EthersTest do
 
       assert {:ok, tx_hash} =
                HelloWorldContract.set_hello("hello local signer")
-               |> Ethers.send(
+               |> Ethers.send_transaction(
                  from: @from,
                  to: address,
                  signer: Ethers.Signer.Local,
@@ -461,7 +462,7 @@ defmodule EthersTest do
 
       {:ok, tx_hash} =
         HelloWorldContract.set_hello("hello local signer")
-        |> Ethers.send(
+        |> Ethers.send_transaction(
           from: @from,
           to: address,
           type: Ethers.Transaction.Legacy,
@@ -482,7 +483,7 @@ defmodule EthersTest do
 
     test "converts all integer params and overrides to hex" do
       assert {:ok, _tx_hash} =
-               Ethers.send(
+               Ethers.send_transaction(
                  %{value: 1000},
                  rpc_client: Ethers.TestRPCModule,
                  from: @from,
@@ -512,7 +513,7 @@ defmodule EthersTest do
                  type: Ethers.Transaction.Eip1559
                )
 
-      assert {:ok, tx_hash} = Ethers.send(signed)
+      assert {:ok, tx_hash} = Ethers.send_transaction(signed)
       wait_for_transaction!(tx_hash)
 
       assert {:ok, "hi signed"} = Ethers.call(HelloWorldContract.say_hello(), to: address)
@@ -627,6 +628,32 @@ defmodule EthersTest do
                 "0000000000000000000000000000000000000000000000000000c48656c6c6f20576f726c642100" <>
                 "00000000000000000000000000000000000000"} =
                Ethers.call(%{data: tx_data.data}, to: address)
+    end
+  end
+
+  describe "deprecated send/2 and send!/2 still work" do
+    test "send/2 still works" do
+      address = deploy(HelloWorldContract, from: @from)
+
+      {:ok, tx_hash} =
+        HelloWorldContract.set_hello("hi send")
+        |> Ethers.send(to: address, from: @from)
+
+      wait_for_transaction!(tx_hash)
+
+      assert {:ok, "hi send"} = Ethers.call(HelloWorldContract.say_hello(), to: address)
+    end
+
+    test "send!/2 still works" do
+      address = deploy(HelloWorldContract, from: @from)
+
+      tx_hash =
+        HelloWorldContract.set_hello("hi send!")
+        |> Ethers.send!(to: address, from: @from)
+
+      wait_for_transaction!(tx_hash)
+
+      assert {:ok, "hi send!"} = Ethers.call(HelloWorldContract.say_hello(), to: address)
     end
   end
 end

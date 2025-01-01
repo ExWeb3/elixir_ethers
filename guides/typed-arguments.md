@@ -38,7 +38,7 @@ defmodule Overloaded do
 end
 
 Overloaded.transfer(Ethers.Types.typed({:uint, 256}, 100))
-|> Ethers.send!(...)
+|> Ethers.send_transaction!(...)
 ```
 
 This way we have explicitly told Ethers to use the `uint256` type for the first argument.
@@ -52,8 +52,8 @@ Ethers supports all generic data types from EVM. Here is a list of them.
 | `:address`               | `address`         | Ethereum wallet address                             |
 | `:bool`                  | `bool`            | Boolean value                                       |
 | `:string`                | `string`          | Dynamic length string                               |
-| `:bytes`                 | `bytes`           | Dynamic length byte array [^1]                      | 
-| `{:bytes, size}`         | `bytes{size}`     | Fixed length byte array [^1]                        | 
+| `:bytes`                 | `bytes`           | Dynamic length byte array [^1]                      |
+| `{:bytes, size}`         | `bytes{size}`     | Fixed length byte array [^1]                        |
 | `{:uint, bitsize}`       | `uint{bitsize}`   | Unsigned integer [^2]                               |
 | `{:int, bitsize}`        | `int{bitsize}`    | Signed integer  [^2]                                |
 | `{:array, type}`         | `T[]`             | Dynamic length array of type                        |

@@ -142,7 +142,7 @@ defmodule Ethers.CounterContractTest do
     end
 
     test "sending transaction with state mutating functions", %{address: address} do
-      {:ok, tx_hash} = CounterContract.set(101) |> Ethers.send(from: @from, to: address)
+      {:ok, tx_hash} = CounterContract.set(101) |> Ethers.send_transaction(from: @from, to: address)
       wait_for_transaction!(tx_hash)
 
       {:ok, 101} = CounterContract.get() |> Ethers.call(to: address)
@@ -151,7 +151,7 @@ defmodule Ethers.CounterContractTest do
     test "sending transaction with state mutating functions using bang functions", %{
       address: address
     } do
-      tx_hash = CounterContract.set(101) |> Ethers.send!(from: @from, to: address)
+      tx_hash = CounterContract.set(101) |> Ethers.send_transaction!(from: @from, to: address)
 
       wait_for_transaction!(tx_hash)
 
@@ -160,12 +160,12 @@ defmodule Ethers.CounterContractTest do
 
     test "returns error if to address is not given" do
       assert {:error, :no_to_address} = CounterContract.get() |> Ethers.call()
-      assert {:error, :no_to_address} = CounterContract.set(101) |> Ethers.send(from: @from)
+      assert {:error, :no_to_address} = CounterContract.set(101) |> Ethers.send_transaction(from: @from)
 
       assert {:error, :no_to_address} =
-               CounterContract.set(101) |> Ethers.send(from: @from, gas: 100)
+               CounterContract.set(101) |> Ethers.send_transaction(from: @from, gas: 100)
 
-      assert {:error, :no_to_address} = CounterContract.set(101) |> Ethers.send()
+      assert {:error, :no_to_address} = CounterContract.set(101) |> Ethers.send_transaction()
 
       assert {:error, :no_to_address} =
                CounterContract.set(101) |> Ethers.estimate_gas(from: @from, gas: 100)
@@ -177,11 +177,11 @@ defmodule Ethers.CounterContractTest do
       end
 
       assert_raise Ethers.ExecutionError, "Unexpected error: no_to_address", fn ->
-        CounterContract.set(101) |> Ethers.send!(from: @from)
+        CounterContract.set(101) |> Ethers.send_transaction!(from: @from)
       end
 
       assert_raise Ethers.ExecutionError, "Unexpected error: no_to_address", fn ->
-        CounterContract.set(101) |> Ethers.send!(from: @from, gas: 100)
+        CounterContract.set(101) |> Ethers.send_transaction!(from: @from, gas: 100)
       end
 
       assert_raise Ethers.ExecutionError, "Unexpected error: no_to_address", fn ->
@@ -223,7 +223,7 @@ defmodule Ethers.CounterContractTest do
     setup :deploy_counter_contract
 
     test "can get the emitted event with the correct filter", %{address: address} do
-      {:ok, tx_hash} = CounterContract.set(101) |> Ethers.send(from: @from, to: address)
+      {:ok, tx_hash} = CounterContract.set(101) |> Ethers.send_transaction(from: @from, to: address)
 
       wait_for_transaction!(tx_hash)
 
@@ -245,7 +245,7 @@ defmodule Ethers.CounterContractTest do
     end
 
     test "cat get the emitted events with get_logs! function", %{address: address} do
-      {:ok, tx_hash} = CounterContract.set(101) |> Ethers.send(from: @from, to: address)
+      {:ok, tx_hash} = CounterContract.set(101) |> Ethers.send_transaction(from: @from, to: address)
 
       wait_for_transaction!(tx_hash)
 
@@ -275,7 +275,7 @@ defmodule Ethers.CounterContractTest do
     end
 
     test "can filter logs with from_block and to_block options", %{address: address} do
-      {:ok, tx_hash} = CounterContract.set(101) |> Ethers.send(from: @from, to: address)
+      {:ok, tx_hash} = CounterContract.set(101) |> Ethers.send_transaction(from: @from, to: address)
 
       wait_for_transaction!(tx_hash)
 
@@ -317,13 +317,13 @@ defmodule Ethers.CounterContractTest do
 
     test "can call a view function on a previous block", %{address: address} do
       CounterContract.set(101)
-      |> Ethers.send!(from: @from, to: address)
+      |> Ethers.send_transaction!(from: @from, to: address)
       |> wait_for_transaction!()
 
       {:ok, block_1} = Ethers.current_block_number()
 
       CounterContract.set(102)
-      |> Ethers.send!(from: @from, to: address)
+      |> Ethers.send_transaction!(from: @from, to: address)
       |> wait_for_transaction!()
 
       {:ok, block_2} = Ethers.current_block_number()
@@ -331,7 +331,7 @@ defmodule Ethers.CounterContractTest do
       assert is_integer(block_2)
 
       CounterContract.set(103)
-      |> Ethers.send!(from: @from, to: address)
+      |> Ethers.send_transaction!(from: @from, to: address)
       |> wait_for_transaction!()
 
       assert CounterContract.get() |> Ethers.call!(to: address, block: "latest") == 103

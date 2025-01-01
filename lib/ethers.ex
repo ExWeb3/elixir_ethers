@@ -31,13 +31,13 @@ defmodule Ethers do
   - `action_name_atom`: This only works with requests which do not require any additional data.
     e.g. `:current_gas_price` or `:net_version`.
   - `{action_name_atom, data}`: This works with all other actions which accept input data.
-    e.g. `:call`, `:send` or `:get_logs`.
+    e.g. `:call`, `:send_transaction` or `:get_logs`.
   - `{action_name_atom, data, overrides_keyword_list}`: Use this to override or add attributes
     to the action data. This is only accepted for these actions and will through error on others.
     - `:call`: data should be a Ethers.TxData struct and overrides are accepted.
     - `:estimate_gas`: data should be a Ethers.TxData struct or a map and overrides are accepted.
     - `:get_logs`: data should be a Ethers.EventFilter struct and overrides are accepted.
-    - `:send`: data should be a Ethers.TxData struct and overrides are accepted.
+    - `:send_transaction`: data should be a Ethers.TxData struct and overrides are accepted.
 
 
   ### Example
@@ -47,7 +47,7 @@ defmodule Ethers do
     :current_block_number,
     :current_gas_price,
     {:call, Ethers.Contracts.ERC20.name(), to: "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"},
-    {:send, MyContract.ping(), from: "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045"},
+    {:send_transaction, MyContract.ping(), from: "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045"},
     {:get_logs, Ethers.Contracts.ERC20.EventFilters.approval(nil, nil)} # <- can have add overrides
   ])
   {:ok, [
@@ -90,8 +90,11 @@ defmodule Ethers do
     get_transaction_count: :eth_get_transaction_count,
     get_transaction: :eth_get_transaction_by_hash,
     max_priority_fee_per_gas: :eth_max_priority_fee_per_gas,
+    send_transaction: :eth_send_transaction,
+    # Deprecated, kept for backward compatibility
     send: :eth_send_transaction
   }
+  @send_transaction_actions [:send_transaction, :send]
 
   @type t_batch_request :: atom() | {atom, term()} | {atom, term(), Keyword.t()}
 
@@ -223,7 +226,7 @@ defmodule Ethers do
   - overrides: A keyword list containing options and overrides.
     - `:encoded_constructor`: Hex encoded value for constructor parameters. (See `constructor`
       function of the contract module)
-    - All other options from `Ethers.send/2`
+    - All other options from `Ethers.send_transaction/2`
   """
   @spec deploy(atom() | binary(), Keyword.t()) ::
           {:ok, Types.t_hash()} | {:error, term()}
@@ -355,38 +358,44 @@ defmodule Ethers do
   ## Examples
 
   ```elixir
-  Ethers.Contract.ERC20.transfer("0xff0...ea2", 1000) |> Ethers.send(to: "0xa0b...ef6")
+  Ethers.Contract.ERC20.transfer("0xff0...ea2", 1000) |> Ethers.send_transaction(to: "0xa0b...ef6")
   {:ok, _tx_hash}
   ```
   """
-  @spec send(map() | TxData.t(), Keyword.t()) :: {:ok, String.t()} | {:error, term()}
-  def send(tx_data, overrides \\ []) do
+  @spec send_transaction(map() | TxData.t(), Keyword.t()) :: {:ok, String.t()} | {:error, term()}
+  def send_transaction(tx_data, overrides \\ []) do
     {opts, overrides} = Keyword.split(overrides, @option_keys)
 
     {rpc_client, rpc_opts} = get_rpc_client(opts)
 
-    with {:ok, tx_params, action} <- pre_process(tx_data, overrides, :send, opts) do
+    with {:ok, tx_params, action} <- pre_process(tx_data, overrides, :send_transaction, opts) do
       apply(rpc_client, action, [tx_params, rpc_opts])
-      |> post_process(tx_data, :send)
+      |> post_process(tx_data, :send_transaction)
     end
   end
 
+  @deprecated "Use `Ethers.send_transaction/2` instead"
+  def send(tx_data, overrides \\ []), do: send_transaction(tx_data, overrides)
+
   @doc """
-  Same as `Ethers.send/2` but raises on error.
+  Same as `Ethers.send_transaction/2` but raises on error.
   """
-  @spec send!(map() | TxData.t(), Keyword.t()) :: String.t() | no_return()
-  def send!(tx_data, overrides \\ []) do
-    case __MODULE__.send(tx_data, overrides) do
+  @spec send_transaction!(map() | TxData.t(), Keyword.t()) :: String.t() | no_return()
+  def send_transaction!(tx_data, overrides \\ []) do
+    case __MODULE__.send_transaction(tx_data, overrides) do
       {:ok, tx_hash} -> tx_hash
       {:error, reason} -> raise ExecutionError, reason
     end
   end
 
+  @deprecated "Use `Ethers.send_transaction!/2` instead"
+  def send!(tx_data, overrides \\ []), do: send_transaction!(tx_data, overrides)
+
   @doc """
   Signs a transaction and returns the encoded signed transaction hex.
 
   ## Parameters
-  Accepts same parameters as `Ethers.send/2`.
+  Accepts same parameters as `Ethers.send_transaction/2`.
   """
   @spec sign_transaction(map(), Keyword.t()) :: {:ok, binary()} | {:error, term()}
   def sign_transaction(tx_data, overrides \\ []) do
@@ -521,7 +530,7 @@ defmodule Ethers do
   Ethers.batch([
     {:call, WETH.name()},
     {:call, WETH.symbol(), to: "[WETH ADDRESS]"},
-    {:send, WETH.transfer("[RECEIVER]", 1000), from: "[SENDER]"},
+    {:send_transaction, WETH.transfer("[RECEIVER]", 1000), from: "[SENDER]"},
     :current_block_number
   ])
   {:ok, [ok: "Weapped Ethereum", ok: "WETH", ok: "0xhash...", ok: 182394532]}
@@ -623,11 +632,12 @@ defmodule Ethers do
     maybe_use_signer(tx_params, opts)
   end
 
-  defp pre_process("0x" <> _ = signed_tx, _overrides, :send, _opts) do
+  defp pre_process("0x" <> _ = signed_tx, _overrides, action, _opts)
+       when action in @send_transaction_actions do
     {:ok, signed_tx, :eth_send_raw_transaction}
   end
 
-  defp pre_process(tx_data, overrides, :send = action, opts) do
+  defp pre_process(tx_data, overrides, action, opts) when action in @send_transaction_actions do
     tx_params = TxData.to_map(tx_data, overrides)
 
     with :ok <- check_params(tx_params, action) do
@@ -679,8 +689,9 @@ defmodule Ethers do
     {:ok, resp}
   end
 
-  defp post_process({:ok, tx_hash}, _tx_data, _action = :send) when valid_result(tx_hash),
-    do: {:ok, tx_hash}
+  defp post_process({:ok, tx_hash}, _tx_data, action)
+       when valid_result(tx_hash) and action in @send_transaction_actions,
+       do: {:ok, tx_hash}
 
   defp post_process({:ok, tx_hash}, _tx_params, _action = :deploy) when valid_result(tx_hash),
     do: {:ok, tx_hash}
@@ -846,7 +857,7 @@ defmodule Ethers do
   defp check_to_address(%{to: to_address}, _action) when is_binary(to_address), do: :ok
 
   defp check_to_address(%{to: nil}, action)
-       when action in [:send, :sign_transaction, :estimate_gas],
+       when action in [:send, :send_transaction, :sign_transaction, :estimate_gas],
        do: :ok
 
   defp check_to_address(_params, _action), do: {:error, :no_to_address}
@@ -854,7 +865,7 @@ defmodule Ethers do
   defp check_from_address(%{from: from}, _action) when not is_nil(from), do: :ok
 
   defp check_from_address(_tx_params, action)
-       when action in [:send, :sign_transaction],
+       when action in [:send, :send_transaction, :sign_transaction],
        do: {:error, :no_from_address}
 
   defp check_from_address(_tx_params, _action), do: :ok

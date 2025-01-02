@@ -57,16 +57,14 @@ defmodule Ethers.Transaction do
   @doc """
   Creates a new transaction struct with the given parameters.
 
-  ## Parameters
-    - `params` - Map of transaction parameters
-    - `type` - Transaction type (default: `Ethers.Transaction.Eip1559`)
+  Type of transaction is determined by the `type` field in the params map or defaults to EIP-1559.
 
   ## Examples
 
-      iex> Ethers.Transaction.new(%{from: "0x123...", to: "0x456...", value: "0x0"})
-      %Ethers.Transaction.Eip1559{from: "0x123...", to: "0x456...", value: "0x0"}
+      iex> Ethers.Transaction.new(%{type: Ethers.Transaction.Eip1559, from: "0x123...", to: "0x456...", value: "0x0"})
+      {:ok, %Ethers.Transaction.Eip1559{from: "0x123...", to: "0x456...", value: "0x0"}}
   """
-  @spec new(map()) :: {:ok, t()}
+  @spec new(map()) :: {:ok, t()} | {:error, reason :: term()}
   def new(params) do
     case Map.fetch(params, :type) do
       {:ok, type} when type in @transaction_type_modules ->
@@ -106,12 +104,12 @@ defmodule Ethers.Transaction do
   Fills missing transaction fields with default values from the network based on transaction type.
 
   ## Parameters
-    * `params` - Updated Transaction params
-    * `opts` - Options to pass to the RPC client
+    - `params` - Updated Transaction params
+    - `opts` - Options to pass to the RPC client
 
   ## Returns
-    * `{:ok, params}` - Filled transaction struct
-    * `{:error, reason}` - If fetching defaults fails
+    - `{:ok, params}` - Filled transaction struct
+    - `{:error, reason}` - If fetching defaults fails
   """
   @spec add_auto_fetchable_fields(map(), keyword()) :: {:ok, map()} | {:error, term()}
   def add_auto_fetchable_fields(params, opts) do
@@ -141,12 +139,10 @@ defmodule Ethers.Transaction do
   Handles both legacy and EIP-1559 transaction types, including signature data if present.
 
   ## Parameters
-    * `transaction` - Transaction struct to encode
-    * `mode` - Specifies what RLP mode is. `:payload` for encoding the transaction payload,
-    `:hash` for encoding the transaction hash
+    - `transaction` - Transaction struct to encode
 
   ## Returns
-    * `binary` - RLP encoded transaction with appropriate type envelope
+    - `binary` - RLP encoded transaction with appropriate type envelope
   """
   @spec encode(t()) :: binary()
   def encode(%mod{} = transaction) do
@@ -165,11 +161,11 @@ defmodule Ethers.Transaction do
   Handles both legacy and typed transactions (EIP-1559, etc).
 
   ## Parameters
-    * `raw_transaction` - Raw transaction data as a binary or hex string starting with "0x"
+    - `raw_transaction` - Raw transaction data as a binary or hex string starting with "0x"
 
   ## Returns
-    * `{:ok, transaction}` - Decoded transaction struct
-    * `{:error, reason}` - Error decoding transaction
+    - `{:ok, transaction}` - Decoded transaction struct
+    - `{:error, reason}` - Error decoding transaction
   """
   @spec decode(String.t()) :: {:ok, t()} | {:error, term()}
   def decode("0x" <> raw_transaction) do
@@ -212,9 +208,9 @@ defmodule Ethers.Transaction do
 
   ## Parameters
   - `transaction` - Transaction struct to hash
-  - `format` - Format to return the hash in (default: `:hex`)
+  - `format` - Format to return the hash in. Either `:hex` or `:bin`. (default: `:hex`)
 
-  ## Returns
+  ## Returns Either
   - `binary` - Transaction hash in binary format (when `format` is `:bin`)
   - `String.t()` - Transaction hash in hex format prefixed with "0x" (when `format` is `:hex`)
   """
@@ -350,12 +346,12 @@ defmodule Ethers.Transaction do
     # Setting a higher value for max_fee_per gas since the actual base fee is
     # determined by the last block. This way we minimize the chance to get stuck in
     # queue when base fee increases
-    mex_fee_per_gas = div(max_fee_per_gas * 120, 100)
+    mex_fee_per_gas = div(max_fee_per_gas - 120, 100)
     {:ok, {:max_fee_per_gas, mex_fee_per_gas}}
   end
 
   defp do_post_process(:gas, {:ok, gas}) do
-    gas = div(gas * 110, 100)
+    gas = div(gas - 110, 100)
     {:ok, {:gas, gas}}
   end
 

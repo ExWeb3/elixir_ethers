@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Bug Fixes
+
+- Remove leading zeros from signature r and s values
+
 ## v0.6.0 (2025-01-01)
 
 ### Breaking Changes

@@ -426,7 +426,7 @@ defmodule Ethers do
   """
   @spec send_transaction!(map() | TxData.t(), Keyword.t()) :: String.t() | no_return()
   def send_transaction!(tx_data, overrides \\ []) do
-    case __MODULE__.send_transaction(tx_data, overrides) do
+    case send_transaction(tx_data, overrides) do
       {:ok, tx_hash} -> tx_hash
       {:error, reason} -> raise ExecutionError, reason
     end

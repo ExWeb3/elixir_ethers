@@ -142,7 +142,7 @@ defmodule EthersTest do
     test "bang version returns unwrapped value" do
       {:ok, tx_hash} =
         HelloWorldContract.set_hello("hello local signer")
-        |> Ethers.send(
+        |> Ethers.send_transaction(
           from: @from,
           to: @to,
           signer: Ethers.Signer.Local,
@@ -233,7 +233,7 @@ defmodule EthersTest do
     test "bang version returns unwrapped value" do
       {:ok, tx_hash} =
         HelloWorldContract.set_hello("hello local signer")
-        |> Ethers.send(
+        |> Ethers.send_transaction(
           from: @from,
           to: @to,
           signer: Ethers.Signer.Local,

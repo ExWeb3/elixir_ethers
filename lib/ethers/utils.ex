@@ -540,4 +540,11 @@ defmodule Ethers.Utils do
         raise ArgumentError, "Invalid Ethereum address binary #{inspect(address)}"
     end
   end
+
+  @doc """
+  Removes leading zeros from a binary.
+  """
+  @spec remove_leading_zeros(binary()) :: binary()
+  def remove_leading_zeros(<<0, rest::binary>>), do: remove_leading_zeros(rest)
+  def remove_leading_zeros(bin) when is_binary(bin), do: bin
 end

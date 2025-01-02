@@ -160,6 +160,8 @@ defmodule Ethers.Transaction.Signed do
   end
 
   defimpl Transaction.Protocol do
+    import Ethers.Utils, only: [remove_leading_zeros: 1]
+
     def type_id(signed_tx), do: Transaction.Protocol.type_id(signed_tx.pyalod)
 
     def type_envelope(signed_tx), do: Transaction.Protocol.type_envelope(signed_tx.payload)
@@ -171,7 +173,11 @@ defmodule Ethers.Transaction.Signed do
     end
 
     defp signature_fields(signed_tx) do
-      [signed_tx.signature_y_parity_or_v, signed_tx.signature_r, signed_tx.signature_s]
+      [
+        signed_tx.signature_y_parity_or_v,
+        remove_leading_zeros(signed_tx.signature_r),
+        remove_leading_zeros(signed_tx.signature_s)
+      ]
     end
   end
 end

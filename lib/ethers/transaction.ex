@@ -346,12 +346,12 @@ defmodule Ethers.Transaction do
     # Setting a higher value for max_fee_per gas since the actual base fee is
     # determined by the last block. This way we minimize the chance to get stuck in
     # queue when base fee increases
-    mex_fee_per_gas = div(max_fee_per_gas - 120, 100)
+    mex_fee_per_gas = div(max_fee_per_gas * 120, 100)
     {:ok, {:max_fee_per_gas, mex_fee_per_gas}}
   end
 
   defp do_post_process(:gas, {:ok, gas}) do
-    gas = div(gas - 110, 100)
+    gas = div(gas * 110, 100)
     {:ok, {:gas, gas}}
   end
 

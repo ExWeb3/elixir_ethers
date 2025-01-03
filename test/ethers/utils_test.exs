@@ -3,6 +3,38 @@ defmodule Ethers.UtilsTest do
   alias Ethers.Utils
   doctest Ethers.Utils
 
+  @rsk_mainnet_addresses [
+    "0x27b1FdB04752BBc536007A920D24ACB045561c26",
+    "0x3599689E6292B81B2D85451025146515070129Bb",
+    "0x42712D45473476B98452f434E72461577d686318",
+    "0x52908400098527886E0F7030069857D2E4169ee7",
+    "0x5aaEB6053f3e94c9b9a09f33669435E7ef1bEAeD",
+    "0x6549F4939460DE12611948B3F82B88C3C8975323",
+    "0x66F9664f97f2B50F62d13EA064982F936de76657",
+    "0x8617E340b3D01Fa5f11f306f4090fd50E238070D",
+    "0x88021160c5C792225E4E5452585947470010289d",
+    "0xD1220A0Cf47c7B9BE7a2e6ba89F429762E7B9adB",
+    "0xDBF03B407c01E7CD3cBea99509D93F8Dddc8C6FB",
+    "0xDe709F2102306220921060314715629080e2FB77",
+    "0xFb6916095cA1Df60bb79ce92cE3EA74c37c5d359"
+  ]
+
+  @rsk_testnet_addresses [
+    "0x27B1FdB04752BbC536007a920D24acB045561C26",
+    "0x3599689e6292b81b2D85451025146515070129Bb",
+    "0x42712D45473476B98452F434E72461577D686318",
+    "0x52908400098527886E0F7030069857D2e4169EE7",
+    "0x5aAeb6053F3e94c9b9A09F33669435E7EF1BEaEd",
+    "0x6549f4939460dE12611948b3f82b88C3c8975323",
+    "0x66f9664F97F2b50f62d13eA064982F936DE76657",
+    "0x8617e340b3D01fa5F11f306F4090Fd50e238070d",
+    "0x88021160c5C792225E4E5452585947470010289d",
+    "0xd1220a0CF47c7B9Be7A2E6Ba89f429762E7b9adB",
+    "0xdbF03B407C01E7cd3cbEa99509D93f8dDDc8C6fB",
+    "0xDE709F2102306220921060314715629080e2Fb77",
+    "0xFb6916095CA1dF60bb79CE92ce3Ea74C37c5D359"
+  ]
+
   describe "get_block_timestamp" do
     test "returns the block timestamp" do
       assert {:ok, n} = Ethers.current_block_number()
@@ -100,6 +132,15 @@ defmodule Ethers.UtilsTest do
 
       assert Ethers.Utils.to_checksum_address(bin_address) ==
                "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1"
+    end
+
+    test "does erc-1191 checksum" do
+      %{30 => @rsk_mainnet_addresses, 31 => @rsk_testnet_addresses}
+      |> Enum.each(fn {chain_id, addresses} ->
+        Enum.each(addresses, fn address ->
+          assert Ethers.Utils.to_checksum_address(address, chain_id) == address
+        end)
+      end)
     end
   end
 

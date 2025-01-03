@@ -167,11 +167,16 @@ defmodule Ethers.Transaction do
     - `{:ok, transaction}` - Decoded transaction struct
     - `{:error, reason}` - Error decoding transaction
   """
-  @spec decode(String.t()) :: {:ok, t()} | {:error, term()}
+  @spec decode(String.t() | binary()) :: {:ok, t()} | {:error, term()}
   def decode("0x" <> raw_transaction) do
-    case raw_transaction
-         |> Utils.hex_decode!()
-         |> decode_transaction_data() do
+    case Utils.hex_decode(raw_transaction) do
+      {:ok, hex_decoded} -> decode(hex_decoded)
+      :error -> {:error, :invalid_hex}
+    end
+  end
+
+  def decode(raw_transaction_bin) when is_binary(raw_transaction_bin) do
+    case decode_transaction_data(raw_transaction_bin) do
       {:ok, transaction, signature} ->
         maybe_decode_signature(transaction, signature)
 

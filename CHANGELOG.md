@@ -5,6 +5,7 @@
 ### Bug Fixes
 
 - Remove leading zeros from signature r and s values
+- Support hex decoded raw transaction in `Ethers.Transaction.decode/1`
 
 ## v0.6.0 (2025-01-01)
 

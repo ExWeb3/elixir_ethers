@@ -255,25 +255,27 @@ defmodule Ethers.Utils do
       iex> Ethers.Utils.to_checksum_address("0XDE709F2102306220921060314715629080e2Fb77", 30)
       "0xDe709F2102306220921060314715629080e2FB77"
   """
-  @spec to_checksum_address(Ethers.Types.t_address(), non_neg_integer()) ::
+  @spec to_checksum_address(Ethers.Types.t_address(), pos_integer() | nil) ::
           Ethers.Types.t_address()
-  def to_checksum_address(address, chain_id \\ 0)
+  def to_checksum_address(address, chain_id \\ nil)
 
   def to_checksum_address("0x" <> address, chain_id), do: to_checksum_address(address, chain_id)
   def to_checksum_address("0X" <> address, chain_id), do: to_checksum_address(address, chain_id)
 
   def to_checksum_address(<<address_bin::binary-20>>, chain_id),
-    do: hex_encode(address_bin) |> to_checksum_address(chain_id)
+    do: hex_encode(address_bin, false) |> to_checksum_address(chain_id)
 
-  def to_checksum_address(address, chain_id) when is_integer(chain_id) do
+  def to_checksum_address(address, nil), do: calculate_checksum_address(address, address)
+
+  def to_checksum_address(address, chain_id) when is_integer(chain_id),
+    do: calculate_checksum_address(address, "#{chain_id}0x#{address}")
+
+  defp calculate_checksum_address(address, hash_input) do
     address = String.downcase(address)
 
     hashed_address =
-      if chain_id != 0 do
-        "#{chain_id}0x#{address}"
-      else
-        address
-      end
+      hash_input
+      |> String.downcase()
       |> Ethers.keccak_module().hash_256()
       |> Base.encode16(case: :lower)
 

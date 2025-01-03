@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Enhancements
+
+- Support [EIP-1191](https://eips.ethereum.org/EIPS/eip-1191): Add chain id to mixed-case checksum address encoding
+
 ## v0.6.1 (2025-01-02)
 
 ### Bug Fixes

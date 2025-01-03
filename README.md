@@ -23,7 +23,7 @@ dependencies in your `mix.exs` file:
 ```elixir
 def deps do
   [
-    {:ethers, "~> 0.6.0"},
+    {:ethers, "~> 0.6.1"},
     # Uncomment next line if you want to use local signers
     # {:ex_secp256k1, "~> 0.7.2"}
   ]
@@ -36,10 +36,10 @@ The complete documentation is available on [hexdocs](https://hexdocs.pm/ethers).
 
 Version 0.6.x introduces some breaking changes to improve type safety and explicitness:
 
-* All inputs to functions now require native Elixir types (e.g. integers) instead of hex strings
-* Gas limits must be set explicitly rather than estimated automatically for all calls
-* Transaction struct has been split into separate EIP-1559 and Legacy types
-* Some functions have been deprecated or moved - see below
+- All inputs to functions now require native Elixir types (e.g. integers) instead of hex strings
+- Gas limits must be set explicitly rather than estimated automatically for all calls
+- Transaction struct has been split into separate EIP-1559 and Legacy types
+- Some functions have been deprecated or moved - see below
 
 Key function changes:
 
@@ -47,6 +47,7 @@ Key function changes:
 - Use `Ethers.Transaction.from_rpc_map/1` instead of `from_map/1`
 - Specify gas limits explicitly instead of using `maybe_add_gas_limit/2`
 - Use `type` instead of `tx_type` in transaction overrides, with explicit struct modules:
+
   ```elixir
   # Before
   Ethers.send_transaction(tx, tx_type: :eip1559)

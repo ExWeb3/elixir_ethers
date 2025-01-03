@@ -237,6 +237,10 @@ defmodule Ethers.Utils do
   @doc """
   Will convert an upper or lowercase Ethereum address to a checksum address.
 
+  If `chain_id` is specified, ERC-1191 checksum encoding will be used.
+  NOTE: ERC-1191 is generally NOT backwards compatible with ERC-55 encoding
+        (encoding without `chain_id`).
+
   ## Examples
 
       iex> Ethers.Utils.to_checksum_address("0xc1912fee45d61c87cc5ea59dae31190fffff232d")
@@ -244,19 +248,36 @@ defmodule Ethers.Utils do
 
       iex> Ethers.Utils.to_checksum_address("0XC1912FEE45D61C87CC5EA59DAE31190FFFFF232D")
       "0xc1912fEE45d61C87Cc5EA59DaE31190FFFFf232d"
+
+      iex> Ethers.Utils.to_checksum_address("0xde709f2102306220921060314715629080e2fb77", 31)
+      "0xDE709F2102306220921060314715629080e2Fb77"
+
+      iex> Ethers.Utils.to_checksum_address("0XDE709F2102306220921060314715629080e2Fb77", 30)
+      "0xDe709F2102306220921060314715629080e2FB77"
   """
-  @spec to_checksum_address(Ethers.Types.t_address()) :: Ethers.Types.t_address()
-  def to_checksum_address("0x" <> address), do: to_checksum_address(address)
-  def to_checksum_address("0X" <> address), do: to_checksum_address(address)
+  @spec to_checksum_address(Ethers.Types.t_address(), pos_integer() | nil) ::
+          Ethers.Types.t_address()
+  def to_checksum_address(address, chain_id \\ nil)
 
-  def to_checksum_address(<<address_bin::binary-20>>),
-    do: hex_encode(address_bin) |> to_checksum_address()
+  def to_checksum_address("0x" <> address, chain_id), do: to_checksum_address(address, chain_id)
+  def to_checksum_address("0X" <> address, chain_id), do: to_checksum_address(address, chain_id)
 
-  def to_checksum_address(address) do
+  def to_checksum_address(<<address_bin::binary-20>>, chain_id),
+    do: hex_encode(address_bin, false) |> to_checksum_address(chain_id)
+
+  def to_checksum_address(address, nil), do: calculate_checksum_address(address, address)
+
+  def to_checksum_address(address, chain_id) when is_integer(chain_id),
+    do: calculate_checksum_address(address, "#{chain_id}0x#{address}")
+
+  defp calculate_checksum_address(address, hash_input) do
     address = String.downcase(address)
 
     hashed_address =
-      address |> Ethers.keccak_module().hash_256() |> Base.encode16(case: :lower)
+      hash_input
+      |> String.downcase()
+      |> Ethers.keccak_module().hash_256()
+      |> Base.encode16(case: :lower)
 
     checksum_address =
       address

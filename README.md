@@ -127,7 +127,7 @@ Refer to [Ethers.call/2](https://hexdocs.pm/ethers/Ethers.html#call/2) for more 
 ### Sending transaction
 
 To send transaction (eth_sendTransaction) to the blockchain, you can use the
-[`Ethers.send_transaction/2`](https://hexdocs.pm/ethers/Ethers.html#send/2) function.
+[`Ethers.send_transaction/2`](https://hexdocs.pm/ethers/Ethers.html#send_transaction/2) function.
 
 Ensure that you specify a `from` option to inform your client which account to use as the signer:
 
@@ -136,7 +136,7 @@ iex> MyERC20Token.transfer("0x[Recipient]", 1000) |> Ethers.send_transaction(fro
 {:ok, "0xf313ff7ff54c6db80ad44c3ad58f72ff0fea7ce88e5e9304991ebd35a6e76000"}
 ```
 
-Refer to [Ethers.send_transaction/2](https://hexdocs.pm/ethers/Ethers.html#send/2) for more information.
+Refer to [Ethers.send_transaction/2](https://hexdocs.pm/ethers/Ethers.html#send_transaction/2) for more information.
 
 ### Getting Logs (Events)
 

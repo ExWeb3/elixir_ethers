@@ -7,7 +7,6 @@ defmodule Ethers.Transaction.Eip4844 do
   See: https://eips.ethereum.org/EIPS/eip-4844
   """
 
-  alias Ethers.Transaction.Eip1559
   alias Ethers.Types
   alias Ethers.Utils
 
@@ -67,19 +66,19 @@ defmodule Ethers.Transaction.Eip4844 do
 
   @impl Ethers.Transaction
   def new(params) do
-    {:ok, eip1559_data} = Eip1559.new(params)
+    to = params[:to]
 
     {:ok,
      %__MODULE__{
-       chain_id: eip1559_data.chain_id,
-       nonce: eip1559_data.nonce,
-       max_priority_fee_per_gas: eip1559_data.max_priority_fee_per_gas,
-       max_fee_per_gas: eip1559_data.max_fee_per_gas,
-       gas: eip1559_data.gas,
-       to: eip1559_data.to,
-       value: eip1559_data.value,
-       input: eip1559_data.input,
-       access_list: eip1559_data.access_list,
+       chain_id: params.chain_id,
+       nonce: params.nonce,
+       max_priority_fee_per_gas: params.max_priority_fee_per_gas,
+       max_fee_per_gas: params.max_fee_per_gas,
+       gas: params.gas,
+       to: to && Utils.to_checksum_address(to),
+       value: params[:value] || 0,
+       input: params[:input] || params[:data] || "",
+       access_list: params[:access_list] || [],
        max_fee_per_blob_gas: params.max_fee_per_blob_gas,
        blob_versioned_hashes: params[:blob_versioned_hashes] || []
      }}
@@ -87,7 +86,7 @@ defmodule Ethers.Transaction.Eip4844 do
 
   @impl Ethers.Transaction
   def auto_fetchable_fields do
-    [:max_fee_per_blob_gas | Eip1559.auto_fetchable_fields()]
+    [:chain_id, :nonce, :max_priority_fee_per_gas, :max_fee_per_gas, :gas, :max_fee_per_blob_gas]
   end
 
   @impl Ethers.Transaction
@@ -111,36 +110,20 @@ defmodule Ethers.Transaction.Eip4844 do
         blob_versioned_hashes
         | rest
       ]) do
-    case Eip1559.from_rlp_list([
-           chain_id,
-           nonce,
-           max_priority_fee_per_gas,
-           max_fee_per_gas,
-           gas,
-           to,
-           value,
-           input,
-           access_list
-         ]) do
-      {:ok, eip1559_data, _rest} ->
-        {:ok,
-         %__MODULE__{
-           chain_id: eip1559_data.chain_id,
-           nonce: eip1559_data.nonce,
-           max_priority_fee_per_gas: eip1559_data.max_priority_fee_per_gas,
-           max_fee_per_gas: eip1559_data.max_fee_per_gas,
-           gas: eip1559_data.gas,
-           to: eip1559_data.to,
-           value: eip1559_data.value,
-           input: eip1559_data.input,
-           access_list: eip1559_data.access_list,
-           max_fee_per_blob_gas: :binary.decode_unsigned(max_fee_per_blob_gas),
-           blob_versioned_hashes: blob_versioned_hashes
-         }, rest}
-
-      {:error, reason} ->
-        {:error, reason}
-    end
+    {:ok,
+     %__MODULE__{
+       chain_id: :binary.decode_unsigned(chain_id),
+       nonce: :binary.decode_unsigned(nonce),
+       max_priority_fee_per_gas: :binary.decode_unsigned(max_priority_fee_per_gas),
+       max_fee_per_gas: :binary.decode_unsigned(max_fee_per_gas),
+       gas: :binary.decode_unsigned(gas),
+       to: (to != "" && Utils.encode_address!(to)) || nil,
+       value: :binary.decode_unsigned(value),
+       input: input,
+       access_list: access_list,
+       max_fee_per_blob_gas: :binary.decode_unsigned(max_fee_per_blob_gas),
+       blob_versioned_hashes: blob_versioned_hashes
+     }, rest}
   end
 
   def from_rlp_list(_rlp_list), do: {:error, :transaction_decode_failed}

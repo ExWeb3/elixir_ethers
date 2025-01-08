@@ -9,6 +9,7 @@ defmodule Ethers.Transaction do
   """
 
   alias Ethers.Transaction.Eip1559
+  alias Ethers.Transaction.Eip4844
   alias Ethers.Transaction.Legacy
   alias Ethers.Transaction.Protocol, as: TxProtocol
   alias Ethers.Transaction.Signed
@@ -22,7 +23,7 @@ defmodule Ethers.Transaction do
   @typedoc """
   EVM Transaction payload type
   """
-  @type t_payload :: Eip1559.t() | Legacy.t()
+  @type t_payload :: Eip4844.t() | Eip1559.t() | Legacy.t()
 
   @doc "Creates a new transaction struct with the given parameters."
   @callback new(map()) :: {:ok, t()} | {:error, reason :: atom()}
@@ -42,7 +43,11 @@ defmodule Ethers.Transaction do
 
   @default_transaction_type Eip1559
 
-  @transaction_type_modules Application.compile_env(:ethers, :transaction_types, [Eip1559, Legacy])
+  @transaction_type_modules Application.compile_env(:ethers, :transaction_types, [
+                              Eip4844,
+                              Eip1559,
+                              Legacy
+                            ])
 
   @rpc_fields %{
     access_list: :accessList,
@@ -251,6 +256,7 @@ defmodule Ethers.Transaction do
       # Convert from RPC-style field names to EVM field names.
       new(%{
         access_list: from_map_value(tx, :accessList),
+        blob_versioned_hashes: from_map_value(tx, :blobVersionedHashes),
         block_hash: from_map_value(tx, :blockHash),
         block_number: from_map_value_int(tx, :blockNumber),
         chain_id: from_map_value_int(tx, :chainId),
@@ -259,6 +265,7 @@ defmodule Ethers.Transaction do
         gas: from_map_value_int(tx, :gas),
         gas_price: from_map_value_int(tx, :gasPrice),
         hash: from_map_value(tx, :hash),
+        max_fee_per_blob_gas: from_map_value_int(tx, :maxFeePerBlobGas),
         max_fee_per_gas: from_map_value_int(tx, :maxFeePerGas),
         max_priority_fee_per_gas: from_map_value_int(tx, :maxPriorityFeePerGas),
         nonce: from_map_value_int(tx, :nonce),

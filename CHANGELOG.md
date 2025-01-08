@@ -5,6 +5,7 @@
 ### Enhancements
 
 - Support [EIP-1191](https://eips.ethereum.org/EIPS/eip-1191): Add chain id to mixed-case checksum address encoding
+- Add [EIP-4844](https://eips.ethereum.org/EIPS/eip-4844) transaction support
 
 ## v0.6.1 (2025-01-02)
 

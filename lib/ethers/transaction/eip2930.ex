@@ -29,7 +29,7 @@ defmodule Ethers.Transaction.Eip2930 do
   ]
 
   @typedoc """
-  A transaction type following EIP-1559 (Type-2) and incorporating the following fields:
+  A transaction type following EIP-2930 (Type-1) and incorporating the following fields:
   - `chain_id` - chain ID of network where the transaction is to be executed
   - `nonce` - sequence number for the transaction from this sender
   - `gas_price`: Price willing to pay for each unit of gas (in wei)

@@ -13,7 +13,7 @@
 ### Bug Fixes
 
 - Fix encoding of transactions without any input data
-- Encode `access_list` and `blob_versioned_hashed` correctly in transactions
+- Encode `access_list` and `blob_versioned_hashed` correctly in RPC transaction requests
 
 ## v0.6.1 (2025-01-02)
 

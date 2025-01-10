@@ -9,17 +9,32 @@ defmodule Ethers.Transaction do
   """
 
   alias Ethers.Transaction.Eip1559
+  alias Ethers.Transaction.Eip2930
   alias Ethers.Transaction.Eip4844
   alias Ethers.Transaction.Legacy
   alias Ethers.Transaction.Protocol, as: TxProtocol
   alias Ethers.Transaction.Signed
   alias Ethers.Utils
 
-  @transaction_type_modules Application.compile_env(:ethers, :transaction_types, [
-                              Eip4844,
-                              Eip1559,
-                              Legacy
-                            ])
+  @default_transaction_types [Eip1559, Eip2930, Eip4844, Legacy]
+
+  @transaction_types Application.compile_env(
+                       :ethers,
+                       :transaction_types,
+                       @default_transaction_types
+                     )
+
+  @default_transaction_type Eip1559
+
+  @rpc_fields %{
+    access_list: :accessList,
+    blob_versioned_hashes: :blobVersionedHashes,
+    chain_id: :chainId,
+    gas_price: :gasPrice,
+    max_fee_per_blob_gas: :maxFeePerBlobGas,
+    max_fee_per_gas: :maxFeePerGas,
+    max_priority_fee_per_gas: :maxPriorityFeePerGas
+  }
 
   @typedoc """
   EVM Transaction type
@@ -31,7 +46,7 @@ defmodule Ethers.Transaction do
   """
   @type t_payload ::
           unquote(
-            @transaction_type_modules
+            @transaction_types
             |> Enum.map(&{{:., [], [{:__aliases__, [alias: false], [&1]}, :t]}, [], []})
             |> Enum.reduce(&{:|, [], [&1, &2]})
           )
@@ -52,18 +67,6 @@ defmodule Ethers.Transaction do
   @callback from_rlp_list([binary() | [binary()]]) ::
               {:ok, t(), rest :: [binary() | [binary()]]} | {:error, reason :: term()}
 
-  @default_transaction_type Eip1559
-
-  @rpc_fields %{
-    access_list: :accessList,
-    blob_versioned_hashes: :blobVersionedHashes,
-    chain_id: :chainId,
-    gas_price: :gasPrice,
-    max_fee_per_blob_gas: :maxFeePerBlobGas,
-    max_fee_per_gas: :maxFeePerGas,
-    max_priority_fee_per_gas: :maxPriorityFeePerGas
-  }
-
   @doc """
   Creates a new transaction struct with the given parameters.
 
@@ -77,7 +80,7 @@ defmodule Ethers.Transaction do
   @spec new(map()) :: {:ok, t()} | {:error, reason :: term()}
   def new(params) do
     case Map.fetch(params, :type) do
-      {:ok, type} when type in @transaction_type_modules ->
+      {:ok, type} when type in @transaction_types ->
         input =
           params
           |> Map.get(:input, Map.get(params, :data))
@@ -195,7 +198,7 @@ defmodule Ethers.Transaction do
     end
   end
 
-  Enum.each(@transaction_type_modules, fn module ->
+  Enum.each(@transaction_types, fn module ->
     type_envelope = module.type_envelope()
 
     defp decode_transaction_data(<<unquote(type_envelope)::binary, rest::binary>>) do
@@ -380,7 +383,7 @@ defmodule Ethers.Transaction do
 
   defp decode_type("0x" <> _ = type), do: decode_type(Utils.hex_decode!(type))
 
-  Enum.each(@transaction_type_modules, fn module ->
+  Enum.each(@transaction_types, fn module ->
     type_envelope = module.type_envelope()
     defp decode_type(unquote(type_envelope)), do: {:ok, unquote(module)}
   end)

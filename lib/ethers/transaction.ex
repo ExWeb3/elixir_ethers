@@ -37,7 +37,7 @@ defmodule Ethers.Transaction do
   }
 
   # Margin precision is 0.01% (12345 = 123.45%)
-  @margin_precision 10000
+  @margin_precision 10_000
 
   @typedoc """
   EVM Transaction type
@@ -429,12 +429,12 @@ defmodule Ethers.Transaction do
   def default_transaction_type, do: @default_transaction_type
 
   defp gas_with_margin(value) do
-    margin = Application.get_env(:ethers, :default_gas_margin, 11000)
+    margin = Application.get_env(:ethers, :default_gas_margin, 11_000)
     with_margin(value, margin)
   end
 
   defp max_fee_per_gas_with_margin(value) do
-    margin = Application.get_env(:ethers, :default_max_fee_per_gas_margin, 12000)
+    margin = Application.get_env(:ethers, :default_max_fee_per_gas_margin, 12_000)
     with_margin(value, margin)
   end
 

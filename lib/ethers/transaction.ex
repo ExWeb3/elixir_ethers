@@ -15,6 +15,12 @@ defmodule Ethers.Transaction do
   alias Ethers.Transaction.Signed
   alias Ethers.Utils
 
+  @transaction_type_modules Application.compile_env(:ethers, :transaction_types, [
+                              Eip4844,
+                              Eip1559,
+                              Legacy
+                            ])
+
   @typedoc """
   EVM Transaction type
   """
@@ -23,7 +29,12 @@ defmodule Ethers.Transaction do
   @typedoc """
   EVM Transaction payload type
   """
-  @type t_payload :: Eip4844.t() | Eip1559.t() | Legacy.t()
+  @type t_payload ::
+          unquote(
+            @transaction_type_modules
+            |> Enum.map(&{{:., [], [{:__aliases__, [alias: false], [&1]}, :t]}, [], []})
+            |> Enum.reduce(&{:|, [], [&1, &2]})
+          )
 
   @doc "Creates a new transaction struct with the given parameters."
   @callback new(map()) :: {:ok, t()} | {:error, reason :: atom()}
@@ -42,12 +53,6 @@ defmodule Ethers.Transaction do
               {:ok, t(), rest :: [binary() | [binary()]]} | {:error, reason :: term()}
 
   @default_transaction_type Eip1559
-
-  @transaction_type_modules Application.compile_env(:ethers, :transaction_types, [
-                              Eip4844,
-                              Eip1559,
-                              Legacy
-                            ])
 
   @rpc_fields %{
     access_list: :accessList,

@@ -75,7 +75,9 @@ config :ethers,
   json_module: Jason, # Defaults to: Jason
   secp256k1_module: ExSecp256k1, # Defaults to: ExSecp256k1
   default_signer: nil, # Defaults to: nil, see Ethers.Signer for more info
-  default_signer_opts: [] # Defaults to: []
+  default_signer_opts: [], # Defaults to: []
+  default_gas_margin: 11000, # Precision is 0.01% (11000 = 110%)
+  default_mdefault_max_fee_per_gas_margin: 12000 #Precision is 0.01% (12000 = 120%)
 
 # If using Ethereumex, you can specify a default JSON-RPC server url here for all requests.
 config :ethereumex, url: "[URL_HERE]"

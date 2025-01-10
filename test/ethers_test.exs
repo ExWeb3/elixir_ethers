@@ -43,6 +43,17 @@ defmodule EthersTest do
     end
   end
 
+  describe "blob_base_fee" do
+    test "returns the correct blob base fee" do
+      assert {:ok, blob_base_fee} = Ethers.blob_base_fee()
+      assert is_integer(blob_base_fee)
+    end
+
+    test "bang version returns unwrapped value" do
+      assert is_integer(Ethers.blob_base_fee!())
+    end
+  end
+
   describe "current_block_number" do
     test "returns the current block number" do
       assert {:ok, n} = Ethers.current_block_number()
@@ -570,6 +581,73 @@ defmodule EthersTest do
         type: "0x2"
       }
     end
+
+    test "works with all transaction types" do
+      types = [
+        Ethers.Transaction.Legacy,
+        Ethers.Transaction.Eip1559,
+        Ethers.Transaction.Eip2930,
+        Ethers.Transaction.Eip4844
+      ]
+
+      for type <- types do
+        assert {:ok, _tx_hash} =
+                 Ethers.send_transaction(
+                   %{value: 1000},
+                   rpc_client: Ethers.TestRPCModule,
+                   from: @from,
+                   type: type,
+                   to: "0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc",
+                   rpc_opts: [send_params_to_pid: self()]
+                 )
+
+        type_id = Ethers.Utils.integer_to_hex(type.type_id())
+
+        assert_receive %{
+          from: @from,
+          to: "0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc",
+          value: "0x3E8",
+          type: ^type_id
+        }
+      end
+    end
+
+    test "works with all transaction types and local signer" do
+      types = [
+        Ethers.Transaction.Legacy,
+        Ethers.Transaction.Eip1559,
+        Ethers.Transaction.Eip2930
+        # Does not work with Anvil without sidecar
+        # Ethers.Transaction.Eip4844
+      ]
+
+      for type <- types do
+        assert {:ok, tx_hash} =
+                 Ethers.send_transaction(
+                   %{value: 1000},
+                   from: @from,
+                   type: type,
+                   to: "0x9965507D1a55bcC2695C58ba16FB37d819B0A4da",
+                   signer: Ethers.Signer.Local,
+                   blob_versioned_hashes: [
+                     Ethers.Utils.hex_decode!(
+                       "0x01bb9dc6ee48ae6a6f7ffd69a75196a4d49723beedf35981106e8da0efd8f796"
+                     )
+                   ],
+                   access_list: access_list_fixture(),
+                   signer_opts: [
+                     private_key: @from_private_key
+                   ]
+                 )
+
+        wait_for_transaction!(tx_hash)
+
+        type_id = Ethers.Utils.integer_to_hex(type.type_id())
+
+        assert %Ethers.Transaction.Signed{payload: %^type{}} = Ethers.get_transaction!(tx_hash)
+        assert Ethers.get_transaction_receipt!(tx_hash)["type"] == type_id
+      end
+    end
   end
 
   describe "sign_transaction/2" do
@@ -739,5 +817,44 @@ defmodule EthersTest do
     test "bang version returns unwrapped value" do
       assert Ethers.chain_id!() == 31_337
     end
+  end
+
+  defp access_list_fixture do
+    [
+      [
+        <<7, 166, 233, 85, 186, 67, 69, 186, 232, 58, 194, 166, 250, 167, 113, 253, 221, 138, 32,
+          17>>,
+        [
+          <<0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0>>,
+          <<0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 1>>,
+          <<0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 8>>
+        ]
+      ],
+      [
+        <<125, 26, 250, 123, 113, 143, 184, 147, 219, 48, 163, 171, 192, 207, 198, 8, 170, 207,
+          235, 176>>,
+        [
+          <<20, 213, 49, 41, 66, 36, 14, 86, 92, 86, 174, 193, 24, 6, 206, 88, 227, 192, 227, 140,
+            150, 38, 157, 117, 156, 93, 53, 162, 162, 228, 164, 73>>,
+          <<39, 1, 253, 11, 38, 56, 243, 61, 178, 37, 217, 28, 106, 219, 218, 212, 101, 144, 168,
+            106, 9, 162, 178, 195, 134, 64, 92, 47, 116, 42, 248, 66>>,
+          <<55, 176, 184, 46, 229, 216, 168, 134, 114, 223, 56, 149, 164, 106, 244, 139, 188, 211,
+            13, 110, 252, 201, 8, 19, 110, 41, 69, 111, 163, 6, 4, 187>>
+        ]
+      ],
+      [
+        <<160, 184, 105, 145, 198, 33, 139, 54, 193, 209, 157, 74, 46, 158, 176, 206, 54, 6, 235,
+          72>>,
+        [
+          <<55, 87, 12, 241, 140, 109, 149, 116, 74, 21, 79, 162, 177, 155, 126, 149, 140, 120,
+            239, 104, 184, 198, 10, 128, 220, 82, 127, 193, 94, 44, 235, 143>>,
+          <<110, 137, 211, 30, 63, 216, 210, 191, 11, 65, 28, 69, 142, 152, 199, 70, 59, 247, 35,
+            135, 140, 60, 232, 168, 69, 188, 249, 220, 59, 46, 57, 23>>
+        ]
+      ]
+    ]
   end
 end

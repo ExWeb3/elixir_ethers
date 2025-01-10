@@ -77,6 +77,7 @@ defmodule Ethers do
     :get_balance,
     :get_transaction_count,
     :max_priority_fee_per_gas,
+    :blob_base_fee,
     :gas_price
   ]
   @rpc_actions_map %{
@@ -91,6 +92,7 @@ defmodule Ethers do
     get_transaction: :eth_get_transaction_by_hash,
     max_priority_fee_per_gas: :eth_max_priority_fee_per_gas,
     send_transaction: :eth_send_transaction,
+    blob_base_fee: :eth_blob_base_fee,
     # Deprecated, kept for backward compatibility
     send: :eth_send_transaction
   }
@@ -520,6 +522,29 @@ defmodule Ethers do
   @spec max_priority_fee_per_gas!(Keyword.t()) :: non_neg_integer() | no_return()
   def max_priority_fee_per_gas!(opts \\ []) do
     case max_priority_fee_per_gas(opts) do
+      {:ok, fee} -> fee
+      {:error, reason} -> raise ExecutionError, reason
+    end
+  end
+
+  @doc """
+  Returns the current blob base fee from the RPC API
+  """
+  @spec blob_base_fee(Keyword.t()) ::
+          {:ok, non_neg_integer()} | {:error, reason :: term()}
+  def blob_base_fee(opts \\ []) do
+    {rpc_client, rpc_opts} = get_rpc_client(opts)
+
+    rpc_client.eth_blob_base_fee(rpc_opts)
+    |> post_process(nil, :blob_base_fee)
+  end
+
+  @doc """
+  Same as `Ethers.blob_base_fee/1` but raises on error.
+  """
+  @spec blob_base_fee!(Keyword.t()) :: non_neg_integer() | no_return()
+  def blob_base_fee!(opts \\ []) do
+    case blob_base_fee(opts) do
       {:ok, fee} -> fee
       {:error, reason} -> raise ExecutionError, reason
     end

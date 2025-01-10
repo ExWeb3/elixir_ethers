@@ -36,6 +36,9 @@ defmodule Ethers.Transaction do
     max_priority_fee_per_gas: :maxPriorityFeePerGas
   }
 
+  # Margin precision is 0.01% (12345 = 123.45%)
+  @margin_precision 10_000
+
   @typedoc """
   EVM Transaction type
   """
@@ -82,9 +85,9 @@ defmodule Ethers.Transaction do
     case Map.fetch(params, :type) do
       {:ok, type} when type in @transaction_types ->
         input =
-          params
-          |> Map.get(:input, Map.get(params, :data))
-          |> Utils.hex_decode!()
+          if input_hex = Map.get(params, :input, Map.get(params, :data)) do
+            Utils.hex_decode!(input_hex)
+          end
 
         params
         |> Map.put(:input, input)
@@ -318,7 +321,10 @@ defmodule Ethers.Transaction do
         {field, Utils.integer_to_hex(value)}
 
       {:access_list, al} when is_list(al) ->
-        {:access_list, al}
+        {:access_list, encode_access_list(al)}
+
+      {:blob_versioned_hashes, hashes} when is_list(hashes) ->
+        {:blob_versioned_hashes, Enum.map(hashes, &Utils.hex_encode/1)}
 
       {:type, type} when is_atom(type) ->
         # Type will get replaced with hex value
@@ -339,6 +345,15 @@ defmodule Ethers.Transaction do
     )
   end
 
+  defp encode_access_list(access_list) do
+    Enum.map(access_list, fn [address, storage_keys] ->
+      [
+        Utils.encode_address!(address),
+        Enum.map(storage_keys, &Utils.hex_encode/1)
+      ]
+    end)
+  end
+
   @doc false
   @deprecated "Use Transaction.Signed.calculate_y_parity_or_v/2 instead"
   defdelegate calculate_y_parity_or_v(tx, recovery_id), to: Signed
@@ -351,6 +366,7 @@ defmodule Ethers.Transaction do
   defp fill_action(:nonce, tx), do: {:get_transaction_count, tx.from, block: "latest"}
   defp fill_action(:max_fee_per_gas, _tx), do: :gas_price
   defp fill_action(:max_priority_fee_per_gas, _tx), do: :max_priority_fee_per_gas
+  defp fill_action(:max_fee_per_blob_gas, _tx), do: :blob_base_fee
   defp fill_action(:gas_price, _tx), do: :gas_price
   defp fill_action(:gas, tx), do: {:estimate_gas, tx}
 
@@ -362,17 +378,16 @@ defmodule Ethers.Transaction do
     end
   end
 
-  defp do_post_process(:max_fee_per_gas, {:ok, max_fee_per_gas}) do
-    # Setting a higher value for max_fee_per gas since the actual base fee is
-    # determined by the last block. This way we minimize the chance to get stuck in
-    # queue when base fee increases
-    mex_fee_per_gas = div(max_fee_per_gas * 120, 100)
-    {:ok, {:max_fee_per_gas, mex_fee_per_gas}}
+  defp do_post_process(field, {:ok, value})
+       when field in [:max_fee_per_gas, :max_fee_per_blob_gas] do
+    # Setting a higher value for max_fee_per and max_fee_per_blob_gas gas since the actual base
+    # fee is determined by the last block. This way we minimize the chance to get stuck in
+    # queue when base fee increases.
+    {:ok, {field, max_fee_per_gas_with_margin(value)}}
   end
 
   defp do_post_process(:gas, {:ok, gas}) do
-    gas = div(gas * 110, 100)
-    {:ok, {:gas, gas}}
+    {:ok, {:gas, gas_with_margin(gas)}}
   end
 
   defp do_post_process(key, {:ok, v_int}) when is_integer(v_int) do
@@ -412,4 +427,18 @@ defmodule Ethers.Transaction do
 
   @doc false
   def default_transaction_type, do: @default_transaction_type
+
+  defp gas_with_margin(value) do
+    margin = Application.get_env(:ethers, :default_gas_margin, 11_000)
+    with_margin(value, margin)
+  end
+
+  defp max_fee_per_gas_with_margin(value) do
+    margin = Application.get_env(:ethers, :default_max_fee_per_gas_margin, 12_000)
+    with_margin(value, margin)
+  end
+
+  defp with_margin(value, margin) do
+    div(value * margin, @margin_precision)
+  end
 end

@@ -29,6 +29,8 @@ defmodule Ethers.RpcClient.Adapter do
 
   @callback eth_max_priority_fee_per_gas(keyword()) :: {:ok, binary()} | error()
 
+  @callback eth_blob_base_fee(keyword()) :: {:ok, binary()} | error()
+
   @callback eth_get_logs(map(), keyword()) :: {:ok, [binary()] | [map()]} | error()
 
   @callback eth_send_transaction(map(), keyword()) :: {:ok, binary()} | error()

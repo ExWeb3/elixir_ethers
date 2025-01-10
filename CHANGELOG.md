@@ -8,6 +8,7 @@
 - Add [EIP-4844](https://eips.ethereum.org/EIPS/eip-4844) transaction support
 - Add [EIP-2930](https://eips.ethereum.org/EIPS/eip-2930) transaction support
 - Add `Ethers.blob_base_fee/1` to calculate blob fee per gas
+- Make default gas and fee margin configurable
 
 ### Bug Fixes
 

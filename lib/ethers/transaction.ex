@@ -36,6 +36,9 @@ defmodule Ethers.Transaction do
     max_priority_fee_per_gas: :maxPriorityFeePerGas
   }
 
+  # Margin precision is 0.01% (12345 = 123.45%)
+  @margin_precision 10000
+
   @typedoc """
   EVM Transaction type
   """
@@ -380,13 +383,11 @@ defmodule Ethers.Transaction do
     # Setting a higher value for max_fee_per and max_fee_per_blob_gas gas since the actual base
     # fee is determined by the last block. This way we minimize the chance to get stuck in
     # queue when base fee increases.
-    value_with_margin = div(value * 120, 100)
-    {:ok, {field, value_with_margin}}
+    {:ok, {field, max_fee_per_gas_with_margin(value)}}
   end
 
   defp do_post_process(:gas, {:ok, gas}) do
-    gas = div(gas * 110, 100)
-    {:ok, {:gas, gas}}
+    {:ok, {:gas, gas_with_margin(gas)}}
   end
 
   defp do_post_process(key, {:ok, v_int}) when is_integer(v_int) do
@@ -426,4 +427,18 @@ defmodule Ethers.Transaction do
 
   @doc false
   def default_transaction_type, do: @default_transaction_type
+
+  defp gas_with_margin(value) do
+    margin = Application.get_env(:ethers, :default_gas_margin, 11000)
+    with_margin(value, margin)
+  end
+
+  defp max_fee_per_gas_with_margin(value) do
+    margin = Application.get_env(:ethers, :default_max_fee_per_gas_margin, 12000)
+    with_margin(value, margin)
+  end
+
+  defp with_margin(value, margin) do
+    div(value * margin, @margin_precision)
+  end
 end

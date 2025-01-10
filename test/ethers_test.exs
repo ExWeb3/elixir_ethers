@@ -591,7 +591,7 @@ defmodule EthersTest do
       ]
 
       for type <- types do
-        assert {:ok, tx_hash} =
+        assert {:ok, _tx_hash} =
                  Ethers.send_transaction(
                    %{value: 1000},
                    rpc_client: Ethers.TestRPCModule,

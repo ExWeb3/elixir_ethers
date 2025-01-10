@@ -82,9 +82,9 @@ defmodule Ethers.Transaction do
     case Map.fetch(params, :type) do
       {:ok, type} when type in @transaction_types ->
         input =
-          params
-          |> Map.get(:input, Map.get(params, :data))
-          |> Utils.hex_decode!()
+          if input_hex = Map.get(params, :input, Map.get(params, :data)) do
+            Utils.hex_decode!(input_hex)
+          end
 
         params
         |> Map.put(:input, input)
@@ -318,7 +318,10 @@ defmodule Ethers.Transaction do
         {field, Utils.integer_to_hex(value)}
 
       {:access_list, al} when is_list(al) ->
-        {:access_list, al}
+        {:access_list, encode_access_list(al)}
+
+      {:blob_versioned_hashes, hashes} when is_list(hashes) ->
+        {:blob_versioned_hashes, Enum.map(hashes, &Utils.hex_encode/1)}
 
       {:type, type} when is_atom(type) ->
         # Type will get replaced with hex value
@@ -337,6 +340,15 @@ defmodule Ethers.Transaction do
       |> TxProtocol.type_id()
       |> Utils.integer_to_hex()
     )
+  end
+
+  defp encode_access_list(access_list) do
+    Enum.map(access_list, fn [address, storage_keys] ->
+      [
+        Utils.encode_address!(address),
+        Enum.map(storage_keys, &Utils.hex_encode/1)
+      ]
+    end)
   end
 
   @doc false

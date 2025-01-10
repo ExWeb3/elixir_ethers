@@ -43,6 +43,17 @@ defmodule EthersTest do
     end
   end
 
+  describe "blob_base_fee" do
+    test "returns the correct blob base fee" do
+      assert {:ok, blob_base_fee} = Ethers.blob_base_fee()
+      assert is_integer(blob_base_fee)
+    end
+
+    test "bang version returns unwrapped value" do
+      assert is_integer(Ethers.blob_base_fee!())
+    end
+  end
+
   describe "current_block_number" do
     test "returns the current block number" do
       assert {:ok, n} = Ethers.current_block_number()

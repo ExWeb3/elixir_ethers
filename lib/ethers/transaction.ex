@@ -351,6 +351,7 @@ defmodule Ethers.Transaction do
   defp fill_action(:nonce, tx), do: {:get_transaction_count, tx.from, block: "latest"}
   defp fill_action(:max_fee_per_gas, _tx), do: :gas_price
   defp fill_action(:max_priority_fee_per_gas, _tx), do: :max_priority_fee_per_gas
+  defp fill_action(:max_fee_per_blob_gas, _tx), do: :blob_base_fee
   defp fill_action(:gas_price, _tx), do: :gas_price
   defp fill_action(:gas, tx), do: {:estimate_gas, tx}
 

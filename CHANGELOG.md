@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Bug Fixes
+
+- Remove hexification of map entries in `Ethers.TxData.to_map/2`
+
 ## v0.6.2 (2025-01-10)
 
 ### Enhancements

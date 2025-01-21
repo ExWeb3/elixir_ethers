@@ -4,6 +4,30 @@ defmodule Ethers.TransactionTest do
   alias Ethers.Transaction
   alias Ethers.Utils
 
+  describe "new/1" do
+    assert {:ok,
+            %Ethers.Transaction.Eip1559{
+              chain_id: 1,
+              gas: 21_000,
+              max_fee_per_gas: 1234,
+              max_priority_fee_per_gas: 8754,
+              nonce: 198,
+              value: 12_345,
+              to: "0xe48C9A989438606a79a7560cfba3d34BAfBAC38E",
+              input: ""
+            }} ==
+             Transaction.new(%{
+               chain_id: "0x1",
+               gas: Utils.integer_to_hex(21_000),
+               max_priority_fee_per_gas: Utils.integer_to_hex(8754),
+               max_fee_per_gas: Utils.integer_to_hex(1234),
+               nonce: Utils.integer_to_hex(198),
+               to: "0xe48C9A989438606a79a7560cfba3d34BAfBAC38E",
+               value: Utils.integer_to_hex(12_345),
+               type: Ethers.Transaction.Eip1559
+             })
+  end
+
   describe "encode/1" do
     test "encodes transaction with address having leading zeros" do
       transaction = %Ethers.Transaction.Eip1559{

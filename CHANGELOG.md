@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Bug Fixes
+
+- Always expect hex values in `Ethers.Transaction.new/1`
+- Pass default params values as hex to support both local and JsonRPC signers
+
 ## v0.6.2 (2025-01-10)
 
 ### Enhancements

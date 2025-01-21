@@ -84,13 +84,28 @@ defmodule Ethers.Transaction do
   def new(params) do
     case Map.fetch(params, :type) do
       {:ok, type} when type in @transaction_types ->
-        input =
-          if input_hex = Map.get(params, :input, Map.get(params, :data)) do
-            Utils.hex_decode!(input_hex)
-          end
+        params =
+          params
+          |> Map.delete(:type)
+          |> Enum.map(fn
+            {field, to} when field in [:to, :block_hash] ->
+              {field, to}
+
+            {field, "0x" <> _ = data} when field in [:input, :data, :signature_r, :signature_s] ->
+              {field, Utils.hex_decode!(data)}
+
+            {field, "0x" <> _ = value} ->
+              {field, Utils.hex_to_integer!(value)}
+
+            {field, value} when is_list(value) ->
+              {field, value}
+
+            {field, nil} ->
+              {field, nil}
+          end)
+          |> Map.new()
 
         params
-        |> Map.put(:input, input)
         |> type.new()
         |> maybe_wrap_signed(params)
 
@@ -269,23 +284,23 @@ defmodule Ethers.Transaction do
         access_list: from_map_value(tx, :accessList),
         blob_versioned_hashes: from_map_value(tx, :blobVersionedHashes),
         block_hash: from_map_value(tx, :blockHash),
-        block_number: from_map_value_int(tx, :blockNumber),
-        chain_id: from_map_value_int(tx, :chainId),
+        block_number: from_map_value(tx, :blockNumber),
+        chain_id: from_map_value(tx, :chainId),
         input: from_map_value(tx, :input) || from_map_value(tx, :data),
         from: from_map_value(tx, :from),
-        gas: from_map_value_int(tx, :gas),
-        gas_price: from_map_value_int(tx, :gasPrice),
+        gas: from_map_value(tx, :gas),
+        gas_price: from_map_value(tx, :gasPrice),
         hash: from_map_value(tx, :hash),
-        max_fee_per_blob_gas: from_map_value_int(tx, :maxFeePerBlobGas),
-        max_fee_per_gas: from_map_value_int(tx, :maxFeePerGas),
-        max_priority_fee_per_gas: from_map_value_int(tx, :maxPriorityFeePerGas),
-        nonce: from_map_value_int(tx, :nonce),
-        signature_r: from_map_value_bin(tx, :r),
-        signature_s: from_map_value_bin(tx, :s),
-        signature_y_parity_or_v: from_map_value_int(tx, :yParity) || from_map_value_int(tx, :v),
+        max_fee_per_blob_gas: from_map_value(tx, :maxFeePerBlobGas),
+        max_fee_per_gas: from_map_value(tx, :maxFeePerGas),
+        max_priority_fee_per_gas: from_map_value(tx, :maxPriorityFeePerGas),
+        nonce: from_map_value(tx, :nonce),
+        signature_r: from_map_value(tx, :r),
+        signature_s: from_map_value(tx, :s),
+        signature_y_parity_or_v: from_map_value(tx, :yParity) || from_map_value(tx, :v),
         to: from_map_value(tx, :to),
-        transaction_index: from_map_value_int(tx, :transactionIndex),
-        value: from_map_value_int(tx, :value),
+        transaction_index: from_map_value(tx, :transactionIndex),
+        value: from_map_value(tx, :value),
         type: type
       })
     end
@@ -383,15 +398,15 @@ defmodule Ethers.Transaction do
     # Setting a higher value for max_fee_per and max_fee_per_blob_gas gas since the actual base
     # fee is determined by the last block. This way we minimize the chance to get stuck in
     # queue when base fee increases.
-    {:ok, {field, max_fee_per_gas_with_margin(value)}}
+    {:ok, {field, Utils.integer_to_hex(max_fee_per_gas_with_margin(value))}}
   end
 
   defp do_post_process(:gas, {:ok, gas}) do
-    {:ok, {:gas, gas_with_margin(gas)}}
+    {:ok, {:gas, Utils.integer_to_hex(gas_with_margin(gas))}}
   end
 
   defp do_post_process(key, {:ok, v_int}) when is_integer(v_int) do
-    {:ok, {key, v_int}}
+    {:ok, {key, Utils.integer_to_hex(v_int)}}
   end
 
   defp do_post_process(_key, {:error, reason}), do: {:error, reason}
@@ -406,20 +421,6 @@ defmodule Ethers.Transaction do
   defp decode_type(<<0>>), do: {:ok, Legacy}
   defp decode_type(nil), do: {:ok, Legacy}
   defp decode_type(_type), do: {:error, :unsupported_type}
-
-  defp from_map_value_bin(tx, key) do
-    case from_map_value(tx, key) do
-      nil -> nil
-      hex -> Utils.hex_decode!(hex)
-    end
-  end
-
-  defp from_map_value_int(tx, key) do
-    case from_map_value(tx, key) do
-      nil -> nil
-      hex -> Utils.hex_to_integer!(hex)
-    end
-  end
 
   defp from_map_value(tx, key) do
     Map.get_lazy(tx, key, fn -> Map.get(tx, to_string(key)) end)

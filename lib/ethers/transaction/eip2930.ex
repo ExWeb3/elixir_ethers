@@ -9,6 +9,8 @@ defmodule Ethers.Transaction.Eip2930 do
   See: https://eips.ethereum.org/EIPS/eip-2930
   """
 
+  import Ethers.Transaction.Helpers
+
   alias Ethers.Types
   alias Ethers.Utils
 
@@ -53,18 +55,25 @@ defmodule Ethers.Transaction.Eip2930 do
   @impl Ethers.Transaction
   def new(params) do
     to = params[:to]
+    input = params[:input] || params[:data] || ""
+    value = params[:value] || 0
 
-    {:ok,
-     %__MODULE__{
-       chain_id: params.chain_id,
-       nonce: params.nonce,
-       gas_price: params.gas_price,
-       gas: params.gas,
-       to: to && Utils.to_checksum_address(to),
-       value: params[:value] || 0,
-       input: params[:input] || params[:data] || "",
-       access_list: params[:access_list] || []
-     }}
+    with :ok <- validate_common_fields(params),
+         :ok <- validate_non_neg_integer(params.gas_price),
+         :ok <- validate_non_neg_integer(value),
+         :ok <- validate_binary(input) do
+      {:ok,
+       %__MODULE__{
+         chain_id: params.chain_id,
+         nonce: params.nonce,
+         gas_price: params.gas_price,
+         gas: params.gas,
+         to: to && Utils.to_checksum_address(to),
+         value: value,
+         input: input,
+         access_list: params[:access_list] || []
+       }}
+    end
   end
 
   @impl Ethers.Transaction

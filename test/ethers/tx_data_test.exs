@@ -45,7 +45,7 @@ defmodule Ethers.TxDataTest do
     test "integer overrides are converted to hex" do
       tx_data = TxData.new("0xffff", @function_selector, nil, nil)
 
-      assert %{data: "0xffff", gas: "0x1"} ==
+      assert %{data: "0xffff", gas: 1} ==
                TxData.to_map(tx_data, gas: 1)
     end
   end

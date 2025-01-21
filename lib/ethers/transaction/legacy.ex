@@ -3,6 +3,8 @@ defmodule Ethers.Transaction.Legacy do
   Legacy transaction struct and implementation of Transaction.Protocol.
   """
 
+  import Ethers.Transaction.Helpers
+
   alias Ethers.Types
   alias Ethers.Utils
 
@@ -44,17 +46,24 @@ defmodule Ethers.Transaction.Legacy do
   @impl Ethers.Transaction
   def new(params) do
     to = params[:to]
+    input = params[:input] || params[:data] || ""
+    value = params[:value] || 0
 
-    {:ok,
-     %__MODULE__{
-       nonce: params.nonce,
-       gas_price: params.gas_price,
-       gas: params.gas,
-       to: to && Utils.to_checksum_address(to),
-       value: params[:value] || 0,
-       input: params[:input] || params[:data] || "",
-       chain_id: params[:chain_id]
-     }}
+    with :ok <- validate_common_fields(params),
+         :ok <- validate_non_neg_integer(params.gas_price),
+         :ok <- validate_non_neg_integer(value),
+         :ok <- validate_binary(input) do
+      {:ok,
+       %__MODULE__{
+         nonce: params.nonce,
+         gas_price: params.gas_price,
+         gas: params.gas,
+         to: to && Utils.to_checksum_address(to),
+         value: value,
+         input: input,
+         chain_id: params[:chain_id]
+       }}
+    end
   end
 
   @impl Ethers.Transaction

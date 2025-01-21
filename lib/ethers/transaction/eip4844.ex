@@ -7,6 +7,8 @@ defmodule Ethers.Transaction.Eip4844 do
   See: https://eips.ethereum.org/EIPS/eip-4844
   """
 
+  import Ethers.Transaction.Helpers
+
   alias Ethers.Types
   alias Ethers.Utils
 
@@ -67,21 +69,30 @@ defmodule Ethers.Transaction.Eip4844 do
   @impl Ethers.Transaction
   def new(params) do
     to = params[:to]
+    input = params[:input] || params[:data] || ""
+    value = params[:value] || 0
 
-    {:ok,
-     %__MODULE__{
-       chain_id: params.chain_id,
-       nonce: params.nonce,
-       max_priority_fee_per_gas: params.max_priority_fee_per_gas,
-       max_fee_per_gas: params.max_fee_per_gas,
-       gas: params.gas,
-       to: to && Utils.to_checksum_address(to),
-       value: params[:value] || 0,
-       input: params[:input] || params[:data] || "",
-       access_list: params[:access_list] || [],
-       max_fee_per_blob_gas: params.max_fee_per_blob_gas,
-       blob_versioned_hashes: params[:blob_versioned_hashes] || []
-     }}
+    with :ok <- validate_common_fields(params),
+         :ok <- validate_non_neg_integer(params.max_priority_fee_per_gas),
+         :ok <- validate_non_neg_integer(params.max_fee_per_gas),
+         :ok <- validate_non_neg_integer(params.max_fee_per_blob_gas),
+         :ok <- validate_non_neg_integer(value),
+         :ok <- validate_binary(input) do
+      {:ok,
+       %__MODULE__{
+         chain_id: params.chain_id,
+         nonce: params.nonce,
+         max_priority_fee_per_gas: params.max_priority_fee_per_gas,
+         max_fee_per_gas: params.max_fee_per_gas,
+         gas: params.gas,
+         to: to && Utils.to_checksum_address(to),
+         value: value,
+         input: input,
+         access_list: params[:access_list] || [],
+         max_fee_per_blob_gas: params.max_fee_per_blob_gas,
+         blob_versioned_hashes: params[:blob_versioned_hashes] || []
+       }}
+    end
   end
 
   @impl Ethers.Transaction

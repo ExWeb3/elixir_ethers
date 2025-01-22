@@ -23,7 +23,7 @@ dependencies in your `mix.exs` file:
 ```elixir
 def deps do
   [
-    {:ethers, "~> 0.6.2"},
+    {:ethers, "~> 0.6.3"},
     # Uncomment next line if you want to use local signers
     # {:ex_secp256k1, "~> 0.7.2"}
   ]

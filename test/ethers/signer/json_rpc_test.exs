@@ -2,12 +2,13 @@ defmodule Ethers.Signer.JsonRPCTest do
   use ExUnit.Case
 
   alias Ethers.Signer
+  alias Ethers.Utils
 
   describe "sign_transaction/2" do
     test "signs the transaction with the correct data" do
       transaction = %Ethers.Transaction.Eip1559{
         to: "0xFFcf8FDEE72ac11b5c542428B35EEF5769C409f0",
-        input: "0x06fdde03",
+        input: Utils.hex_decode!("0x06fdde03"),
         value: 0,
         chain_id: 31_337,
         nonce: 2918,
@@ -24,7 +25,7 @@ defmodule Ethers.Signer.JsonRPCTest do
     test "fails signing transaction with wrong from address" do
       transaction = %Ethers.Transaction.Eip1559{
         to: "0xFFcf8FDEE72ac11b5c542428B35EEF5769C409f0",
-        input: "0x06fdde03",
+        input: Utils.hex_decode!("0x06fdde03"),
         value: 0,
         chain_id: 31_337,
         nonce: 2918,

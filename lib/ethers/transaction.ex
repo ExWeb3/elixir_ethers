@@ -84,13 +84,7 @@ defmodule Ethers.Transaction do
   def new(params) do
     case Map.fetch(params, :type) do
       {:ok, type} when type in @transaction_types ->
-        input =
-          if input_hex = Map.get(params, :input, Map.get(params, :data)) do
-            Utils.hex_decode!(input_hex)
-          end
-
         params
-        |> Map.put(:input, input)
         |> type.new()
         |> maybe_wrap_signed(params)
 
@@ -308,13 +302,13 @@ defmodule Ethers.Transaction do
       t -> t
     end)
     |> Enum.map(fn
-      {field, "0x" <> _ = value} ->
-        {field, value}
-
       {field, nil} ->
         {field, nil}
 
-      {field, input} when field in [:data, :input, :from, :to] ->
+      {field, "0x" <> _ = value} when field in [:from, :to] ->
+        {field, value}
+
+      {field, input} when field in [:data, :input] ->
         {field, Utils.hex_encode(input)}
 
       {field, value} when is_integer(value) ->

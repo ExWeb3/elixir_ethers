@@ -681,7 +681,7 @@ defmodule Ethers do
     tx_params = TxData.to_map(tx_data, overrides)
 
     case check_params(tx_params, :call) do
-      :ok -> {:ok, tx_params, block}
+      :ok -> {:ok, Transaction.to_rpc_map(tx_params), block}
       err -> err
     end
   end
@@ -704,9 +704,11 @@ defmodule Ethers do
   defp pre_process(contract_binary, overrides, :deploy = _action, opts) do
     {encoded_constructor, overrides} = Keyword.pop(overrides, :encoded_constructor)
 
+    encoded_constructor = encoded_constructor || ""
+
     tx_params =
       Enum.into(overrides, %{
-        data: "0x#{contract_binary}#{encoded_constructor}",
+        data: contract_binary <> encoded_constructor,
         to: nil
       })
 

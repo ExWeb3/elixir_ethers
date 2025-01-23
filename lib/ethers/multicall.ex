@@ -24,7 +24,7 @@ defmodule Ethers.Multicall do
   ```
   """
 
-  import Ethers.Utils, only: [hex_decode!: 1, human_arg: 2]
+  import Ethers.Utils, only: [human_arg: 2]
 
   alias Ethers.Contracts.Multicall3
   alias Ethers.TxData
@@ -98,7 +98,7 @@ defmodule Ethers.Multicall do
   def aggregate3_encode_data(data)
 
   def aggregate3_encode_data({%TxData{data: data} = tx_data, opts}) do
-    {fetch_address!(tx_data, opts), Keyword.get(opts, :allow_failure, true), hex_decode!(data)}
+    {fetch_address!(tx_data, opts), Keyword.get(opts, :allow_failure, true), data}
   end
 
   def aggregate3_encode_data(%TxData{} = tx_data), do: aggregate3_encode_data({tx_data, []})
@@ -163,7 +163,7 @@ defmodule Ethers.Multicall do
   def aggregate2_encode_data(data)
 
   def aggregate2_encode_data({%TxData{data: data} = tx_data, opts}) do
-    {fetch_address!(tx_data, opts), hex_decode!(data)}
+    {fetch_address!(tx_data, opts), data}
   end
 
   def aggregate2_encode_data(%TxData{} = tx_data), do: aggregate2_encode_data({tx_data, []})

@@ -16,6 +16,8 @@ defmodule EthersTest do
 
   import Ethers.TestHelpers
 
+  alias Ethers.Utils
+
   alias Ethers.Contract.Test.HelloWorldContract
   alias Ethers.Contract.Test.HelloWorldWithDefaultAddressContract
   alias Ethers.ExecutionError
@@ -354,7 +356,7 @@ defmodule EthersTest do
     test "is included in the function calls when has default address" do
       assert %Ethers.TxData{
                base_module: HelloWorldWithDefaultAddressContract,
-               data: "0xef5fb05b",
+               data: Utils.hex_decode!("0xef5fb05b"),
                selector: %ABI.FunctionSelector{
                  function: "sayHello",
                  method_id: <<239, 95, 176, 91>>,
@@ -369,7 +371,10 @@ defmodule EthersTest do
                default_address: "0x1000bf6a479f320ead074411a4b0e7944ea8c9c1"
              } == HelloWorldWithDefaultAddressContract.say_hello()
 
-      assert %{data: "0xef5fb05b", to: "0x1000bf6a479f320ead074411a4b0e7944ea8c9c1"} ==
+      assert %{
+               data: Utils.hex_decode!("0xef5fb05b"),
+               to: "0x1000bf6a479f320ead074411a4b0e7944ea8c9c1"
+             } ==
                HelloWorldWithDefaultAddressContract.say_hello()
                |> Ethers.TxData.to_map([])
     end
@@ -377,7 +382,7 @@ defmodule EthersTest do
     test "is not included in the function calls when does not have default address" do
       assert %Ethers.TxData{
                base_module: HelloWorldContract,
-               data: "0xef5fb05b",
+               data: Utils.hex_decode!("0xef5fb05b"),
                selector: %ABI.FunctionSelector{
                  function: "sayHello",
                  method_id: <<239, 95, 176, 91>>,

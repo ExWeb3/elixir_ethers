@@ -54,7 +54,7 @@ defmodule Ethers.CcipRead do
            end)
            |> resolve_first(error) do
       data = ABI.TypeEncoder.encode([data, error.extra_data], [:bytes, :bytes])
-      tx_data = %{tx_data | data: Utils.hex_encode(error.callback_function <> data)}
+      tx_data = %{tx_data | data: error.callback_function <> data}
       Ethers.call(tx_data, opts)
     end
   end

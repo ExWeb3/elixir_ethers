@@ -209,7 +209,6 @@ defmodule Ethers.Contract do
 
         unquote(Macro.escape(selector))
         |> ABI.encode(args)
-        |> Ethers.Utils.hex_encode(false)
       end
     end
   end
@@ -250,7 +249,6 @@ defmodule Ethers.Contract do
           |> Enum.map(fn {arg, type} -> Ethers.Utils.prepare_arg(arg, type) end)
 
         ABI.encode(selector, args)
-        |> Ethers.Utils.hex_encode()
         |> Ethers.TxData.new(selector, __default_address__(), __MODULE__)
       end
     end

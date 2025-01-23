@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+### Breaking Changes
+
+- `Ethers.TxData` uses hex_decoded values instead of hex encoded ones
+
+### Enhancements
+
+- Update `Ethers` module to RPCfy eth_call request params
+- Removed unnecessary hex decode/encodes in requests
+
 ## v0.6.3 (2025-01-21)
 
 ### Enahncements

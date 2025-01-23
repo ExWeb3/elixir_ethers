@@ -90,7 +90,7 @@ defmodule Ethers.TxData do
     alias Ethers.Utils
 
     def inspect(%{selector: selector, data: data, default_address: default_address}, opts) do
-      arguments = ABI.decode(selector, Utils.hex_decode!(data), :input)
+      arguments = ABI.decode(selector, data, :input)
 
       arguments_doc =
         Enum.zip([selector.types, input_names(selector), arguments])

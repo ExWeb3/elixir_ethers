@@ -10,6 +10,7 @@ defmodule Ethers.CounterContractTest do
   import Ethers.TestHelpers
 
   alias Ethers.Event
+  alias Ethers.Utils
 
   alias Ethers.Contract.Test.CounterContract
 
@@ -122,7 +123,7 @@ defmodule Ethers.CounterContractTest do
     test "calling view functions", %{address: address} do
       assert %Ethers.TxData{
                base_module: CounterContract,
-               data: "0x6d4ce63c",
+               data: Utils.hex_decode!("0x6d4ce63c"),
                selector: %ABI.FunctionSelector{
                  function: "get",
                  method_id: <<109, 76, 230, 60>>,
@@ -142,7 +143,9 @@ defmodule Ethers.CounterContractTest do
     end
 
     test "sending transaction with state mutating functions", %{address: address} do
-      {:ok, tx_hash} = CounterContract.set(101) |> Ethers.send_transaction(from: @from, to: address)
+      {:ok, tx_hash} =
+        CounterContract.set(101) |> Ethers.send_transaction(from: @from, to: address)
+
       wait_for_transaction!(tx_hash)
 
       {:ok, 101} = CounterContract.get() |> Ethers.call(to: address)
@@ -160,7 +163,9 @@ defmodule Ethers.CounterContractTest do
 
     test "returns error if to address is not given" do
       assert {:error, :no_to_address} = CounterContract.get() |> Ethers.call()
-      assert {:error, :no_to_address} = CounterContract.set(101) |> Ethers.send_transaction(from: @from)
+
+      assert {:error, :no_to_address} =
+               CounterContract.set(101) |> Ethers.send_transaction(from: @from)
 
       assert {:error, :no_to_address} =
                CounterContract.set(101) |> Ethers.send_transaction(from: @from, gas: 100)
@@ -203,7 +208,10 @@ defmodule Ethers.CounterContractTest do
     test "returns the params when called" do
       assert %Ethers.TxData{
                base_module: CounterContract,
-               data: "0x60fe47b10000000000000000000000000000000000000000000000000000000000000065",
+               data:
+                 Utils.hex_decode!(
+                   "0x60fe47b10000000000000000000000000000000000000000000000000000000000000065"
+                 ),
                selector: %ABI.FunctionSelector{
                  function: "set",
                  method_id: <<96, 254, 71, 177>>,
@@ -223,7 +231,8 @@ defmodule Ethers.CounterContractTest do
     setup :deploy_counter_contract
 
     test "can get the emitted event with the correct filter", %{address: address} do
-      {:ok, tx_hash} = CounterContract.set(101) |> Ethers.send_transaction(from: @from, to: address)
+      {:ok, tx_hash} =
+        CounterContract.set(101) |> Ethers.send_transaction(from: @from, to: address)
 
       wait_for_transaction!(tx_hash)
 
@@ -245,7 +254,8 @@ defmodule Ethers.CounterContractTest do
     end
 
     test "cat get the emitted events with get_logs! function", %{address: address} do
-      {:ok, tx_hash} = CounterContract.set(101) |> Ethers.send_transaction(from: @from, to: address)
+      {:ok, tx_hash} =
+        CounterContract.set(101) |> Ethers.send_transaction(from: @from, to: address)
 
       wait_for_transaction!(tx_hash)
 
@@ -275,7 +285,8 @@ defmodule Ethers.CounterContractTest do
     end
 
     test "can filter logs with from_block and to_block options", %{address: address} do
-      {:ok, tx_hash} = CounterContract.set(101) |> Ethers.send_transaction(from: @from, to: address)
+      {:ok, tx_hash} =
+        CounterContract.set(101) |> Ethers.send_transaction(from: @from, to: address)
 
       wait_for_transaction!(tx_hash)
 

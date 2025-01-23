@@ -419,7 +419,10 @@ defmodule Ethers.ContractHelpers do
   end
 
   defp maybe_read_contract_binary(:abi, abi) when is_list(abi), do: nil
-  defp maybe_read_contract_binary(:abi, %{"bin" => bin}) when is_binary(bin), do: bin
+
+  defp maybe_read_contract_binary(:abi, %{"bin" => bin}) when is_binary(bin),
+    do: Ethers.Utils.hex_decode!(bin)
+
   defp maybe_read_contract_binary(:abi, map) when is_map(map), do: nil
   defp maybe_read_contract_binary(:abi, abi) when is_atom(abi), do: nil
 

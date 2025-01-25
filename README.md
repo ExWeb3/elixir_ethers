@@ -64,33 +64,16 @@ Most existing code should continue to work with minimal changes. The main adjust
 
 ## Configuration
 
-To use Elixir Ethers, ensure you have a configured JSON-RPC endpoint.
-Configure the endpoint using the following configuration parameter.
+To get started with Ethers, you'll need to configure a JSON-RPC endpoint. Here's a minimal configuration:
 
 ```elixir
-# config.exs
-config :ethers,
-  rpc_client: Ethereumex.HttpClient, # Defaults to: Ethereumex.HttpClient
-  keccak_module: ExKeccak, # Defaults to: ExKeccak
-  json_module: Jason, # Defaults to: Jason
-  secp256k1_module: ExSecp256k1, # Defaults to: ExSecp256k1
-  default_signer: nil, # Defaults to: nil, see Ethers.Signer for more info
-  default_signer_opts: [], # Defaults to: []
-  default_gas_margin: 11000, # Precision is 0.01% (11000 = 110%)
-  default_max_fee_per_gas_margin: 12000 #Precision is 0.01% (12000 = 120%)
-
-# If using Ethereumex, you can specify a default JSON-RPC server url here for all requests.
-config :ethereumex, url: "[URL_HERE]"
+# Configure the JSON-RPC endpoint URL
+config :ethereumex, url: "https://your-ethereum-node.com"
 ```
 
-You can use one of the RPC URLs for your chain/wallet of choice or try out one of them from
-[chainlist.org](https://chainlist.org/).
+You can use one of the RPC URLs for your chain/wallet of choice or try out one from [chainlist.org](https://chainlist.org/).
 
-For more configuration options, refer to
-[ethereumex](https://github.com/mana-ethereum/ethereumex#configuration).
-
-To send transactions, you need a wallet client capable of signing transactions and exposing a
-JSON-RPC endpoint.
+For detailed configuration options, environment-specific setups, best practices, and troubleshooting, please refer to our [Configuration Guide](guides/configuration.md).
 
 ## Usage
 

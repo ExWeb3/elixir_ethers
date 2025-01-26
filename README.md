@@ -9,16 +9,25 @@
 [![License](https://img.shields.io/hexpm/l/ethers.svg)](https://github.com/ExWeb3/elixir_ethers/blob/master/LICENSE.md)
 [![Last Updated](https://img.shields.io/github/last-commit/ExWeb3/elixir_ethers.svg)](https://github.com/ExWeb3/elixir_ethers/commits/main)
 
-Ethers is a comprehensive Web3 library for interacting with smart contracts on the Ethereum (Or any EVM based blockchain) using Elixir.
+Ethers is a powerful Web3 library for Elixir that makes interacting with Ethereum and other
+EVM-based blockchains simple and intuitive.
+It leverages Elixir's metaprogramming capabilities to provide a seamless developer experience.
 
-Inspired by [ethers.js](https://github.com/ethers-io/ethers.js/) and [web3.js](https://web3js.readthedocs.io/), Ethers leverages
-Elixir's amazing meta-programming capabilities to generate Elixir modules for give smart contracts from their ABI.
-It also generates beautiful documentation for those modules which can further help developers.
+## Key Features
+
+- **Smart Contract Integration**: Generate Elixir modules from contract ABIs with full documentation
+- **Built-in Contracts**: Ready-to-use interfaces for [ERC20](https://hexdocs.pm/ethers/Ethers.Contracts.ERC20.html), [ERC721](https://hexdocs.pm/ethers/Ethers.Contracts.ERC721.html), [ERC1155](https://hexdocs.pm/ethers/Ethers.Contracts.ERC1155.html), and more
+- **Multi-chain Support**: Works with any EVM-compatible blockchain
+- **Flexible Signing**: Extensible signer support with [built-in ones](https://hexdocs.pm/ethers/readme.html#signing-transactions)
+- **Event Handling**: Easy filtering and retrieval of blockchain events
+- **Multicall Support**: Ability to easily perform multiple `eth_call`s using [Multicall 2/3](https://hexdocs.pm/ethers/Ethers.Multicall.html)
+- **Type Safety**: Native Elixir types for all contract interactions
+- **ENS Support**: Out of the box [Ethereum Name Service (ENS)](https://ens.domains/) support
+- **Comprehensive Documentation**: Auto-generated docs for all contract functions
 
 ## Installation
 
-You can install the package by adding `ethers` (and optionally `ex_secp256k1`) to the list of
-dependencies in your `mix.exs` file:
+Add `ethers` to your dependencies in `mix.exs`:
 
 ```elixir
 def deps do
@@ -30,37 +39,90 @@ def deps do
 end
 ```
 
-The complete documentation is available on [hexdocs](https://hexdocs.pm/ethers).
+For upgrading from versions prior to `0.6.0`, see our [Upgrade Guide](guides/upgrading.md).
 
-### Upgrading to `0.6.x`
+## Quick Start
 
-Version 0.6.x introduces some breaking changes to improve type safety and explicitness:
+1. **Configure your RPC endpoint**:
 
-- All inputs to functions now require native Elixir types (e.g. integers) instead of hex strings
-- Gas limits must be set explicitly rather than estimated automatically for all calls
-- Transaction struct has been split into separate EIP-1559 and Legacy types
-- Some functions have been deprecated or moved - see below
+```elixir
+# config/config.exs
+config :ethereumex, url: "https://eth.llamarpc.com"
+```
 
-Key function changes:
+2. **Create a contract module**:
 
-- Use `Ethers.send_transaction/2` instead of `Ethers.send/2`
-- Use `Ethers.Transaction.from_rpc_map/1` instead of `from_map/1`
-- Specify gas limits explicitly instead of using `maybe_add_gas_limit/2`
-- Use `type` instead of `tx_type` in transaction overrides, with explicit struct modules:
+```elixir
+defmodule MyContract do
+  use Ethers.Contract,
+    abi_file: "path/to/abi.json",
+    default_address: "0x..." # Optional contract address
+end
+```
 
-  ```elixir
-  # Before
-  Ethers.send_transaction(tx, tx_type: :eip1559)
+3. **Start interacting with the blockchain**:
 
-  # After
-  Ethers.send_transaction(tx, type: Ethers.Transaction.Eip1559)
-  ```
+```elixir
+# Read contract state
+{:ok, result} =
+  MyContract.my_function("0x...")
+  |> Ethers.call()
 
-Most existing code should continue to work with minimal changes. The main adjustments needed are:
+# Send a transaction
+{:ok, tx_hash} =
+  MyToken.my_function("0x...", 1000)
+  |> Ethers.send_transaction(from: "0x...")
+```
 
-1. Setting explicit gas limits
-2. Using native types for inputs
-3. Updating any direct transaction struct usage to the new types
+Read full documentation of Ethers for detailed information at [hexdocs](https://hexdocs.pm/ethers).
+
+## Common Use Cases
+
+### Reading Contract State
+
+```elixir
+# Single call
+{:ok, value} = MyContract.get_value() |> Ethers.call()
+
+# With parameters
+{:ok, balance} = MyToken.balance_of(address) |> Ethers.call()
+
+# Multiple calls using Multicall
+[{:ok, value1}, {:ok, value2}] = Ethers.Multicall.aggregate([
+  MyContract.get_value1(),
+  MyContract.get_value2()
+])
+```
+
+### Writing to Contracts
+
+```elixir
+# Simple transaction
+{:ok, tx_hash} = MyContract.set_value(123)
+                 |> Ethers.send_transaction(from: address, gas: 100_000)
+
+# With value transfer
+{:ok, tx_hash} = MyContract.deposit()
+                 |> Ethers.send_transaction(from: address, value: 1_000_000)
+```
+
+### Working with Events
+
+```elixir
+# Create an event filter
+filter = MyToken.EventFilters.transfer(from_address, nil)
+
+# Get matching events
+{:ok, events} = Ethers.get_logs(filter)
+```
+
+## Documentation
+
+Complete API documentation is available at [HexDocs](https://hexdocs.pm/ethers).
+
+- [Configuration Guide](guides/configuration.md) - Detailed configuration options
+- [Upgrade Guide](guides/upgrading.md) - Version upgrade instructions
+- [Built-in Contracts](#built-in-contract-interfaces-in-ethers) - Standard contract interfaces
 
 ## Configuration
 
@@ -71,11 +133,13 @@ To get started with Ethers, you'll need to configure a JSON-RPC endpoint. Here's
 config :ethereumex, url: "https://your-ethereum-node.com"
 ```
 
-You can use one of the RPC URLs for your chain/wallet of choice or try out one from [chainlist.org](https://chainlist.org/).
+You can use one of the RPC URLs for your chain/wallet of choice or try out one from
+[chainlist.org](https://chainlist.org/).
 
-For detailed configuration options, environment-specific setups, best practices, and troubleshooting, please refer to our [Configuration Guide](guides/configuration.md).
+For detailed configuration options, environment-specific setups, best practices, and
+troubleshooting, please refer to our [Configuration Guide](guides/configuration.md).
 
-## Usage
+## Custom ABIs
 
 To use Elixir Ethers, you must have your contract's ABI in json format, which can be obtained from
 [etherscan.io](https://etherscan.io). This library also contains standard contract interfaces such
@@ -85,10 +149,10 @@ as `ERC20`, `ERC721` and some more by default (refer to built-in contracts in
 Create a module for your contract as follows:
 
 ```elixir
-defmodule MyERC20Token do
+defmodule MyContract do
   use Ethers.Contract,
     abi_file: "path/to/abi.json",
-    default_address: "[Contract address here (optional)]"
+    default_address: "0x[Contract address here (optional)]"
 
   # You can also add more code here in this module if you wish
 end
@@ -96,14 +160,18 @@ end
 
 ### Calling contract functions
 
-After defining the module, all the functions can be called like any other Elixir module.
+After defining the module, all the functions can be called like any other Elixir module. These
+functions will return an `Ethers.TxData` struct which can be used later on to perform on-chain
+calls or send transactions.
 
 To fetch the results (return value(s)) of a function you can pass your function result to the
 [`Ethers.call/2`](https://hexdocs.pm/ethers/Ethers.html#call/2) function.
 
+#### Example
+
 ```elixir
 # Calling functions on the blockchain
-iex> MyERC20Token.balance_of("0x[Address]") |> Ethers.call()
+iex> MyContract.balance_of("0x[Address]") |> Ethers.call()
 {:ok, 654294510138460920346}
 ```
 
@@ -116,8 +184,10 @@ To send transaction (eth_sendTransaction) to the blockchain, you can use the
 
 Ensure that you specify a `from` option to inform your client which account to use as the signer:
 
+#### Example
+
 ```elixir
-iex> MyERC20Token.transfer("0x[Recipient]", 1000) |> Ethers.send_transaction(from: "0x[Sender]")
+iex> MyContract.transfer("0x[Recipient]", 1000) |> Ethers.send_transaction(from: "0x[Sender]")
 {:ok, "0xf313ff7ff54c6db80ad44c3ad58f72ff0fea7ce88e5e9304991ebd35a6e76000"}
 ```
 
@@ -133,10 +203,12 @@ To create an event filter and then use
 [`Ethers.get_logs/2`](https://hexdocs.pm/ethers/Ethers.html#get_logs/2) function like the below
 example.
 
+#### Example
+
 ```elixir
 # Create The Event Filter
 # (`nil` can be used for a parameter in EventFilters functions to indicate no filtering)
-iex> filter = MyERC20Token.EventFilters.transfer("0x[From Address Here]", nil)
+iex> filter = MyContract.EventFilters.transfer("0x[From Address Here]", nil)
 
 # Then you can simply list the logs using `Ethers.get_logs/2`
 
@@ -174,7 +246,7 @@ iex> Ethers.NameService.resolve("vitalik.eth")
 {:ok, "0xd8da6bf26964af9d7eed9e03e53415d37aa96045"}
 ```
 
-### Built-in contract interfaces in Ethers
+### Built-in contract ABIs in Ethers
 
 Ethers already includes some of the well-known contract interface standards for you to use.
 Here is a list of them.
@@ -202,10 +274,6 @@ iex> tx_data = Ethers.Contracts.ERC20.balance_of("0x[Holder Address]")
 iex> Ethers.call(tx_data, to: "0x[Token Address]")
 {:ok, 123456}
 ```
-
-## Documentation
-
-For a detailed documentation visit [Ethers hexdocs page](https://hexdocs.pm/ethers).
 
 ### Generated documentation for functions and event filters
 

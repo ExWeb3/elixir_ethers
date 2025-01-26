@@ -4,15 +4,20 @@ This guide provides detailed information about configuring Ethers for your Elixi
 
 ## Json RPC Configuration
 
-Ethers uses Ethereumex as an Ethereum client by default. A default URL can be set like this.
-If your app requires multiple RPC endpoints (e.g. multi-chain) then you need to pass in the URL
-for each operation via `:rpc_opts` key. (e.g. `Ethers.call(my_fn, rpc_opts: [url: "https://..."])`
+Ethers uses Ethereumex as an Ethereum RPC client by default. A default URL can be set using
+the elixir config statements like the example below.
+
+You can use one of the RPC URLs for your chain/wallet of choice or try out one of them from
+[chainlist.org](https://chainlist.org). We recommend using a reliable RPC provider (line infura
+or quicknodes) for production.
 
 ```elixir
-# Configure the default JSON-RPC endpoint URL if needed
-config :ethereumex,
-  url: "https://your-ethereum-node.com"
+# Configure the default JSON-RPC endpoint URL
+config :ethereumex, url: "https://..."
 ```
+
+Note: If your app requires multiple RPC endpoints (e.g. multi-chain) then you need to pass in the
+URL for each operation via `:rpc_opts` key. (e.g. `Ethers.call(my_fn, rpc_opts: [url: "https://..."])`
 
 ## Configuration Options
 

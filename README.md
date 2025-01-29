@@ -74,7 +74,7 @@ end
   |> Ethers.send_transaction(from: "0x...")
 ```
 
-Read full documentation of Ethers for detailed information at [hexdocs](https://hexdocs.pm/ethers).
+Read full documentation of Ethers for detailed information at [HexDocs](https://hexdocs.pm/ethers).
 
 ## Common Use Cases
 

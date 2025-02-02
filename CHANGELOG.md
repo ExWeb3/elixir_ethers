@@ -10,6 +10,7 @@
 
 - Update `Ethers` module to RPCfy eth_call request params
 - Removed unnecessary hex decode/encodes in requests
+- Use `@external_resource` in generated contracts to track ABI changes and recompile if needed. (Thanks @sitch)
 
 ## v0.6.3 (2025-01-21)
 

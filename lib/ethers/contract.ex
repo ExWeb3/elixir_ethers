@@ -80,7 +80,7 @@ defmodule Ethers.Contract do
       |> Module.get_attribute(:_ethers_using_opts)
       |> Code.eval_quoted([], env)
 
-    {:ok, abi} = read_abi(opts)
+    {abi, abi_file} = read_abi(opts)
     contract_binary = maybe_read_contract_binary(opts)
     default_address = Keyword.get(opts, :default_address)
     skip_docs = Keyword.get(opts, :skip_docs, false)
@@ -124,10 +124,19 @@ defmodule Ethers.Contract do
     events_impl = Enum.map(events, &impl(&1, module, impl_opts))
     event_selectors = Enum.flat_map(events, & &1.selectors)
 
+    external_resource_ast =
+      if abi_file do
+        quote do
+          @external_resource unquote(abi_file)
+        end
+      end
+
     events_module_ast =
       quote context: module do
         defmodule unquote(events_mod_name) do
           @moduledoc "Events for `#{Macro.to_string(unquote(module))}`"
+
+          unquote(external_resource_ast)
 
           defdelegate __default_address__, to: unquote(module)
           unquote(events_impl)
@@ -150,6 +159,8 @@ defmodule Ethers.Contract do
         defmodule unquote(errors_mod_name) do
           @moduledoc false
 
+          unquote(external_resource_ast)
+
           unquote(error_modules_ast)
           unquote(errors_module_impl)
         end
@@ -164,6 +175,8 @@ defmodule Ethers.Contract do
 
     extra_ast =
       quote context: module do
+        unquote(external_resource_ast)
+
         def __contract_binary__, do: unquote(contract_binary)
 
         @doc """

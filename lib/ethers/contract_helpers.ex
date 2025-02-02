@@ -3,14 +3,14 @@ defmodule Ethers.ContractHelpers do
 
   require Logger
 
-  @spec read_abi(Keyword.t()) :: {:ok, [...]} | {:error, atom()}
+  @spec read_abi(Keyword.t()) :: {abi :: [...], file_path :: String.t() | nil}
   def read_abi(opts) do
     case Keyword.take(opts, [:abi, :abi_file]) do
       [{type, data}] ->
-        read_abi(type, data)
+        do_read_abi(type, data, nil)
 
       _ ->
-        {:error, :bad_argument}
+        raise ArgumentError, "Invalid arguments. Specify either `:abi` or `:abi_file` option"
     end
   end
 
@@ -389,21 +389,22 @@ defmodule Ethers.ContractHelpers do
     |> Enum.map(&elem(&1, 0))
   end
 
-  defp read_abi(:abi, abi) when is_list(abi), do: {:ok, abi}
-  defp read_abi(:abi, %{"abi" => abi}), do: read_abi(:abi, abi)
+  defp do_read_abi(:abi, abi, file_path) when is_list(abi), do: {abi, file_path}
+  defp do_read_abi(:abi, %{"abi" => abi}, file_path), do: do_read_abi(:abi, abi, file_path)
 
-  defp read_abi(:abi, abi) when is_atom(abi) do
-    read_abi(:abi_file, Path.join(:code.priv_dir(:ethers), "abi/#{abi}.json"))
+  defp do_read_abi(:abi, abi, _file_path) when is_atom(abi) do
+    file_path = Path.join(:code.priv_dir(:ethers), "abi/#{abi}.json")
+    do_read_abi(:abi_file, file_path, nil)
   end
 
-  defp read_abi(:abi, abi) when is_binary(abi) do
+  defp do_read_abi(:abi, abi, file_path) when is_binary(abi) do
     abi = Ethers.json_module().decode!(abi)
-    read_abi(:abi, abi)
+    do_read_abi(:abi, abi, file_path)
   end
 
-  defp read_abi(:abi_file, file) do
+  defp do_read_abi(:abi_file, file, _file_path) do
     abi = File.read!(file)
-    read_abi(:abi, abi)
+    do_read_abi(:abi, abi, file)
   end
 
   defp get_argument_name_ast({ast, name}) do

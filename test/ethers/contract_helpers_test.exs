@@ -4,13 +4,19 @@ defmodule Ethers.ContractHelpersTest do
 
   describe "read_abi" do
     test "works with default abis" do
-      assert {:ok, abi_results} = ContractHelpers.read_abi(abi: :erc20)
+      assert {abi_results, abi_file} = ContractHelpers.read_abi(abi: :erc20)
       assert is_list(abi_results)
+      assert String.ends_with?(abi_file, "priv/abi/erc20.json")
     end
 
     test "returns error with invalid parameters" do
-      assert {:error, :bad_argument} = ContractHelpers.read_abi(abi: :erc20, abi_file: "file")
-      assert {:error, :bad_argument} = ContractHelpers.read_abi(bad_arg: true)
+      assert_raise ArgumentError, fn ->
+        ContractHelpers.read_abi(abi: :erc20, abi_file: "file")
+      end
+
+      assert_raise ArgumentError, fn ->
+        assert {:error, :bad_argument} = ContractHelpers.read_abi(bad_arg: true)
+      end
     end
   end
 

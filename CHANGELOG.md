@@ -1,8 +1,8 @@
 # Changelog
 
-## Unreleased
+## v0.6.4 (2025-02-02)
 
-### Breaking Changes
+### Breaking Changes (Internal)
 
 - `Ethers.TxData` uses hex_decoded values instead of hex encoded ones
 

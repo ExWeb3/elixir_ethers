@@ -3,7 +3,7 @@ defmodule Ethers.ContractHelpers do
 
   require Logger
 
-  @spec read_abi(Keyword.t()) :: {type :: :abi | :abi_file, [...]}
+  @spec read_abi(Keyword.t()) :: {abi :: [...], file_path :: String.t() | nil}
   def read_abi(opts) do
     case Keyword.take(opts, [:abi, :abi_file]) do
       [{type, data}] ->

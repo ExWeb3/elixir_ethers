@@ -564,6 +564,11 @@ defmodule Ethers.Utils do
 
   @doc """
   Removes leading zeros from a binary.
+
+  ## Examples
+
+      iex> Ethers.Utils.remove_leading_zeros(<<0, 0, 1, 2, 3>>)
+      <<1, 2, 3>>
   """
   @spec remove_leading_zeros(binary()) :: binary()
   def remove_leading_zeros(<<0, rest::binary>>), do: remove_leading_zeros(rest)

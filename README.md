@@ -91,7 +91,7 @@ Read full documentation of Ethers for detailed information at [HexDocs](https://
   |> Ethers.call()
 ```
 
-See `Ethersm.Multicall` if you want to perform multiple calls in a single
+See `Ethers.Multicall` if you want to perform multiple calls in a single
 eth_call request.
 
 ### Writing to Contracts

@@ -81,35 +81,37 @@ Read full documentation of Ethers for detailed information at [HexDocs](https://
 ### Reading Contract State
 
 ```elixir
-# Single call
-{:ok, value} = MyContract.get_value() |> Ethers.call()
+{:ok, erc20_symbol} =
+  Ethers.Contracts.ERC20.symbol()
+  |> Ethers.call()
 
 # With parameters
-{:ok, balance} = MyToken.balance_of(address) |> Ethers.call()
-
-# Multiple calls using Multicall
-[{:ok, value1}, {:ok, value2}] = Ethers.Multicall.aggregate([
-  MyContract.get_value1(),
-  MyContract.get_value2()
-])
+{:ok, balance} =
+  Ethers.Contracts.ERC20.balance_of("0x[Wallet]")
+  |> Ethers.call()
 ```
+
+See `Ethersm.Multicall` if you want to perform multiple calls in a single
+eth_call request.
 
 ### Writing to Contracts
 
 ```elixir
 # Simple transaction
-{:ok, tx_hash} = MyContract.set_value(123)
-                 |> Ethers.send_transaction(from: address, gas: 100_000)
+{:ok, tx_hash} =
+  MyContract.set_value(123)
+  |> Ethers.send_transaction(from: address)
 
-# With value transfer
-{:ok, tx_hash} = MyContract.deposit()
-                 |> Ethers.send_transaction(from: address, value: 1_000_000)
+# With Ether (chain native token) transfer (value is in wei)
+{:ok, tx_hash} =
+  MyContract.deposit()
+  |> Ethers.send_transaction(from: address, value: 1_000_000)
 ```
 
 ### Working with Events
 
 ```elixir
-# Create an event filter
+# Create an event filter (nil = any)
 filter = MyToken.EventFilters.transfer(from_address, nil)
 
 # Get matching events

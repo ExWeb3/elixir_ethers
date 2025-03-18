@@ -1,5 +1,5 @@
 defmodule Ethers.RevertContractTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: true
 
   import Ethers.TestHelpers
 
@@ -8,7 +8,7 @@ defmodule Ethers.RevertContractTest do
 
   @from "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
 
-  setup :deploy_revert_contract
+  setup_all :deploy_revert_contract
 
   describe "using require" do
     test "will cause a revert including revert message", %{address: address} do

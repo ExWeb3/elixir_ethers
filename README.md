@@ -399,6 +399,12 @@ npm install -g solc
 > anvil
 ```
 
+- Prepare the tests (only needs to be ran once)
+
+```
+> mix run test/test_prepare.exs
+```
+
 Then you should be able to run tests through `mix test`.
 
 ## Acknowledgements

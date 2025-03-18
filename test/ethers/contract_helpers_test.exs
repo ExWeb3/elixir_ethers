@@ -1,5 +1,5 @@
 defmodule Ethers.ContractHelpersTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: true
   alias Ethers.ContractHelpers
 
   describe "read_abi" do

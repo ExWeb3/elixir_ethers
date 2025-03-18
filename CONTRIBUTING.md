@@ -19,7 +19,8 @@ Thank you for your interest in contributing to Elixir Ethers! We welcome contrib
 2. Clone the repository
 3. Install and Run `anvil` (From https://getfoundry.sh/)
 4. Install dependencies with `mix deps.get`
-5. Run tests with `mix test`
+5. Prepare the tests (only needs to be ran once) with `mix run test/test_prepare.exs`
+6. Run tests with `mix test`
 
 ## Pull Request Guidelines
 
@@ -35,4 +36,4 @@ If you have questions or run into issues, please open a GitHub issue with a clea
 
 ## License
 
-By contributing to Elixir Ethers, you agree that your contributions will be licensed under its [License](/LICENSE). 
+By contributing to Elixir Ethers, you agree that your contributions will be licensed under its [License](/LICENSE).

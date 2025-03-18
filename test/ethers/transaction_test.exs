@@ -1,5 +1,5 @@
 defmodule Ethers.TransactionTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: true
 
   alias Ethers.Transaction
   alias Ethers.Utils

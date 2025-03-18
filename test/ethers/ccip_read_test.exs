@@ -9,7 +9,7 @@ defmodule Ethers.CcipReadTest do
 
   @from "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
 
-  setup do
+  setup_all do
     address = deploy(CcipReadTestContract, from: @from)
     [address: address]
   end

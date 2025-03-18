@@ -11,10 +11,9 @@ defmodule Ethers.MulticallTest do
   alias Ethers.Multicall
 
   @from "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
+  setup_all :deploy_contracts
 
   describe "multicall" do
-    setup :deploy_contracts
-
     test "aggregate3 with no default address using Ethers.call", %{
       counter_address: counter_address,
       hello_world_address: hello_world_address

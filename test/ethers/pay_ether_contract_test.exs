@@ -12,7 +12,7 @@ defmodule Ethers.PayEtherContractTest do
 
   @from "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
 
-  setup :deploy_pay_ether_contract
+  setup_all :deploy_pay_ether_contract
 
   describe "pay functions" do
     test "can pay payable functions", %{address: address} do

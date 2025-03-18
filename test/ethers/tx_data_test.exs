@@ -1,5 +1,5 @@
 defmodule Ethers.TxDataTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: true
 
   alias Ethers.TxData
 

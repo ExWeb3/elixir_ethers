@@ -13,7 +13,7 @@ defmodule Ethers.MultiClauseContractTest do
 
   @from "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
 
-  setup :deploy_multi_clause_contract
+  setup_all :deploy_multi_clause_contract
 
   describe "next function" do
     test "will raise on ambiguous arguments" do

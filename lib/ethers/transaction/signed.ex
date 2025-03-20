@@ -162,7 +162,7 @@ defmodule Ethers.Transaction.Signed do
   defimpl Transaction.Protocol do
     import Ethers.Utils, only: [remove_leading_zeros: 1]
 
-    def type_id(signed_tx), do: Transaction.Protocol.type_id(signed_tx.pyalod)
+    def type_id(signed_tx), do: Transaction.Protocol.type_id(signed_tx.payload)
 
     def type_envelope(signed_tx), do: Transaction.Protocol.type_envelope(signed_tx.payload)
 

@@ -235,4 +235,41 @@ defmodule Ethers.TransactionTest do
       assert Ethers.Utils.hex_encode(Transaction.encode(decoded_tx)) == raw_tx
     end
   end
+
+  test "ensure correct signer type_ids and type_envelopes" do
+    types = [
+      Transaction.Legacy,
+      Transaction.Eip1559,
+      Transaction.Eip2930,
+      Transaction.Eip4844
+    ]
+
+    for type <- types do
+      {:ok, tx} =
+        type.new(%{
+          nonce: 0,
+          gas_price: 1,
+          gas: 21_000,
+          to: nil,
+          value: 0,
+          input: "",
+          chain_id: 1,
+          max_priority_fee_per_gas: 1,
+          max_fee_per_blob_gas: 1,
+          max_fee_per_gas: 1,
+          access_list: []
+        })
+
+      {:ok, signed_tx} =
+        Transaction.Signed.new(%{
+          payload: tx,
+          signature_r: <<1::256>>,
+          signature_s: <<2::256>>,
+          signature_y_parity_or_v: 27
+        })
+
+      assert Transaction.Protocol.type_id(signed_tx) == type.type_id()
+      assert Transaction.Protocol.type_envelope(signed_tx) == type.type_envelope()
+    end
+  end
 end

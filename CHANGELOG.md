@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.6.5 (2025-04-04)
+
+### Bug Fixes
+
+- Fix typo in signed transaction `type_id/1` protocol implementation
+
 ## v0.6.4 (2025-02-02)
 
 ### Breaking Changes (Internal)

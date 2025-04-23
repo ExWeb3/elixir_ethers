@@ -2,7 +2,7 @@
 
 ## v0.6.6 (2025-04-23)
 
-## Bug Fixes
+### Bug Fixes
 
 - Remove extra hex decode in ENSIP-10 calldata
 

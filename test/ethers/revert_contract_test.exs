@@ -20,7 +20,7 @@ defmodule Ethers.RevertContractTest do
       assert message =~ "success must be true"
 
       assert_raise Ethers.ExecutionError,
-                   "execution reverted: revert: success must be true",
+                   "execution reverted: success must be true",
                    fn ->
                      RevertContract.get(false) |> Ethers.call!(to: address, from: @from)
                    end

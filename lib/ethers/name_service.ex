@@ -18,7 +18,6 @@ defmodule Ethers.NameService do
   alias Ethers.CcipRead
   alias Ethers.Contracts.ENS
   alias Ethers.Contracts.ERC165
-  alias Ethers.Utils
 
   @zero_address Ethers.Types.default(:address)
 
@@ -87,7 +86,7 @@ defmodule Ethers.NameService do
   end
 
   defp ensip10_resolve(resolve_call, name, opts) do
-    resolve_call_data = Utils.hex_decode!(resolve_call.data)
+    resolve_call_data = resolve_call.data
     dns_encoded_name = dns_encode(name)
     wildcard_call = ENS.ExtendedResolver.resolve(dns_encoded_name, resolve_call_data)
 

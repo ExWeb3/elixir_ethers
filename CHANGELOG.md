@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Bug Fixes
+
+- Return invalid_result error if 0x was given on an call with return types
+
 ## v0.6.6 (2025-04-23)
 
 ### Bug Fixes

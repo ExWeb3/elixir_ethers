@@ -760,11 +760,23 @@ defmodule Ethers do
 
   defp pre_process(data, [], _action, _opts), do: {:ok, data}
 
-  defp post_process({:ok, resp}, %{selector: _selector} = tx_data, :call)
-       when valid_result(resp) do
-    with {:ok, data} <- Utils.hex_decode(resp) do
-      TxData.abi_decode(data, tx_data, :output)
+  defp post_process({:ok, resp}, %{selector: %{returns: returns}} = tx_data, :call)
+       when returns != [] do
+    case Utils.hex_decode(resp) do
+      {:ok, ""} ->
+        {:error, :invalid_result}
+
+      {:ok, data} ->
+        TxData.abi_decode(data, tx_data, :output)
+
+      :error ->
+        {:error, :invalid_result}
     end
+  end
+
+  defp post_process({:ok, "0x"}, _tx_data, :call) do
+    # Handles empty response
+    {:ok, nil}
   end
 
   defp post_process({:ok, resp}, _tx_data, :call) when is_binary(resp) do

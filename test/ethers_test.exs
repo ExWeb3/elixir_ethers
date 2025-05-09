@@ -773,6 +773,14 @@ defmodule EthersTest do
   end
 
   describe "call/2" do
+    test "works with selector" do
+      address = deploy(HelloWorldContract, from: @from)
+
+      tx_data = HelloWorldContract.say_hello()
+
+      assert {:ok, "Hello World!"} == Ethers.call(tx_data, to: address)
+    end
+
     test "works without selector (raw call)" do
       address = deploy(HelloWorldContract, from: @from)
 
@@ -783,6 +791,20 @@ defmodule EthersTest do
                 "0000000000000000000000000000000000000000000000000000c48656c6c6f20576f726c642100" <>
                 "00000000000000000000000000000000000000"} =
                Ethers.call(%{data: tx_data.data}, to: address)
+    end
+
+    test "fails if selector returns are not empty and result is empty" do
+      tx_data = HelloWorldContract.say_hello()
+
+      assert {:error, :invalid_result} ==
+               Ethers.call(tx_data, to: "0x0000000000000000000000000000000000000000")
+    end
+
+    test "does not fail if there are no selector returns and result is empty" do
+      tx_data = HelloWorldContract.set_hello("hi")
+
+      assert {:ok, nil} ==
+               Ethers.call(tx_data, to: "0x0000000000000000000000000000000000000000")
     end
   end
 

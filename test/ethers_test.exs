@@ -11,7 +11,7 @@ defmodule Ethers.Contract.Test.HelloWorldWithDefaultAddressContract do
 end
 
 defmodule EthersTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case
   doctest Ethers
 
   import Ethers.TestHelpers

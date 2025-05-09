@@ -4,7 +4,7 @@ defmodule Ethers.Contract.Test.EventArgumentTypesContract do
 end
 
 defmodule Ethers.EventArgumentTypesContractTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case
 
   alias Ethers.Contract.Test.EventArgumentTypesContract
 

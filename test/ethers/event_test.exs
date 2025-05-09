@@ -1,5 +1,5 @@
 defmodule Ethers.EventTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case
   alias Ethers.Event
   doctest Event
 

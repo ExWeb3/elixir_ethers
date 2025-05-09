@@ -1,5 +1,5 @@
 defmodule Ethers.TypesTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case
   alias Ethers.Types
   doctest Ethers.Types
 

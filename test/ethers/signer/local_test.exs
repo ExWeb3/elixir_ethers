@@ -1,5 +1,5 @@
 defmodule Ethers.Signer.LocalTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case
 
   alias Ethers.Signer
   alias Ethers.Transaction.Eip1559

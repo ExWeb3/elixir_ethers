@@ -4,7 +4,7 @@ defmodule Ethers.Contract.Test.TypesContract do
 end
 
 defmodule Ethers.TypesContractTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case
   doctest Ethers.Contract
 
   import Ethers.TestHelpers

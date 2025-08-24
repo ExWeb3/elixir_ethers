@@ -21,5 +21,11 @@ contract Counter {
         storeAmount = newAmount;
     }
 
+    function reset() public {
+        delete storeAmount;
+        emit ResetCalled();
+    }
+
+    event ResetCalled();
     event SetCalled(uint256 indexed oldAmount, uint256 newAmount);
 }

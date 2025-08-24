@@ -802,9 +802,7 @@ defmodule Ethers do
     end
   end
 
-  defp pre_process(_event_filters_module, overrides, :get_logs_for_contract, opts) do
-    {address, _opts} = Keyword.pop(opts, :address)
-
+  defp pre_process(_event_filters_module, overrides, :get_logs_for_contract, _opts) do
     log_params =
       overrides
       |> Enum.into(%{})
@@ -812,7 +810,6 @@ defmodule Ethers do
       |> ensure_hex_value(:from_block)
       |> ensure_hex_value(:toBlock)
       |> ensure_hex_value(:to_block)
-      |> Map.put(:address, address)
 
     {:ok, log_params}
   end

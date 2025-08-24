@@ -585,6 +585,64 @@ defmodule Ethers do
   end
 
   @doc """
+  Fetches event logs for all events in a contract's EventFilters module.
+
+  This function is useful when you want to get all events from a contract without
+  specifying a single event filter. It will automatically decode each log using
+  the appropriate event selector from the EventFilters module.
+
+  ## Parameters
+  - event_filters_module: The EventFilters module (e.g. `MyContract.EventFilters`)
+  - address: The contract address to filter events from (nil means all contracts)
+
+  ## Overrides and Options
+
+  - `:rpc_client`: The RPC Client to use. It should implement ethereum jsonRPC API. default: Ethereumex.HttpClient
+  - `:rpc_opts`: Extra options to pass to rpc_client. (Like timeout, Server URL, etc.)
+  - `:fromBlock` | `:from_block`: Minimum block number of logs to filter.
+  - `:toBlock` | `:to_block`: Maximum block number of logs to filter.
+
+  ## Examples
+
+  ```elixir
+  # Get all events from a contract
+  {:ok, events} = Ethers.get_logs_for_contract(MyContract.EventFilters, "0x1234...")
+
+  # Get all events with block range
+  {:ok, events} = Ethers.get_logs_for_contract(MyContract.EventFilters, "0x1234...", 
+    fromBlock: 1000, 
+    toBlock: 2000
+  )
+  ```
+  """
+  @spec get_logs_for_contract(module(), Types.t_address() | nil, Keyword.t()) ::
+          {:ok, [Event.t()]} | {:error, atom()}
+  def get_logs_for_contract(event_filters_module, address, overrides \\ []) do
+    overrides = Keyword.put(overrides, :address, address)
+    {opts, overrides} = Keyword.split(overrides, @option_keys)
+
+    {rpc_client, rpc_opts} = get_rpc_client(opts)
+
+    with {:ok, log_params} <-
+           pre_process(event_filters_module, overrides, :get_logs_for_contract, opts) do
+      rpc_client.eth_get_logs(log_params, rpc_opts)
+      |> post_process(event_filters_module, :get_logs_for_contract)
+    end
+  end
+
+  @doc """
+  Same as `Ethers.get_logs_for_contract/3` but raises on error.
+  """
+  @spec get_logs_for_contract!(module(), Types.t_address() | nil, Keyword.t()) ::
+          [Event.t()] | no_return
+  def get_logs_for_contract!(event_filters_module, address, overrides \\ []) do
+    case get_logs_for_contract(event_filters_module, address, overrides) do
+      {:ok, events} -> events
+      {:error, reason} -> raise ExecutionError, reason
+    end
+  end
+
+  @doc """
   Combines multiple requests and make a batch json RPC request.
 
   It returns `{:ok, results}` in case of success or `{:error, reason}` in case of RPC failure.
@@ -744,6 +802,21 @@ defmodule Ethers do
     end
   end
 
+  defp pre_process(_event_filters_module, overrides, :get_logs_for_contract, opts) do
+    {address, _opts} = Keyword.pop(opts, :address)
+
+    log_params =
+      overrides
+      |> Enum.into(%{})
+      |> ensure_hex_value(:fromBlock)
+      |> ensure_hex_value(:from_block)
+      |> ensure_hex_value(:toBlock)
+      |> ensure_hex_value(:to_block)
+      |> Map.put(:address, address)
+
+    {:ok, log_params}
+  end
+
   defp pre_process(event_filter, overrides, :get_logs, _opts) do
     log_params =
       event_filter
@@ -803,6 +876,23 @@ defmodule Ethers do
   end
 
   defp post_process({:ok, resp}, _event_filter, :get_logs) do
+    {:ok, resp}
+  end
+
+  defp post_process({:ok, resp}, event_filters_module, :get_logs_for_contract)
+       when is_list(resp) do
+    logs =
+      Enum.flat_map(resp, fn log ->
+        case Event.find_and_decode(log, event_filters_module) do
+          {:ok, decoded_log} -> [decoded_log]
+          {:error, :not_found} -> []
+        end
+      end)
+
+    {:ok, logs}
+  end
+
+  defp post_process({:ok, resp}, _event_filters_module, :get_logs_for_contract) do
     {:ok, resp}
   end
 

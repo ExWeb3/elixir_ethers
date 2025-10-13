@@ -79,7 +79,7 @@ defmodule Ethers.Transaction.Signed do
 
   defp maybe_add_chain_id(%__MODULE__{payload: %Legacy{chain_id: nil} = legacy_tx} = signed_tx) do
     {chain_id, _recovery_id} = extract_chain_id_and_recovery_id(signed_tx)
-    %__MODULE__{signed_tx | payload: %Legacy{legacy_tx | chain_id: chain_id}}
+    %{signed_tx | payload: %{legacy_tx | chain_id: chain_id}}
   end
 
   defp maybe_add_chain_id(%__MODULE__{} = tx), do: tx

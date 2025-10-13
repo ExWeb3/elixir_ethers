@@ -34,7 +34,7 @@ def deps do
   [
     {:ethers, "~> 0.6.7"},
     # Uncomment next line if you want to use local signers
-    # {:ex_secp256k1, "~> 0.7.2"}
+    # {:ex_secp256k1, "~> 0.7.6"}
   ]
 end
 ```

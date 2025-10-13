@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.8 (2025-10-13)
+
+### Enhancements
+
+- Fix compiler warnings in Elixir 1.19-rc2
+
 ## v0.6.7 (2025-05-09)
 
 ### Bug Fixes

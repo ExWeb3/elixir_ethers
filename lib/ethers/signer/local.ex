@@ -21,41 +21,41 @@ defmodule Ethers.Signer.Local do
   alias Ethers.Transaction.Signed
   alias Ethers.Utils
 
-  if not Code.ensure_loaded?(secp256k1_module()) do
+  if Code.ensure_loaded?(secp256k1_module()) do
+    @impl true
+    def sign_transaction(transaction, opts) do
+      with {:ok, private_key} <- private_key(opts),
+           :ok <- validate_private_key(private_key, Keyword.get(opts, :from)),
+           encoded = Transaction.encode(transaction),
+           sign_hash = keccak_module().hash_256(encoded),
+           {:ok, {r, s, recovery_id}} <- secp256k1_module().sign(sign_hash, private_key) do
+        signed_transaction =
+          %Signed{
+            payload: transaction,
+            signature_r: r,
+            signature_s: s,
+            signature_y_parity_or_v: Signed.calculate_y_parity_or_v(transaction, recovery_id)
+          }
+
+        encoded_signed_transaction = Transaction.encode(signed_transaction)
+
+        {:ok, Utils.hex_encode(encoded_signed_transaction)}
+      end
+    end
+
+    @impl true
+    def accounts(opts) do
+      with {:ok, private_key} <- private_key(opts),
+           {:ok, address} <- do_get_address(private_key) do
+        {:ok, [address]}
+      end
+    end
+  else
     @impl true
     def sign_transaction(_tx, _opts), do: {:error, :secp256k1_module_not_loaded}
 
     @impl true
     def accounts(_opts), do: {:error, :secp256k1_module_not_loaded}
-  end
-
-  @impl true
-  def sign_transaction(transaction, opts) do
-    with {:ok, private_key} <- private_key(opts),
-         :ok <- validate_private_key(private_key, Keyword.get(opts, :from)),
-         encoded = Transaction.encode(transaction),
-         sign_hash = keccak_module().hash_256(encoded),
-         {:ok, {r, s, recovery_id}} <- secp256k1_module().sign(sign_hash, private_key) do
-      signed_transaction =
-        %Signed{
-          payload: transaction,
-          signature_r: r,
-          signature_s: s,
-          signature_y_parity_or_v: Signed.calculate_y_parity_or_v(transaction, recovery_id)
-        }
-
-      encoded_signed_transaction = Transaction.encode(signed_transaction)
-
-      {:ok, Utils.hex_encode(encoded_signed_transaction)}
-    end
-  end
-
-  @impl true
-  def accounts(opts) do
-    with {:ok, private_key} <- private_key(opts),
-         {:ok, address} <- do_get_address(private_key) do
-      {:ok, [address]}
-    end
   end
 
   defp do_get_address(private_key) do

@@ -323,6 +323,117 @@ defmodule Ethers.CounterContractTest do
     end
   end
 
+  describe "get_logs_for_contract works with all events" do
+    setup :deploy_counter_contract
+
+    test "can get all events from the contract", %{address: address} do
+      {:ok, tx_hash_1} =
+        CounterContract.set(101) |> Ethers.send_transaction(from: @from, to: address)
+
+      wait_for_transaction!(tx_hash_1)
+
+      {:ok, tx_hash_2} =
+        CounterContract.reset() |> Ethers.send_transaction(from: @from, to: address)
+
+      wait_for_transaction!(tx_hash_2)
+
+      {:ok, current_block_number} = Ethers.current_block_number()
+
+      assert {:ok, events} =
+               Ethers.get_logs_for_contract(CounterContract.EventFilters, address,
+                 from_block: current_block_number - 2,
+                 to_block: current_block_number
+               )
+
+      assert length(events) == 2
+
+      [set_called_event, reset_called_event] = events
+
+      assert %Event{
+               address: ^address,
+               topics: ["SetCalled(uint256,uint256)", 100],
+               data: [101]
+             } = set_called_event
+
+      assert %Event{
+               address: ^address,
+               topics: ["ResetCalled()"],
+               data: []
+             } = reset_called_event
+    end
+
+    test "can get all events with get_logs_for_contract! function", %{address: address} do
+      {:ok, tx_hash_1} =
+        CounterContract.set(101) |> Ethers.send_transaction(from: @from, to: address)
+
+      wait_for_transaction!(tx_hash_1)
+
+      {:ok, tx_hash_2} =
+        CounterContract.reset() |> Ethers.send_transaction(from: @from, to: address)
+
+      wait_for_transaction!(tx_hash_2)
+
+      {:ok, current_block_number} = Ethers.current_block_number()
+
+      events =
+        Ethers.get_logs_for_contract!(CounterContract.EventFilters, address,
+          from_block: current_block_number - 2,
+          to_block: current_block_number
+        )
+
+      assert [
+               %Ethers.Event{
+                 address: ^address,
+                 topics: ["SetCalled(uint256,uint256)", 100],
+                 data: [101]
+               },
+               %Ethers.Event{
+                 address: ^address,
+                 topics: ["ResetCalled()"],
+                 data: []
+               }
+             ] = events
+    end
+
+    test "can filter logs with from_block and to_block options", %{address: address} do
+      {:ok, tx_hash_1} =
+        CounterContract.set(101) |> Ethers.send_transaction(from: @from, to: address)
+
+      wait_for_transaction!(tx_hash_1)
+
+      {:ok, tx_hash_2} =
+        CounterContract.reset() |> Ethers.send_transaction(from: @from, to: address)
+
+      wait_for_transaction!(tx_hash_2)
+
+      {:ok, current_block_number} = Ethers.current_block_number()
+
+      assert [
+               %Ethers.Event{
+                 address: ^address,
+                 topics: ["SetCalled(uint256,uint256)", 100],
+                 data: [101],
+                 data_raw: "0x0000000000000000000000000000000000000000000000000000000000000065",
+                 log_index: 0,
+                 removed: false,
+                 transaction_hash: ^tx_hash_1,
+                 transaction_index: 0
+               }
+             ] =
+               Ethers.get_logs_for_contract!(CounterContract.EventFilters, address,
+                 from_block: current_block_number - 1,
+                 to_block: current_block_number - 1
+               )
+    end
+
+    test "returns empty list for non-existent contract address" do
+      fake_address = "0x1234567890123456789012345678901234567890"
+
+      assert {:ok, []} =
+               Ethers.get_logs_for_contract(CounterContract.EventFilters, fake_address)
+    end
+  end
+
   describe "override block number" do
     setup :deploy_counter_contract
 

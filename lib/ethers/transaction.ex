@@ -97,17 +97,13 @@ defmodule Ethers.Transaction do
   end
 
   defp maybe_wrap_signed({:ok, transaction}, params) when not is_nil(transaction) do
-    case Map.fetch(params, :signature_r) do
-      {:ok, sig_r} when not is_nil(sig_r) ->
+    case Map.get(params, :signature_r) do
+      nil ->
+        {:ok, transaction}
+      _sig_r ->
         params
         |> Map.put(:payload, transaction)
         |> Signed.new()
-
-      {:ok, nil} ->
-        {:ok, transaction}
-
-      :error ->
-        {:ok, transaction}
     end
   end
 

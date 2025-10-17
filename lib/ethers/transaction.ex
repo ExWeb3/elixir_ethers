@@ -100,6 +100,7 @@ defmodule Ethers.Transaction do
     case Map.get(params, :signature_r) do
       nil ->
         {:ok, transaction}
+
       _sig_r ->
         params
         |> Map.put(:payload, transaction)

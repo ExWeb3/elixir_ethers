@@ -96,12 +96,15 @@ defmodule Ethers.Transaction do
     end
   end
 
-  defp maybe_wrap_signed({:ok, transaction}, params) do
+  defp maybe_wrap_signed({:ok, transaction}, params) when not is_nil(transaction) do
     case Map.fetch(params, :signature_r) do
       {:ok, sig_r} when not is_nil(sig_r) ->
         params
         |> Map.put(:payload, transaction)
         |> Signed.new()
+
+      {:ok, nil} ->
+        {:ok, transaction}
 
       :error ->
         {:ok, transaction}
@@ -265,7 +268,7 @@ defmodule Ethers.Transaction do
         block_hash: from_map_value(tx, :blockHash),
         block_number: from_map_value_int(tx, :blockNumber),
         chain_id: from_map_value_int(tx, :chainId),
-        input: from_map_value(tx, :input) || from_map_value(tx, :data),
+        input: from_map_value_bin(tx, :input) || from_map_value_bin(tx, :data) || "",
         from: from_map_value(tx, :from),
         gas: from_map_value_int(tx, :gas),
         gas_price: from_map_value_int(tx, :gasPrice),

@@ -272,4 +272,145 @@ defmodule Ethers.TransactionTest do
       assert Transaction.Protocol.type_envelope(signed_tx) == type.type_envelope()
     end
   end
+
+  describe "from_rpc_map/1" do
+    test "handles transaction with input field" do
+      tx_map = %{
+        "type" => "0x2",
+        "chainId" => "0x1",
+        "nonce" => "0x0",
+        "to" => "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb5",
+        "value" => "0x0",
+        "input" => "0x1234567890",
+        "gas" => "0x5208",
+        "maxFeePerGas" => "0x3b9aca00",
+        "maxPriorityFeePerGas" => "0x0"
+      }
+
+      assert {:ok, transaction} = Transaction.from_rpc_map(tx_map)
+      assert transaction.input == Utils.hex_decode!("0x1234567890")
+    end
+
+    test "handles transaction with data field instead of input" do
+      tx_map = %{
+        "type" => "0x2",
+        "chainId" => "0x1",
+        "nonce" => "0x0",
+        "to" => "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb5",
+        "value" => "0x0",
+        "data" => "0xabcdef",
+        "gas" => "0x5208",
+        "maxFeePerGas" => "0x3b9aca00",
+        "maxPriorityFeePerGas" => "0x0"
+      }
+
+      assert {:ok, transaction} = Transaction.from_rpc_map(tx_map)
+      assert transaction.input == Utils.hex_decode!("0xabcdef")
+    end
+
+    test "handles transaction with both input and data fields (input takes precedence)" do
+      tx_map = %{
+        "type" => "0x2",
+        "chainId" => "0x1",
+        "nonce" => "0x0",
+        "to" => "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb5",
+        "value" => "0x0",
+        "input" => "0x1234",
+        "data" => "0x5678",
+        "gas" => "0x5208",
+        "maxFeePerGas" => "0x3b9aca00",
+        "maxPriorityFeePerGas" => "0x0"
+      }
+
+      assert {:ok, transaction} = Transaction.from_rpc_map(tx_map)
+      assert transaction.input == Utils.hex_decode!("0x1234")
+    end
+
+    test "handles transaction with neither input nor data field (defaults to empty string)" do
+      tx_map = %{
+        "type" => "0x2",
+        "chainId" => "0x1",
+        "nonce" => "0x0",
+        "to" => "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb5",
+        "value" => "0x0",
+        "gas" => "0x5208",
+        "maxFeePerGas" => "0x3b9aca00",
+        "maxPriorityFeePerGas" => "0x0"
+      }
+
+      assert {:ok, transaction} = Transaction.from_rpc_map(tx_map)
+      assert transaction.input == ""
+    end
+
+    test "handles transaction with nil input and data fields" do
+      tx_map = %{
+        "type" => "0x2",
+        "chainId" => "0x1",
+        "nonce" => "0x0",
+        "to" => "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb5",
+        "value" => "0x0",
+        "input" => nil,
+        "data" => nil,
+        "gas" => "0x5208",
+        "maxFeePerGas" => "0x3b9aca00",
+        "maxPriorityFeePerGas" => "0x0"
+      }
+
+      assert {:ok, transaction} = Transaction.from_rpc_map(tx_map)
+      assert transaction.input == ""
+    end
+
+    test "handles transaction with atom keys" do
+      tx_map = %{
+        type: "0x2",
+        chainId: "0x1",
+        nonce: "0x0",
+        to: "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb5",
+        value: "0x0",
+        input: "0xdeadbeef",
+        gas: "0x5208",
+        maxFeePerGas: "0x3b9aca00",
+        maxPriorityFeePerGas: "0x0"
+      }
+
+      assert {:ok, transaction} = Transaction.from_rpc_map(tx_map)
+      assert transaction.input == Utils.hex_decode!("0xdeadbeef")
+      assert %Transaction.Eip1559{} = transaction
+    end
+
+    test "handles legacy transaction type" do
+      tx_map = %{
+        "type" => "0x0",
+        "chainId" => "0x1",
+        "nonce" => "0x0",
+        "to" => "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb5",
+        "value" => "0x0",
+        "data" => "0xaabbcc",
+        "gas" => "0x5208",
+        "gasPrice" => "0x3b9aca00"
+      }
+
+      assert {:ok, transaction} = Transaction.from_rpc_map(tx_map)
+      assert transaction.input == Utils.hex_decode!("0xaabbcc")
+      assert %Transaction.Legacy{} = transaction
+    end
+
+    test "handles EIP-2930 transaction type" do
+      tx_map = %{
+        "type" => "0x1",
+        "chainId" => "0x1",
+        "nonce" => "0x0",
+        "to" => "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb5",
+        "value" => "0x0",
+        "input" => "0x112233",
+        "gas" => "0x5208",
+        "gasPrice" => "0x3b9aca00",
+        "accessList" => []
+      }
+
+      assert {:ok, transaction} = Transaction.from_rpc_map(tx_map)
+      assert transaction.input == Utils.hex_decode!("0x112233")
+      assert %Transaction.Eip2930{} = transaction
+    end
+  end
 end

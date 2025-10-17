@@ -16,6 +16,7 @@ defmodule EthersTest do
 
   import Ethers.TestHelpers
 
+  alias Ethers.Transaction
   alias Ethers.Utils
 
   alias Ethers.Contract.Test.HelloWorldContract
@@ -122,9 +123,10 @@ defmodule EthersTest do
 
   describe "get_transaction" do
     test "returns correct transaction by tx_hash" do
+      %{data: input} = call = HelloWorldContract.set_hello("hello local signer")
+
       {:ok, tx_hash} =
-        HelloWorldContract.set_hello("hello local signer")
-        |> Ethers.send_transaction(
+        Ethers.send_transaction(call,
           from: @from,
           to: @to,
           signer: Ethers.Signer.Local,
@@ -140,14 +142,17 @@ defmodule EthersTest do
       assert {:ok,
               %Ethers.Transaction.Signed{
                 payload: %Ethers.Transaction.Eip1559{
-                  to: ^checksum_to_addr
+                  to: ^checksum_to_addr,
+                  input: ^input
                 },
                 metadata: %Ethers.Transaction.Metadata{
                   block_hash: "0x" <> _,
                   block_number: block_number,
                   transaction_index: 0
                 }
-              }} = Ethers.get_transaction(tx_hash)
+              } = transaction} = Ethers.get_transaction(tx_hash)
+
+      assert Transaction.transaction_hash(transaction) == tx_hash
 
       assert is_integer(block_number) and block_number >= 0
     end

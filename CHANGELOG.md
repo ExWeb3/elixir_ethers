@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Bug Fixes
+
+- Fix decoding of `input` values from RPC results
+- Handle the case when the RPC result does not have a transaction signature
+
 ## 0.6.8 (2025-10-13)
 
 ### Enhancements

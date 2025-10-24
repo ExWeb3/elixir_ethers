@@ -3,9 +3,12 @@ defmodule Ethers.Event do
   EVM Event struct and helpers
   """
 
+  alias ABI.FunctionSelector
+  alias ABI.TypeDecoder
+
   alias Ethers.ContractHelpers
-  alias Ethers.{Types, Utils}
-  alias ABI.{FunctionSelector, TypeDecoder}
+  alias Ethers.Types
+  alias Ethers.Utils
 
   defstruct [
     :address,

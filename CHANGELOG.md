@@ -1,5 +1,15 @@
 # Changelog
 
+## UNRELEASED
+
+### Breaking Changes
+
+- `Ethers.Utils.human_arg/2` now returns checksummed addresses instead of lowercase addresses for better EIP-55 compliance
+
+### Bug Fixes
+
+- Fix `Ethers.Utils.human_arg/2` incorrectly handling 20-byte binary addresses that start with bytes `0x30` and `0x78` (which represent the string "0x")
+
 ## 0.6.9 (2025-10-16)
 
 ### Bug Fixes

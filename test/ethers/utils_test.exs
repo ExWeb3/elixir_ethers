@@ -161,4 +161,46 @@ defmodule Ethers.UtilsTest do
                "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1"
     end
   end
+
+  describe "human_arg/2" do
+    test "handles 20-byte binary address" do
+      # Regression test: ensure binary addresses are properly converted
+      binary_address =
+        <<48, 120, 170, 17, 101, 240, 156, 228, 62, 76, 75, 122, 119, 72, 248, 105, 128, 216, 172,
+          54>>
+
+      result = Ethers.Utils.human_arg(binary_address, :address)
+
+      assert result == "0x3078aA1165F09ce43E4C4B7a7748f86980d8AC36"
+      assert String.starts_with?(result, "0x")
+      assert String.length(result) == 42
+    end
+
+    test "handles random 20-byte binary address" do
+      # Regression test: ensure any 20-byte binary is properly converted
+      binary_address =
+        <<123, 45, 67, 89, 12, 34, 56, 78, 90, 11, 22, 33, 44, 55, 66, 77, 88, 99, 111, 222>>
+
+      result = Ethers.Utils.human_arg(binary_address, :address)
+
+      assert result == "0x7B2d43590c22384e5A0B16212c37424D58636FDE"
+      assert String.starts_with?(result, "0x")
+      assert String.length(result) == 42
+    end
+
+    test "handles hex string address" do
+      # Ensure hex string addresses are checksummed
+      hex_address = "0x90f8bf6a479f320ead074411a4b0e7944ea8c9c1"
+
+      result = Ethers.Utils.human_arg(hex_address, :address)
+
+      assert result == "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1"
+    end
+
+    test "raises on invalid address" do
+      assert_raise ArgumentError, ~r/Invalid address/, fn ->
+        Ethers.Utils.human_arg("invalid_address", :address)
+      end
+    end
+  end
 end

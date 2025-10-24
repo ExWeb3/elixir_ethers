@@ -27,17 +27,17 @@ jobs:
     strategy:
       matrix:
         variation:
-          - otp: "27.x"
-            elixir: "1.18"
+          - otp: "28.x"
+            elixir: "1.19"
             report_coverage: true
-          - otp: "26.x"
+          - otp: "27.x"
+            elixir: "1.19"
+            report_coverage: false
+          - otp: "28.x"
             elixir: "1.18"
             report_coverage: false
           - otp: "27.x"
-            elixir: "1.17"
-            report_coverage: false
-          - otp: "26.x"
-            elixir: "1.17"
+            elixir: "1.18"
             report_coverage: false
 
     steps:

@@ -152,10 +152,10 @@ defmodule Ethers.ContractHelpers do
       selectors
       |> Enum.uniq_by(& &1.returns)
       |> Enum.map_join("\n\n### OR\n", fn selector ->
-        if Enum.count(selector.returns) > 0 do
-          document_types(selector.returns, selector.return_names)
-        else
+        if Enum.empty?(selector.returns) do
           "This function does not return any values!"
+        else
+          document_types(selector.returns, selector.return_names)
         end
       end)
 

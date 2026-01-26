@@ -113,7 +113,7 @@ defmodule Ethers.MixProject do
       {:ex_rlp, "~> 0.6.0"},
       {:ex_secp256k1, "~> 0.7.2", optional: true},
       {:excoveralls, "~> 0.10", only: :test},
-      {:idna, "~> 6.1"},
+      {:idna, "~> 7.1"},
       {:jason, "~> 1.4"},
       {:makeup_syntect, "~> 0.1", only: :dev, runtime: false},
       {:plug, ">= 1.0.0", only: :test},

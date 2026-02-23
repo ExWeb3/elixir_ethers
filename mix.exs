@@ -111,7 +111,7 @@ defmodule Ethers.MixProject do
       {:ex_doc, "~> 0.32", only: :dev, runtime: false},
       {:ex_keccak, "~> 0.7.5"},
       {:ex_rlp, "~> 0.6.0"},
-      {:ex_secp256k1, "~> 0.7.2", optional: true},
+      {:ex_secp256k1, "~> 0.8.0", optional: true},
       {:excoveralls, "~> 0.10", only: :test},
       {:idna, "~> 7.1"},
       {:jason, "~> 1.4"},

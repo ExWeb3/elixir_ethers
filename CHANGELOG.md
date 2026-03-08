@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.11 (2026-03-08)
+
+### Enhancements
+
+- Relax version requiremnet on `ex_secp256k1`
+
 ## 0.6.10 (2025-10-24)
 
 ### Breaking Changes

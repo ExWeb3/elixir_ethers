@@ -1,7 +1,7 @@
 defmodule Ethers.MixProject do
   use Mix.Project
 
-  @version "0.6.10"
+  @version "0.6.11"
   @source_url "https://github.com/ExWeb3/elixir_ethers"
 
   def project do
@@ -15,13 +15,6 @@ defmodule Ethers.MixProject do
       source_url: @source_url,
       deps: deps(),
       test_coverage: [tool: ExCoveralls],
-      preferred_cli_env: [
-        coveralls: :test,
-        "coveralls.detail": :test,
-        "coveralls.post": :test,
-        "coveralls.html": :test,
-        test_prepare: :test
-      ],
       description:
         "A comprehensive Web3 library for interacting with smart contracts on Ethereum using Elixir.",
       package: package(),
@@ -38,10 +31,25 @@ defmodule Ethers.MixProject do
     ]
   end
 
+  def cli do
+    [
+      preferred_envs: [
+        coveralls: :test,
+        "coveralls.detail": :test,
+        "coveralls.post": :test,
+        "coveralls.html": :test,
+        test_prepare: :test
+      ]
+    ]
+  end
+
   defp package do
     [
       licenses: ["Apache-2.0"],
-      links: %{"GitHub" => @source_url},
+      links: %{
+        "GitHub" => @source_url,
+        "Changelog" => Path.join(@source_url, "/blob/main/CHANGELOG.md")
+      },
       maintainers: ["Alisina Bahadori"],
       files: ["lib", "priv", "mix.exs", "README*", "LICENSE*", "CHANGELOG*"]
     ]
@@ -111,7 +119,7 @@ defmodule Ethers.MixProject do
       {:ex_doc, "~> 0.32", only: :dev, runtime: false},
       {:ex_keccak, "~> 0.7.5"},
       {:ex_rlp, "~> 0.6.0"},
-      {:ex_secp256k1, "~> 0.7.2", optional: true},
+      {:ex_secp256k1, "~> 0.7", optional: true},
       {:excoveralls, "~> 0.10", only: :test},
       {:idna, "~> 7.1"},
       {:jason, "~> 1.4"},

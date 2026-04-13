@@ -277,7 +277,7 @@ defmodule Ethers.Contract do
 
     func_args = generate_arguments(mod, abi.arity, aggregated_input_names)
 
-    func_typespec = generate_event_typespecs(abi.selectors, abi.arity)
+    func_typespec = generate_event_typespecs(abi.selectors)
 
     quote context: mod, location: :keep do
       if unquote(generate_docs?(name, opts[:skip_docs])) do

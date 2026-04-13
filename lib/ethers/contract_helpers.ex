@@ -217,8 +217,8 @@ defmodule Ethers.ContractHelpers do
     |> do_generate_typescpecs()
   end
 
-  def generate_event_typespecs(selectors, arity) do
-    Enum.map(selectors, &Enum.take(&1.types, arity))
+  def generate_event_typespecs(selectors) do
+    Enum.map(selectors, &event_indexed_types/1)
     |> do_generate_typescpecs(true)
   end
 

@@ -65,15 +65,7 @@ defmodule Ethers.Event do
       sub_topics_raw
       |> Enum.map(&Utils.hex_decode!/1)
       |> Enum.zip(ContractHelpers.event_indexed_types(selector))
-      |> Enum.map(fn
-        {data, :string} ->
-          {Utils.hex_encode(data), :string}
-
-        {data, type} ->
-          [decoded] = TypeDecoder.decode_raw(data, [type])
-          {decoded, type}
-      end)
-      |> Enum.map(fn {data, type} -> Utils.human_arg(data, type) end)
+      |> Enum.map(fn {raw, type} -> decode_sub_topic(raw, type) end)
 
     topics = [FunctionSelector.encode(selector) | decoded_topics]
 
@@ -119,5 +111,15 @@ defmodule Ethers.Event do
       %ABI.FunctionSelector{} ->
         {:ok, decode(log, selector)}
     end
+  end
+
+  defp decode_sub_topic(raw, type) when type in [:string, :bytes], do: Utils.hex_encode(raw)
+  defp decode_sub_topic(raw, {:array, _}), do: Utils.hex_encode(raw)
+  defp decode_sub_topic(raw, {:array, _, _}), do: Utils.hex_encode(raw)
+  defp decode_sub_topic(raw, {:tuple, _}), do: Utils.hex_encode(raw)
+
+  defp decode_sub_topic(raw, type) do
+    [decoded] = TypeDecoder.decode_raw(raw, [type])
+    Utils.human_arg(decoded, type)
   end
 end

@@ -61,6 +61,28 @@ defmodule Ethers.ContractHelpersTest do
     end
   end
 
+  describe "generate_event_typespecs" do
+    test "uses indexed field types when indexed and non-indexed fields are interleaved" do
+      # Transfer(uint256 amount, address indexed sender, bool isFinal, address indexed receiver)
+      # from test/support/contracts/event_mixed_index.sol
+      selector = %ABI.FunctionSelector{
+        function: "Transfer",
+        type: :event,
+        types: [{:uint, 256}, :address, :bool, :address],
+        inputs_indexed: [false, true, false, true],
+        input_names: ["amount", "sender", "isFinal", "receiver"],
+        returns: []
+      }
+
+      [sender_type, receiver_type] = ContractHelpers.generate_event_typespecs([selector])
+      address_typespec = Ethers.Types.to_elixir_type(:address)
+
+      # Both indexed params are address, so both typespecs should be t_address() | nil.
+      assert sender_type == quote(do: unquote(address_typespec) | nil)
+      assert receiver_type == quote(do: unquote(address_typespec) | nil)
+    end
+  end
+
   describe "human_signature" do
     test "returns the human signature of a given function" do
       assert "name(uint256 id, address address)" ==

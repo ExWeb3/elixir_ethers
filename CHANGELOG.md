@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.6.12 (2026-04-14)
+
+### Bug Fixes
+
+- Fix indexed dynamic types event decoding (Thanks @ddallaire)
+- Fix event filter typespec generation for events with interleaved indexed and non-indexed
+  fields (Thanks @ricomateo)
+
 ## 0.6.11 (2026-03-08)
 
 ### Enhancements

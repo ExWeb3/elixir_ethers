@@ -116,6 +116,9 @@ filter = MyToken.EventFilters.transfer(from_address, nil)
 
 # Get matching events
 {:ok, events} = Ethers.get_logs(filter)
+
+# Get all events from a contract
+{:ok, events} = Ethers.get_logs_for_contract(MyToken.EventFilters, "0x123...")
 ```
 
 ## Documentation

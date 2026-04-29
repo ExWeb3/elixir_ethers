@@ -357,6 +357,23 @@ defmodule EthersTest do
     end
   end
 
+  describe "get_logs_for_contract/3" do
+    test "returns error when request fails" do
+      assert {:error, %{reason: :nxdomain}} =
+               Ethers.get_logs_for_contract(HelloWorldContract.EventFilters, nil,
+                 rpc_opts: [url: "http://non.exists"]
+               )
+    end
+
+    test "with bang function, raises error when request fails" do
+      assert_raise Mint.TransportError, "non-existing domain", fn ->
+        Ethers.get_logs_for_contract!(HelloWorldContract.EventFilters, nil,
+          rpc_opts: [url: "http://non.exists"]
+        )
+      end
+    end
+  end
+
   describe "default address" do
     test "is included in the function calls when has default address" do
       assert %Ethers.TxData{

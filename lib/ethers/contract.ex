@@ -41,9 +41,6 @@ defmodule Ethers.Contract do
     - `[{function_name :: atom(), skip_docs :: boolean()}]`: Specify for each function.
   """
 
-  require Ethers.ContractHelpers
-  require Logger
-
   import Ethers.ContractHelpers
 
   @default_constructor %{
@@ -362,18 +359,28 @@ defmodule Ethers.Contract do
       |> Enum.map(fn %{selectors: [selector]} -> selector end)
       |> Enum.map(&{&1.method_id, Module.concat([mod, Errors, &1.function])})
       |> Enum.into(%{})
-      |> Macro.escape()
 
-    quote context: errors_module, location: :keep do
-      @doc false
-      def find_and_decode(<<error_id::binary-4, _::binary>> = error_data) do
-        case Map.fetch(error_mappings(), error_id) do
-          {:ok, module} -> module.decode(error_data)
-          :error -> {:error, :undefined_error}
+    if map_size(error_mappings) == 0 do
+      quote context: errors_module, location: :keep do
+        @doc false
+        def find_and_decode(<<_error_id::binary-4, _::binary>>) do
+          {:error, :undefined_error}
         end
       end
+    else
+      error_mappings = Macro.escape(error_mappings)
 
-      defp error_mappings, do: unquote(error_mappings)
+      quote context: errors_module, location: :keep do
+        @doc false
+        def find_and_decode(<<error_id::binary-4, _::binary>> = error_data) do
+          case Map.fetch(error_mappings(), error_id) do
+            {:ok, module} -> module.decode(error_data)
+            :error -> {:error, :undefined_error}
+          end
+        end
+
+        defp error_mappings, do: unquote(error_mappings)
+      end
     end
   end
 

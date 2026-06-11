@@ -349,7 +349,7 @@ defmodule EthersTest do
     end
 
     test "with bang function, raises error when request fails" do
-      assert_raise Mint.TransportError, "non-existing domain", fn ->
+      assert_raise Finch.TransportError, "non-existing domain", fn ->
         Ethers.get_logs!(%{topics: [], selector: nil},
           rpc_opts: [url: "http://non.exists"]
         )

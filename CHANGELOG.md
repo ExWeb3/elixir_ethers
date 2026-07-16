@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.13 (2026-07-15)
+
+### Enhancements
+
+- Handle elixir 1.20 false positives
+
 ## 0.6.12 (2026-04-14)
 
 ### Bug Fixes

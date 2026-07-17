@@ -95,6 +95,7 @@ defmodule Ethers.MixProject do
         ],
         "Typed Data": [
           "Ethers.TypedData",
+          "Ethers.TypedData.Schema",
           "Ethers.TypedData.Domain",
           "Ethers.TypedData.Field"
         ],

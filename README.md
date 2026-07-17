@@ -410,6 +410,45 @@ Ethers.TypedData.valid_signature?(typed_data, signature, "0x[Signer]")
 #=> true
 ```
 
+You can also declare the struct types as Elixir modules and build the payload from struct
+instances - the result is identical to the map-based form above:
+
+```elixir
+defmodule Person do
+  use Ethers.TypedData.Schema
+
+  typed_schema "Person" do
+    field :name, :string
+    field :wallet, :address
+  end
+end
+
+defmodule Mail do
+  use Ethers.TypedData.Schema
+
+  typed_schema "Mail" do
+    field :from, Person
+    field :to, Person
+    field :contents, :string
+  end
+end
+
+typed_data =
+  Ethers.TypedData.new!(
+    %Mail{
+      from: %Person{name: "Cow", wallet: "0xCD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826"},
+      to: %Person{name: "Bob", wallet: "0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB"},
+      contents: "Hello, Bob!"
+    },
+    domain: [
+      name: "Ether Mail",
+      version: "1",
+      chain_id: 1,
+      verifying_contract: "0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC"
+    ]
+  )
+```
+
 See the [EIP-712 Typed Data guide](guides/eip-712.md) for a full walkthrough.
 
 ## Switching the ex_keccak library

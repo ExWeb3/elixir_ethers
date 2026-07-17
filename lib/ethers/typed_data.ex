@@ -55,6 +55,7 @@ defmodule Ethers.TypedData do
   alias Ethers.TypedData.Domain
   alias Ethers.TypedData.Encoder
   alias Ethers.TypedData.Field
+  alias Ethers.TypedData.Schema
   alias Ethers.Utils
 
   @enforce_keys [:domain, :types, :primary_type, :message]
@@ -103,7 +104,10 @@ defmodule Ethers.TypedData do
 
   Otherwise returns `{:ok, %Ethers.TypedData{}}`.
   """
+  @spec new(struct()) :: {:ok, t()} | {:error, term()}
   @spec new(keyword() | map()) :: {:ok, t()} | {:error, term()}
+  def new(struct) when is_struct(struct), do: new(struct, [])
+
   def new(params) do
     params = Map.new(params)
 
@@ -128,11 +132,53 @@ defmodule Ethers.TypedData do
   end
 
   @doc """
+  Builds an `Ethers.TypedData` from a schema struct instance (see `Ethers.TypedData.Schema`).
+
+  Declare the EIP-712 struct types as modules with `use Ethers.TypedData.Schema`, then pass an
+  instance of the top-level struct. The struct is expanded into `types`/`primary_type`/`message`
+  (walking referenced schema modules transitively) and validated via `new/1`, so the result is
+  identical to the equivalent map-based `new/1` call.
+
+  `opts` may carry `:domain` (a keyword/map accepted by `Ethers.TypedData.Domain.new/1`).
+
+  ## Example
+
+      # given `Person`/`Mail` schema modules (see `Ethers.TypedData.Schema`)
+      Ethers.TypedData.new!(
+        %Mail{
+          from: %Person{name: "Cow", wallet: "0xCD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826"},
+          to: %Person{name: "Bob", wallet: "0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB"},
+          contents: "Hello, Bob!"
+        },
+        domain: [name: "Ether Mail", version: "1", chain_id: 1,
+                 verifying_contract: "0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC"]
+      )
+  """
+  @spec new(struct(), keyword()) :: {:ok, t()} | {:error, term()}
+  def new(struct, opts) when is_struct(struct) do
+    struct |> Schema.to_params(opts) |> new()
+  end
+
+  @doc """
   Same as `new/1` but raises an `ArgumentError` on error.
   """
+  @spec new!(struct()) :: t() | no_return()
   @spec new!(keyword() | map()) :: t() | no_return()
+  def new!(struct) when is_struct(struct), do: new!(struct, [])
+
   def new!(params) do
     case new(params) do
+      {:ok, typed_data} -> typed_data
+      {:error, reason} -> raise ArgumentError, "invalid typed data: #{inspect(reason)}"
+    end
+  end
+
+  @doc """
+  Same as `new/2` but raises an `ArgumentError` on error.
+  """
+  @spec new!(struct(), keyword()) :: t() | no_return()
+  def new!(struct, opts) when is_struct(struct) do
+    case new(struct, opts) do
       {:ok, typed_data} -> typed_data
       {:error, reason} -> raise ArgumentError, "invalid typed data: #{inspect(reason)}"
     end

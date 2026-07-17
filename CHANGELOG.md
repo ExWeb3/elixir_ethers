@@ -9,6 +9,9 @@
   `domain_separator`, `hash`), sign it via `Ethers.sign_typed_data/2` with the `Ethers.Signer.Local`
   and `Ethers.Signer.JsonRPC` (`eth_signTypedData_v4`) signers, and recover/verify the signer with
   `Ethers.TypedData.recover_signer/2` and `Ethers.TypedData.valid_signature?/3`
+- Add a struct DSL for EIP-712 typed data: declare typed-data struct types as Elixir modules with
+  `use Ethers.TypedData.Schema` and the `typed_schema`/`field` macros, then build an
+  `Ethers.TypedData` directly from struct instances via `Ethers.TypedData.new/2` (and `new!/2`)
 
 ## 0.6.13 (2026-07-15)
 

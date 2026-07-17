@@ -372,13 +372,12 @@ defmodule Ethers.TypedData do
   """
   @spec recover_signer(t(), binary()) :: Ethers.Types.t_address() | {:error, term()}
   def recover_signer(%__MODULE__{} = typed_data, signature) do
-    digest = hash(typed_data)
-
-    <<r::binary-size(32), s::binary-size(32), v::integer>> = normalize_signature(signature)
-
-    case Ethers.secp256k1_module().recover(digest, r, s, v - 27) do
-      {:ok, public_key} -> Utils.public_key_to_address(public_key)
-      {:error, reason} -> {:error, reason}
+    with {:ok, <<r::binary-size(32), s::binary-size(32), v::integer>>} <-
+           normalize_signature(signature),
+         {:ok, recovery_id} <- normalize_recovery_id(v),
+         {:ok, public_key} <-
+           Ethers.secp256k1_module().recover(hash(typed_data), r, s, recovery_id) do
+      Utils.public_key_to_address(public_key)
     end
   end
 
@@ -408,9 +407,23 @@ defmodule Ethers.TypedData do
     end
   end
 
-  @spec normalize_signature(binary()) :: binary()
-  defp normalize_signature("0x" <> _ = hex), do: Utils.hex_decode!(hex)
-  defp normalize_signature(binary) when is_binary(binary), do: binary
+  @spec normalize_signature(binary()) :: {:ok, <<_::520>>} | {:error, :invalid_signature}
+  defp normalize_signature("0x" <> _ = hex) do
+    case Utils.hex_decode(hex) do
+      {:ok, binary} -> normalize_signature(binary)
+      :error -> {:error, :invalid_signature}
+    end
+  end
+
+  defp normalize_signature(<<_::binary-size(65)>> = binary), do: {:ok, binary}
+  defp normalize_signature(binary) when is_binary(binary), do: {:error, :invalid_signature}
+
+  # Accepts both the message-signature convention (`v ∈ {27, 28}`) and raw parity
+  # (`v ∈ {0, 1}`) that some signers/providers return, mapping both to a `0..1` recovery id.
+  @spec normalize_recovery_id(byte()) :: {:ok, 0..1} | {:error, :invalid_signature}
+  defp normalize_recovery_id(v) when v in [0, 27], do: {:ok, 0}
+  defp normalize_recovery_id(v) when v in [1, 28], do: {:ok, 1}
+  defp normalize_recovery_id(_v), do: {:error, :invalid_signature}
 
   @spec build_types_json(Domain.t(), %{String.t() => [Field.t()]}) :: %{String.t() => [map()]}
   defp build_types_json(domain, types) do

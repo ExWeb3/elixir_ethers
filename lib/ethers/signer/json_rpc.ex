@@ -34,16 +34,20 @@ defmodule Ethers.Signer.JsonRPC do
 
   @impl true
   def sign_typed_data(typed_data, opts) do
-    from = Keyword.fetch!(opts, :from)
+    case Keyword.get(opts, :from) do
+      nil ->
+        {:error, :missing_from_address}
 
-    {rpc_module, opts} = Keyword.pop(opts, :rpc_module, Ethereumex.HttpClient)
+      from ->
+        {rpc_module, opts} = Keyword.pop(opts, :rpc_module, Ethereumex.HttpClient)
 
-    json =
-      typed_data
-      |> Ethers.TypedData.to_eip712_json()
-      |> Jason.encode!()
+        json =
+          typed_data
+          |> Ethers.TypedData.to_eip712_json()
+          |> Jason.encode!()
 
-    rpc_module.request("eth_signTypedData_v4", [from, json], opts)
+        rpc_module.request("eth_signTypedData_v4", [from, json], opts)
+    end
   end
 
   @impl true

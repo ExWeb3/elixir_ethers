@@ -502,8 +502,25 @@ defmodule Ethers do
     default_signer = default_signer() || Ethers.Signer.JsonRPC
 
     with {:ok, signer} <- get_signer(opts, default_signer) do
-      signer.sign_typed_data(typed_data, build_signer_opts(%{}, opts))
+      do_sign_typed_data(signer, typed_data, build_signer_opts(%{}, opts))
     end
+  end
+
+  # `sign_typed_data/2` is an optional signer callback. If the resolved signer does not
+  # implement it, translate the resulting UndefinedFunctionError into `{:error, :not_supported}`
+  # (matching the behaviour contract in `Ethers.Signer`). Any other UndefinedFunctionError raised
+  # from within the signer is re-raised untouched.
+  defp do_sign_typed_data(signer, typed_data, signer_opts) do
+    signer.sign_typed_data(typed_data, signer_opts)
+  rescue
+    error in UndefinedFunctionError ->
+      case error do
+        %UndefinedFunctionError{module: ^signer, function: :sign_typed_data, arity: 2} ->
+          {:error, :not_supported}
+
+        _ ->
+          reraise error, __STACKTRACE__
+      end
   end
 
   @doc """

@@ -103,6 +103,18 @@ defmodule Ethers.Signer.JsonRPCTest do
                  from: "0xbba94ef8bd5ffee41947b4585a84bda5a3d3da6e"
                )
     end
+
+    test "returns an error tuple (not a raise) when :from is missing" do
+      typed_data =
+        Ethers.TypedData.new!(
+          types: %{"Mail" => [%{name: "contents", type: "string"}]},
+          primary_type: "Mail",
+          domain: [name: "Ether Mail", version: "1", chain_id: 31_337],
+          message: %{"contents" => "Hello, Bob!"}
+        )
+
+      assert {:error, :missing_from_address} = Signer.JsonRPC.sign_typed_data(typed_data, [])
+    end
   end
 
   describe "accounts/1" do

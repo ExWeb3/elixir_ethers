@@ -19,6 +19,7 @@ It leverages Elixir's metaprogramming capabilities to provide a seamless develop
 - **Built-in Contracts**: Ready-to-use interfaces for [ERC20](https://hexdocs.pm/ethers/Ethers.Contracts.ERC20.html), [ERC721](https://hexdocs.pm/ethers/Ethers.Contracts.ERC721.html), [ERC1155](https://hexdocs.pm/ethers/Ethers.Contracts.ERC1155.html), and more
 - **Multi-chain Support**: Works with any EVM-compatible blockchain
 - **Flexible Signing**: Extensible signer support with [built-in ones](https://hexdocs.pm/ethers/readme.html#signing-transactions)
+- **EIP-712 Typed Data**: Construct, hash, sign and verify [EIP-712](https://eips.ethereum.org/EIPS/eip-712) typed structured data
 - **Event Handling**: Easy filtering and retrieval of blockchain events
 - **Multicall Support**: Ability to easily perform multiple `eth_call`s using [Multicall 2/3](https://hexdocs.pm/ethers/Ethers.Multicall.html)
 - **Type Safety**: Native Elixir types for all contract interactions
@@ -362,6 +363,93 @@ MyERC20Token.transfer("0x[Recipient]", 1000)
   signer_opts: [private_key: "0x..."]
 )
 ```
+
+## Signing EIP-712 Typed Data
+
+Ethers can construct, hash, sign and verify [EIP-712](https://eips.ethereum.org/EIPS/eip-712)
+typed structured data. Build an `Ethers.TypedData`, sign it with either the `Ethers.Signer.Local`
+or `Ethers.Signer.JsonRPC` signer, and recover/verify the signer.
+
+```elixir
+typed_data =
+  Ethers.TypedData.new!(
+    types: %{
+      "Person" => [%{name: "name", type: "string"}, %{name: "wallet", type: "address"}],
+      "Mail" => [
+        %{name: "from", type: "Person"},
+        %{name: "to", type: "Person"},
+        %{name: "contents", type: "string"}
+      ]
+    },
+    primary_type: "Mail",
+    domain: [
+      name: "Ether Mail",
+      version: "1",
+      chain_id: 1,
+      verifying_contract: "0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC"
+    ],
+    message: %{
+      "from" => %{"name" => "Cow", "wallet" => "0xCD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826"},
+      "to" => %{"name" => "Bob", "wallet" => "0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB"},
+      "contents" => "Hello, Bob!"
+    }
+  )
+
+# Sign with a local private key
+{:ok, signature} =
+  Ethers.sign_typed_data(typed_data,
+    signer: Ethers.Signer.Local,
+    signer_opts: [private_key: "0x...", from: "0x[Signer]"]
+  )
+
+# Recover / verify the signer
+Ethers.TypedData.recover_signer(typed_data, signature)
+#=> "0x[Signer]"
+
+Ethers.TypedData.valid_signature?(typed_data, signature, "0x[Signer]")
+#=> true
+```
+
+You can also declare the struct types as Elixir modules and build the payload from struct
+instances - the result is identical to the map-based form above:
+
+```elixir
+defmodule Person do
+  use Ethers.TypedData.Schema
+
+  typed_schema "Person" do
+    field :name, :string
+    field :wallet, :address
+  end
+end
+
+defmodule Mail do
+  use Ethers.TypedData.Schema
+
+  typed_schema "Mail" do
+    field :from, Person
+    field :to, Person
+    field :contents, :string
+  end
+end
+
+typed_data =
+  Ethers.TypedData.new!(
+    %Mail{
+      from: %Person{name: "Cow", wallet: "0xCD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826"},
+      to: %Person{name: "Bob", wallet: "0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB"},
+      contents: "Hello, Bob!"
+    },
+    domain: [
+      name: "Ether Mail",
+      version: "1",
+      chain_id: 1,
+      verifying_contract: "0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC"
+    ]
+  )
+```
+
+See the [EIP-712 Typed Data guide](guides/eip-712.md) for a full walkthrough.
 
 ## Switching the ex_keccak library
 

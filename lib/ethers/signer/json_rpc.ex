@@ -1,7 +1,7 @@
 defmodule Ethers.Signer.JsonRPC do
   @moduledoc """
   Signer capable of signing transactions with a JSON RPC server
-  capable of `eth_signTransaction` and `eth_accounts` RPC functions.
+  capable of `eth_signTransaction`, `eth_signTypedData_v4` and `eth_accounts` RPC functions.
 
   ## Signer Options
 
@@ -30,6 +30,24 @@ defmodule Ethers.Signer.JsonRPC do
     {rpc_module, opts} = Keyword.pop(opts, :rpc_module, Ethereumex.HttpClient)
 
     rpc_module.request("eth_signTransaction", [tx_map], opts)
+  end
+
+  @impl true
+  def sign_typed_data(typed_data, opts) do
+    case Keyword.get(opts, :from) do
+      nil ->
+        {:error, :missing_from_address}
+
+      from ->
+        {rpc_module, opts} = Keyword.pop(opts, :rpc_module, Ethereumex.HttpClient)
+
+        json =
+          typed_data
+          |> Ethers.TypedData.to_eip712_json()
+          |> Jason.encode!()
+
+        rpc_module.request("eth_signTypedData_v4", [from, json], opts)
+    end
   end
 
   @impl true

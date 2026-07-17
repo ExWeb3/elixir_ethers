@@ -43,6 +43,80 @@ defmodule Ethers.Signer.JsonRPCTest do
     end
   end
 
+  describe "sign_typed_data/2" do
+    test "returns a well-formed 65-byte signature for the default account" do
+      typed_data =
+        Ethers.TypedData.new!(
+          types: %{
+            "Person" => [
+              %{name: "name", type: "string"},
+              %{name: "wallet", type: "address"}
+            ],
+            "Mail" => [
+              %{name: "from", type: "Person"},
+              %{name: "to", type: "Person"},
+              %{name: "contents", type: "string"}
+            ]
+          },
+          primary_type: "Mail",
+          domain: [
+            name: "Ether Mail",
+            version: "1",
+            chain_id: 31_337,
+            verifying_contract: "0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC"
+          ],
+          message: %{
+            "from" => %{
+              "name" => "Cow",
+              "wallet" => "0xCD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826"
+            },
+            "to" => %{
+              "name" => "Bob",
+              "wallet" => "0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB"
+            },
+            "contents" => "Hello, Bob!"
+          }
+        )
+
+      assert {:ok, signature} =
+               Signer.JsonRPC.sign_typed_data(typed_data,
+                 from: "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
+               )
+
+      assert <<"0x", hex::binary-size(130)>> = signature
+      assert String.match?(hex, ~r/^[0-9a-fA-F]{130}$/)
+    end
+
+    test "fails signing with an unknown from address" do
+      typed_data =
+        Ethers.TypedData.new!(
+          types: %{
+            "Mail" => [%{name: "contents", type: "string"}]
+          },
+          primary_type: "Mail",
+          domain: [name: "Ether Mail", version: "1", chain_id: 31_337],
+          message: %{"contents" => "Hello, Bob!"}
+        )
+
+      assert {:error, _reason} =
+               Signer.JsonRPC.sign_typed_data(typed_data,
+                 from: "0xbba94ef8bd5ffee41947b4585a84bda5a3d3da6e"
+               )
+    end
+
+    test "returns an error tuple (not a raise) when :from is missing" do
+      typed_data =
+        Ethers.TypedData.new!(
+          types: %{"Mail" => [%{name: "contents", type: "string"}]},
+          primary_type: "Mail",
+          domain: [name: "Ether Mail", version: "1", chain_id: 31_337],
+          message: %{"contents" => "Hello, Bob!"}
+        )
+
+      assert {:error, :missing_from_address} = Signer.JsonRPC.sign_typed_data(typed_data, [])
+    end
+  end
+
   describe "accounts/1" do
     test "returns account list" do
       assert {:ok, accounts} = Signer.JsonRPC.accounts([])

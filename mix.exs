@@ -69,6 +69,7 @@ defmodule Ethers.MixProject do
         "README.md": [title: "Introduction"],
         "CHANGELOG.md": [title: "Changelog"],
         "guides/typed-arguments.md": [title: "Typed Arguments"],
+        "guides/eip-712.md": [title: "EIP-712 Typed Data"],
         "guides/configuration.md": [title: "Configuration"],
         "guides/upgrading.md": [title: "Upgrading"]
       ],
@@ -91,6 +92,11 @@ defmodule Ethers.MixProject do
         Signer: [
           ~r/^Ethers\.Signer\.[A-Za-z0-9.]+$/,
           ~r/^Ethers\.Signer$/
+        ],
+        "Typed Data": [
+          "Ethers.TypedData",
+          "Ethers.TypedData.Domain",
+          "Ethers.TypedData.Field"
         ],
         "Builtin Contract Errors": [
           ~r/^Ethers\.Contracts\..*$/

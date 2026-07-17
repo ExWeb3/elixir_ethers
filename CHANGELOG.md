@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Enhancements
+
+- Add [EIP-712](https://eips.ethereum.org/EIPS/eip-712) typed data support: construct typed
+  structured data with `Ethers.TypedData`, hash it (`encode_type`, `type_hash`, `hash_struct`,
+  `domain_separator`, `hash`), sign it via `Ethers.sign_typed_data/2` with the `Ethers.Signer.Local`
+  and `Ethers.Signer.JsonRPC` (`eth_signTypedData_v4`) signers, and recover/verify the signer with
+  `Ethers.TypedData.recover_signer/2` and `Ethers.TypedData.valid_signature?/3`
+
 ## 0.6.13 (2026-07-15)
 
 ### Enhancements

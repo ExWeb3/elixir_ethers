@@ -468,6 +468,56 @@ defmodule Ethers do
   end
 
   @doc """
+  Signs an [EIP-712](https://eips.ethereum.org/EIPS/eip-712) typed-data payload and returns the
+  signature as a `0x`-prefixed hex string (65 bytes: `r ‖ s ‖ v`).
+
+  Unlike `sign_transaction/2`, no transaction fields are auto-fetched; the given
+  `Ethers.TypedData` is signed as-is. The signer is resolved the same way as for transactions:
+  the `:signer` option, otherwise the `:default_signer` application env, otherwise
+  `Ethers.Signer.JsonRPC`.
+
+  ## Options
+
+  - `:signer`: The signer module to use. (e.g. `Ethers.Signer.Local` or `Ethers.Signer.JsonRPC`)
+  - `:signer_opts`: Options passed to the signer. Use `:from` here (and `:private_key` for
+    `Ethers.Signer.Local`) so the signer knows which account signs.
+
+  ## Examples
+
+  ```elixir
+  typed_data = Ethers.TypedData.new!(...)
+
+  Ethers.sign_typed_data(typed_data,
+    signer: Ethers.Signer.Local,
+    signer_opts: [private_key: "0x...", from: "0x..."]
+  )
+  #=> {:ok, "0x..."}
+  ```
+  """
+  @spec sign_typed_data(Ethers.TypedData.t(), Keyword.t()) ::
+          {:ok, binary()} | {:error, term()}
+  def sign_typed_data(typed_data, opts \\ []) do
+    {opts, _} = Keyword.split(opts, @option_keys)
+
+    default_signer = default_signer() || Ethers.Signer.JsonRPC
+
+    with {:ok, signer} <- get_signer(opts, default_signer) do
+      signer.sign_typed_data(typed_data, build_signer_opts(%{}, opts))
+    end
+  end
+
+  @doc """
+  Same as `Ethers.sign_typed_data/2` but raises on error.
+  """
+  @spec sign_typed_data!(Ethers.TypedData.t(), Keyword.t()) :: binary() | no_return()
+  def sign_typed_data!(typed_data, opts \\ []) do
+    case sign_typed_data(typed_data, opts) do
+      {:ok, signature} -> signature
+      {:error, reason} -> raise ExecutionError, reason
+    end
+  end
+
+  @doc """
   Makes an eth_estimate_gas rpc call with the given parameters and overrides.
 
   ## Overrides and Options

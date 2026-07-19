@@ -24,8 +24,10 @@ defmodule Ethers.PersonalMessage do
 
   Recovery and verification here are `ecrecover`-based and therefore work for
   externally-owned accounts (EOAs) only. Signatures from smart-contract wallets
-  (ERC-1271/ERC-6492) cannot be verified this way and need the RPC-backed
-  `Ethers.Signature` module.
+  (ERC-1271/ERC-6492) always fail these checks. Prefer
+  `Ethers.Signature.verify_message/4`, which verifies EOA and smart-contract wallet
+  signatures alike; use the functions here when you specifically need a pure, RPC-free
+  check for signatures known to come from EOA keys.
   """
 
   alias Ethers.ExecutionError
@@ -97,7 +99,8 @@ defmodule Ethers.PersonalMessage do
   comparison is done on the decoded 20-byte addresses, so checksum/case differences are
   ignored. Returns `false` (does not raise) when the signature is malformed.
 
-  EOA-only — for smart-contract wallets use the RPC-backed `Ethers.Signature` module.
+  EOA-only — prefer `Ethers.Signature.verify_message/4` to also support smart-contract
+  wallets (see "Verification scope" in the module docs).
 
   ## Examples
 

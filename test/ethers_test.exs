@@ -355,6 +355,17 @@ defmodule EthersTest do
         )
       end
     end
+
+    test "with combined event filter, returns error when request fails" do
+      filter = Ethers.EventFilter.combine([HelloWorldContract.EventFilters.hello_set()])
+
+      assert {:error, %{reason: :nxdomain}} =
+               Ethers.get_logs(filter, rpc_opts: [url: "http://non.exists"])
+
+      assert_raise Finch.TransportError, "non-existing domain", fn ->
+        Ethers.get_logs!(filter, rpc_opts: [url: "http://non.exists"])
+      end
+    end
   end
 
   describe "default address" do
@@ -430,6 +441,29 @@ defmodule EthersTest do
              } ==
                HelloWorldWithDefaultAddressContract.EventFilters.hello_set()
                |> Ethers.EventFilter.to_map([])
+    end
+
+    test "is included in combined event filters when has default address" do
+      filter = HelloWorldWithDefaultAddressContract.EventFilters.__all__()
+
+      assert %Ethers.CombinedEventFilter{
+               default_address: "0x1000bf6a479f320ead074411a4b0e7944ea8c9c1"
+             } = filter
+
+      assert %{
+               topics: [["0xbe6cf5e99b344c66895d6304d442b2f51b6359ee51ac581db2255de9373e24b8"]],
+               address: "0x1000bf6a479f320ead074411a4b0e7944ea8c9c1"
+             } == Ethers.EventFilter.to_map(filter, [])
+    end
+
+    test "is not included in combined event filters when does not have default address" do
+      filter = Ethers.EventFilter.combine(HelloWorldContract.EventFilters)
+
+      assert %Ethers.CombinedEventFilter{default_address: nil} = filter
+
+      assert %{
+               topics: [["0xbe6cf5e99b344c66895d6304d442b2f51b6359ee51ac581db2255de9373e24b8"]]
+             } == Ethers.EventFilter.to_map(filter, [])
     end
 
     test "is not included in event filters when does not have default address" do

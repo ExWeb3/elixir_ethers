@@ -323,6 +323,167 @@ defmodule Ethers.CounterContractTest do
     end
   end
 
+  describe "combined event filters" do
+    setup :deploy_counter_contract
+
+    test "can fetch multiple events in a single request", %{address: address} do
+      %{block_range: block_range} = emit_set_and_reset(address)
+
+      filter =
+        Ethers.EventFilter.combine([
+          CounterContract.EventFilters.set_called(nil),
+          CounterContract.EventFilters.reset_called()
+        ])
+
+      assert {:ok, [set_called_event, reset_called_event]} =
+               Ethers.get_logs(filter, [address: address] ++ block_range)
+
+      assert %Event{
+               address: ^address,
+               topics: ["SetCalled(uint256,uint256)", 100],
+               data: [101]
+             } = set_called_event
+
+      assert %Event{
+               address: ^address,
+               topics: ["ResetCalled()"],
+               data: []
+             } = reset_called_event
+    end
+
+    test "passing an EventFilters module matches all events of the contract", %{address: address} do
+      %{block_range: block_range} = emit_set_and_reset(address)
+
+      assert [
+               %Event{topics: ["SetCalled(uint256,uint256)", 100], data: [101]},
+               %Event{topics: ["ResetCalled()"], data: []}
+             ] =
+               Ethers.get_logs!(
+                 CounterContract.EventFilters,
+                 [address: address] ++ block_range
+               )
+    end
+
+    test "combine accepts EventFilters modules", %{address: address} do
+      %{block_range: block_range} = emit_set_and_reset(address)
+
+      filter = Ethers.EventFilter.combine([CounterContract.EventFilters])
+
+      assert filter == Ethers.EventFilter.combine(CounterContract.EventFilters)
+      assert filter == CounterContract.EventFilters.__all__()
+
+      assert {:ok, [%Event{}, %Event{}]} =
+               Ethers.get_logs(filter, [address: address] ++ block_range)
+    end
+
+    test "only fetches logs of the combined events", %{address: address} do
+      %{block_range: block_range} = emit_set_and_reset(address)
+
+      filter = Ethers.EventFilter.combine([CounterContract.EventFilters.set_called(nil)])
+
+      assert {:ok, [%Event{topics: ["SetCalled(uint256,uint256)", 100]}]} =
+               Ethers.get_logs(filter, [address: address] ++ block_range)
+    end
+
+    test "works with batch requests", %{address: address} do
+      %{block_range: block_range} = emit_set_and_reset(address)
+
+      filter =
+        Ethers.EventFilter.combine([
+          CounterContract.EventFilters.set_called(nil),
+          CounterContract.EventFilters.reset_called()
+        ])
+
+      assert {:ok, [ok: [set_called_event, reset_called_event], ok: [_, _]]} =
+               Ethers.batch([
+                 {:get_logs, filter, [address: address] ++ block_range},
+                 {:get_logs, CounterContract.EventFilters, [address: address] ++ block_range}
+               ])
+
+      assert %Event{topics: ["SetCalled(uint256,uint256)", 100]} = set_called_event
+      assert %Event{topics: ["ResetCalled()"]} = reset_called_event
+    end
+
+    test "uses the default address of the combined filters", %{address: address} do
+      %{block_range: block_range} = emit_set_and_reset(address)
+
+      filter =
+        Ethers.EventFilter.combine([
+          %{CounterContract.EventFilters.set_called(nil) | default_address: address},
+          %{CounterContract.EventFilters.reset_called() | default_address: address}
+        ])
+
+      assert filter.default_address == address
+
+      assert {:ok, [%Event{address: ^address}, %Event{address: ^address}]} =
+               Ethers.get_logs(filter, block_range)
+    end
+
+    test "deduplicates repeated event filters" do
+      filter =
+        Ethers.EventFilter.combine([
+          CounterContract.EventFilters.set_called(nil),
+          CounterContract.EventFilters.set_called(nil)
+        ])
+
+      assert [[_topic_0]] = filter.topics
+    end
+
+    test "combining filters with indexed-argument values raises" do
+      assert_raise ArgumentError, ~r/indexed-argument values/, fn ->
+        Ethers.EventFilter.combine([CounterContract.EventFilters.set_called(100)])
+      end
+    end
+
+    test "combining an empty list raises" do
+      assert_raise ArgumentError, "cannot combine an empty list of event filters", fn ->
+        Ethers.EventFilter.combine([])
+      end
+    end
+
+    test "combining filters with conflicting default addresses raises" do
+      assert_raise ArgumentError, ~r/conflicting default addresses/, fn ->
+        Ethers.EventFilter.combine([
+          %{
+            CounterContract.EventFilters.set_called(nil)
+            | default_address: "0x1000bf6a479f320ead074411a4b0e7944ea8c9c1"
+          },
+          %{
+            CounterContract.EventFilters.reset_called()
+            | default_address: "0x2000bf6a479f320ead074411a4b0e7944ea8c9c2"
+          }
+        ])
+      end
+    end
+
+    test "combining non event filters raises" do
+      assert_raise ArgumentError, ~r/is not an EventFilters module/, fn ->
+        Ethers.EventFilter.combine([:not_a_module])
+      end
+
+      assert_raise ArgumentError, ~r/expected an Ethers.EventFilter struct/, fn ->
+        Ethers.EventFilter.combine([%{some: :map}])
+      end
+    end
+
+    test "get_logs with a non EventFilters module raises" do
+      assert_raise ArgumentError, ~r/is not an EventFilters module/, fn ->
+        Ethers.get_logs(:not_a_module)
+      end
+    end
+
+    test "renders the correct values when inspected" do
+      filter =
+        Ethers.EventFilter.combine([
+          CounterContract.EventFilters.set_called(nil),
+          CounterContract.EventFilters.reset_called()
+        ])
+
+      assert "#Ethers.CombinedEventFilter<\n  event SetCalled(uint256,uint256)\n  event ResetCalled()>" ==
+               inspect(filter)
+    end
+  end
+
   describe "override block number" do
     setup :deploy_counter_contract
 
@@ -349,6 +510,22 @@ defmodule Ethers.CounterContractTest do
       assert CounterContract.get() |> Ethers.call!(to: address, block: block_2) == 102
       assert CounterContract.get() |> Ethers.call!(to: address, block: block_1) == 101
     end
+  end
+
+  defp emit_set_and_reset(address) do
+    {:ok, tx_hash_1} =
+      CounterContract.set(101) |> Ethers.send_transaction(from: @from, to: address)
+
+    wait_for_transaction!(tx_hash_1)
+
+    {:ok, tx_hash_2} =
+      CounterContract.reset() |> Ethers.send_transaction(from: @from, to: address)
+
+    wait_for_transaction!(tx_hash_2)
+
+    {:ok, current_block_number} = Ethers.current_block_number()
+
+    %{block_range: [from_block: current_block_number - 2, to_block: current_block_number]}
   end
 
   defp deploy_counter_contract(_ctx) do

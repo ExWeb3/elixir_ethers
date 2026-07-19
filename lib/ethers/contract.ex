@@ -138,6 +138,12 @@ defmodule Ethers.Contract do
           defdelegate __default_address__, to: unquote(module)
           unquote(events_impl)
 
+          @doc false
+          @spec __all__() :: Ethers.CombinedEventFilter.t()
+          def __all__ do
+            Ethers.CombinedEventFilter.from_events_module(__MODULE__)
+          end
+
           def __events__, do: unquote(Macro.escape(event_selectors))
         end
       end

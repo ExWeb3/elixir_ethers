@@ -117,6 +117,16 @@ filter = MyToken.EventFilters.transfer(from_address, nil)
 
 # Get matching events
 {:ok, events} = Ethers.get_logs(filter)
+
+# Combine multiple events in a single request (topics are OR-ed)
+filter =
+  Ethers.EventFilter.combine([
+    MyToken.EventFilters.transfer(nil, nil),
+    MyToken.EventFilters.approval(nil, nil)
+  ])
+
+# Or fetch all events of a contract by passing its EventFilters module
+{:ok, events} = Ethers.get_logs(MyToken.EventFilters, address: "0x...")
 ```
 
 ## Documentation

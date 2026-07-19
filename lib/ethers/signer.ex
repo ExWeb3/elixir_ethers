@@ -20,8 +20,11 @@ defmodule Ethers.Signer do
   become handy. Check out the source code of built in signers for in depth info.
 
   A signer may also implement the optional `c:sign_typed_data/2` callback to support signing
-  [EIP-712](https://eips.ethereum.org/EIPS/eip-712) typed structured data (see `Ethers.TypedData`).
-  Signers that do not implement it will simply not support typed-data signing.
+  [EIP-712](https://eips.ethereum.org/EIPS/eip-712) typed structured data (see `Ethers.TypedData`)
+  and the optional `c:personal_sign/2` callback to support signing
+  [EIP-191](https://eips.ethereum.org/EIPS/eip-191) personal messages (see
+  `Ethers.PersonalMessage`). Signers that do not implement them will simply not support those
+  signing schemes.
 
   ## Globally Default Signer
   If desired, a signer can be configured to be used for all operations in Ethers using elixir
@@ -77,5 +80,21 @@ defmodule Ethers.Signer do
   @callback sign_typed_data(typed_data :: Ethers.TypedData.t(), opts :: Keyword.t()) ::
               {:ok, binary()} | {:error, reason :: term()}
 
-  @optional_callbacks sign_typed_data: 2
+  @doc """
+  Signs an [EIP-191](https://eips.ethereum.org/EIPS/eip-191) personal message and returns the
+  signature.
+
+  This is an optional callback. Signers that do not implement it do not support personal
+  message signing.
+
+  ## Parameters
+   - message: The message to sign, as raw bytes. (See `Ethers.PersonalMessage`)
+   - opts: Other options passed to the signer as `signer_opts`.
+
+  Returns `{:ok, signature}` where `signature` is a `0x`-prefixed 65-byte signature hex string.
+  """
+  @callback personal_sign(message :: binary(), opts :: Keyword.t()) ::
+              {:ok, binary()} | {:error, reason :: term()}
+
+  @optional_callbacks sign_typed_data: 2, personal_sign: 2
 end

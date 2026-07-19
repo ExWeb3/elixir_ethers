@@ -4,6 +4,10 @@
 
 ### Enhancements
 
+- Add [EIP-191](https://eips.ethereum.org/EIPS/eip-191) personal message support: hash, recover
+  and verify messages with `Ethers.PersonalMessage`, and sign them via `Ethers.personal_sign/2`
+  with the `Ethers.Signer.Local` and `Ethers.Signer.JsonRPC` signers through the new optional
+  `personal_sign/2` signer callback (named after the RPC method it mirrors)
 - Add [EIP-712](https://eips.ethereum.org/EIPS/eip-712) typed data support: construct typed
   structured data with `Ethers.TypedData`, hash it (`encode_type`, `type_hash`, `hash_struct`,
   `domain_separator`, `hash`), sign it via `Ethers.sign_typed_data/2` with the `Ethers.Signer.Local`

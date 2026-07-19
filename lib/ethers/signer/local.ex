@@ -55,6 +55,17 @@ defmodule Ethers.Signer.Local do
     end
 
     @impl true
+    def personal_sign(message, opts) do
+      digest = Ethers.PersonalMessage.hash(message)
+
+      with {:ok, private_key} <- private_key(opts),
+           :ok <- validate_private_key(private_key, Keyword.get(opts, :from)),
+           {:ok, {r, s, recovery_id}} <- secp256k1_module().sign(digest, private_key) do
+        {:ok, Utils.hex_encode(r <> s <> <<recovery_id + 27>>)}
+      end
+    end
+
+    @impl true
     def accounts(opts) do
       with {:ok, private_key} <- private_key(opts),
            {:ok, address} <- do_get_address(private_key) do
@@ -67,6 +78,9 @@ defmodule Ethers.Signer.Local do
 
     @impl true
     def sign_typed_data(_typed_data, _opts), do: {:error, :secp256k1_module_not_loaded}
+
+    @impl true
+    def personal_sign(_message, _opts), do: {:error, :secp256k1_module_not_loaded}
 
     @impl true
     def accounts(_opts), do: {:error, :secp256k1_module_not_loaded}

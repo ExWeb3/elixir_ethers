@@ -117,6 +117,30 @@ defmodule Ethers.Signer.JsonRPCTest do
     end
   end
 
+  describe "personal_sign/2" do
+    test "signs a message for the default account (verified via recovery)" do
+      from = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
+      message = "sign in to example.com"
+
+      assert {:ok, signature} = Signer.JsonRPC.personal_sign(message, from: from)
+
+      assert <<"0x", hex::binary-size(130)>> = signature
+      assert String.match?(hex, ~r/^[0-9a-fA-F]{130}$/)
+      assert Ethers.PersonalMessage.verify(message, signature, from)
+    end
+
+    test "fails signing with an unknown from address" do
+      assert {:error, _reason} =
+               Signer.JsonRPC.personal_sign("Hello world",
+                 from: "0xbba94ef8bd5ffee41947b4585a84bda5a3d3da6e"
+               )
+    end
+
+    test "returns an error tuple (not a raise) when :from is missing" do
+      assert {:error, :missing_from_address} = Signer.JsonRPC.personal_sign("Hello world", [])
+    end
+  end
+
   describe "accounts/1" do
     test "returns account list" do
       assert {:ok, accounts} = Signer.JsonRPC.accounts([])

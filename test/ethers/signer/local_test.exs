@@ -105,6 +105,52 @@ defmodule Ethers.Signer.LocalTest do
     end
   end
 
+  describe "personal_sign/2" do
+    # Expected signature generated independently with foundry:
+    #   cast wallet sign --private-key <anvil key #0> "Hello world"
+    @anvil_private_key "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+    @anvil_address "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+    @hello_world_signature "0x15a3fe3974ebe469b00e67ad67bb3860ad3fc3d739287cdbc4ba558ce7130bee205e5e38d6ef156f1ff6a4df17bfa72a1e61c429f92613f3efbc58394d00c9891b"
+
+    test "produces the exact signature for a fixed key and message" do
+      assert {:ok, @hello_world_signature} ==
+               Signer.Local.personal_sign("Hello world", private_key: @anvil_private_key)
+    end
+
+    test "accepts a matching :from address" do
+      assert {:ok, @hello_world_signature} ==
+               Signer.Local.personal_sign("Hello world",
+                 private_key: @anvil_private_key,
+                 from: @anvil_address
+               )
+    end
+
+    test "returns :wrong_key when :from does not match the private key" do
+      assert {:error, :wrong_key} =
+               Signer.Local.personal_sign("Hello world",
+                 private_key: @anvil_private_key,
+                 from: "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1"
+               )
+    end
+
+    test "returns :no_private_key when no key is given" do
+      assert {:error, :no_private_key} = Signer.Local.personal_sign("Hello world", [])
+    end
+
+    test "matches anvil's personal_sign byte-for-byte" do
+      message = "Hello from the JsonRPC signer"
+
+      assert {:ok, local_signature} =
+               Signer.Local.personal_sign(message, private_key: @anvil_private_key)
+
+      assert {:ok, anvil_signature} =
+               Signer.JsonRPC.personal_sign(message, from: String.downcase(@anvil_address))
+
+      # Deterministic ECDSA over the same digest => identical r || s || v.
+      assert local_signature == anvil_signature
+    end
+  end
+
   describe "accounts/1" do
     test "returns the correct address for a given private key as binary" do
       key =

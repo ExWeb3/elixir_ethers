@@ -126,6 +126,7 @@ defmodule Ethers.SiweTest do
     test "returns error for invalid fields" do
       for {key, value, error} <- [
             {:domain, "#nope", :invalid_domain},
+            {:domain, "example.com:", :invalid_domain},
             {:domain, 42, :invalid_domain},
             {:scheme, "1https", :invalid_scheme},
             {:scheme, 42, :invalid_scheme},

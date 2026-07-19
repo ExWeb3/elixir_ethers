@@ -48,7 +48,7 @@ defmodule Ethers.Siwe do
   @reg_name "(?:[#{@unreserved_or_sub_delims}]|#{@pct_encoded})+"
   @ip_literal "\\[(?:[0-9A-Fa-f:.]+|v[0-9A-Fa-f]+\\.[#{@unreserved_or_sub_delims}:]+)\\]"
 
-  @authority_regex ~r/^(?:#{@userinfo}@)?(?:#{@ip_literal}|#{@reg_name})(?::[0-9]*)?$/
+  @authority_regex ~r/^(?:#{@userinfo}@)?(?:#{@ip_literal}|#{@reg_name})(?::[0-9]+)?$/
   @scheme_regex ~r/^[A-Za-z][A-Za-z0-9+\-.]*$/
   @nonce_regex ~r/^[a-zA-Z0-9]{8,}$/
   @request_id_regex ~r/^(?:[#{@unreserved_or_sub_delims}:@]|#{@pct_encoded})*$/

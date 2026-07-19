@@ -36,7 +36,9 @@ defmodule Ethers do
     to the action data. This is only accepted for these actions and will through error on others.
     - `:call`: data should be a Ethers.TxData struct and overrides are accepted.
     - `:estimate_gas`: data should be a Ethers.TxData struct or a map and overrides are accepted.
-    - `:get_logs`: data should be a Ethers.EventFilter struct and overrides are accepted.
+    - `:get_logs`: data should be a Ethers.EventFilter struct, an Ethers.CombinedEventFilter
+      struct or an EventFilters module (to match all events of a contract) and overrides
+      are accepted.
     - `:send_transaction`: data should be a Ethers.TxData struct and overrides are accepted.
 
 
@@ -68,6 +70,8 @@ defmodule Ethers do
   alias Ethers.TxData
   alias Ethers.Types
   alias Ethers.Utils
+
+  import Ethers.Types, only: [is_module: 1]
 
   @option_keys [:rpc_client, :rpc_opts, :signer, :signer_opts]
   @hex_decode_post_process [
@@ -688,10 +692,13 @@ defmodule Ethers do
   @doc """
   Fetches the event logs with the given filter.
 
-  The filter can either be a single event filter (e.g. `MyContract.EventFilters.transfer(nil, nil)`)
-  or a combined event filter matching multiple events in one request. Combined filters
-  are created with `Ethers.EventFilter.combine/1` or a contract's generated
-  `EventFilters.all/0` function. (e.g. `MyContract.EventFilters.all()`)
+  The filter can be one of:
+
+  - A single event filter. (e.g. `MyContract.EventFilters.transfer(nil, nil)`)
+  - A combined event filter matching multiple events in one request, created with
+    `Ethers.EventFilter.combine/1`.
+  - An EventFilters module of a contract (e.g. `MyContract.EventFilters`) to match all
+    events of that contract.
 
   ## Overrides and Options
 
@@ -701,8 +708,14 @@ defmodule Ethers do
   - `:fromBlock` | `:from_block`: Minimum block number of logs to filter.
   - `:toBlock` | `:to_block`: Maximum block number of logs to filter.
   """
-  @spec get_logs(map(), Keyword.t()) :: {:ok, [Event.t()]} | {:error, atom()}
-  def get_logs(event_filter, overrides \\ []) do
+  @spec get_logs(map() | module(), Keyword.t()) :: {:ok, [Event.t()]} | {:error, atom()}
+  def get_logs(event_filter, overrides \\ [])
+
+  def get_logs(events_module, overrides) when is_module(events_module) do
+    get_logs(CombinedEventFilter.all!(events_module), overrides)
+  end
+
+  def get_logs(event_filter, overrides) do
     {opts, overrides} = Keyword.split(overrides, @option_keys)
 
     {rpc_client, rpc_opts} = get_rpc_client(opts)
@@ -716,7 +729,7 @@ defmodule Ethers do
   @doc """
   Same as `Ethers.get_logs/2` but raises on error.
   """
-  @spec get_logs!(map(), Keyword.t()) :: [Event.t()] | no_return
+  @spec get_logs!(map() | module(), Keyword.t()) :: [Event.t()] | no_return
   def get_logs!(params, overrides \\ []) do
     case get_logs(params, overrides) do
       {:ok, logs} -> logs
@@ -1015,9 +1028,20 @@ defmodule Ethers do
 
   defp prepare_requests(requests) do
     Enum.map(requests, fn
-      {action, data} -> {action, data, []}
-      {action, data, overrides} -> {action, data, overrides}
-      action when is_atom(action) -> {action, [], []}
+      {:get_logs, events_module} when is_module(events_module) ->
+        {:get_logs, CombinedEventFilter.all!(events_module), []}
+
+      {:get_logs, events_module, overrides} when is_module(events_module) ->
+        {:get_logs, CombinedEventFilter.all!(events_module), overrides}
+
+      {action, data} ->
+        {action, data, []}
+
+      {action, data, overrides} ->
+        {action, data, overrides}
+
+      action when is_atom(action) ->
+        {action, [], []}
     end)
   end
 

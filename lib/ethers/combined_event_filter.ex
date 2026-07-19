@@ -2,9 +2,11 @@ defmodule Ethers.CombinedEventFilter do
   @moduledoc """
   A filter matching any of multiple events (OR semantics) in a single `eth_getLogs` request.
 
-  Combined event filters are created with `Ethers.EventFilter.combine/1` or with the
-  generated `EventFilters.all/0` function of a contract module and can be used anywhere
-  a regular event filter is accepted (e.g. `Ethers.get_logs/2` and `Ethers.batch/2`).
+  Combined event filters are created with `Ethers.EventFilter.combine/1` and can be used
+  anywhere a regular event filter is accepted (e.g. `Ethers.get_logs/2` and
+  `Ethers.batch/2`). To match all events of a contract, pass its EventFilters module
+  directly to `Ethers.get_logs/2` (or `Ethers.EventFilter.combine/1`) which internally
+  translates it to a combined filter of all the contract events.
 
   The topics of the combined filters are sent to the RPC endpoint as an OR-ed list of
   `topic_0` values so filtering happens server side. Fetched logs are decoded using the
@@ -29,12 +31,18 @@ defmodule Ethers.CombinedEventFilter do
 
   Ethers.get_logs(filter, address: "0x...")
   {:ok, [%Ethers.Event{...}, ...]}
+
+  # Or fetch all events of a contract by passing its EventFilters module
+  Ethers.get_logs(Ethers.Contracts.ERC20.EventFilters, address: "0x...")
+  {:ok, [%Ethers.Event{...}, ...]}
   ```
   """
 
   alias Ethers.ContractHelpers
   alias Ethers.Event
   alias Ethers.EventFilter
+
+  import Ethers.Types, only: [is_module: 1]
 
   @typedoc """
   Holds the combined topics (a single OR-ed list of `topic_0` values), the event
@@ -50,45 +58,40 @@ defmodule Ethers.CombinedEventFilter do
   defstruct [:topics, :selectors, :default_address]
 
   @doc false
-  @spec new([EventFilter.t()]) :: t()
-  def new([_ | _] = event_filters) do
-    Enum.each(event_filters, &validate_filter!/1)
+  @spec new([EventFilter.t() | module()] | module()) :: t()
+  def new(events_module) when is_module(events_module), do: new([events_module])
 
-    {topic_0s, selectors} =
-      Enum.reduce(event_filters, {[], %{}}, fn %EventFilter{topics: [topic_0 | _]} = filter,
-                                               {topic_0s, selectors} ->
-        topic_0 = String.downcase(topic_0)
+  def new(filters_or_modules) when is_list(filters_or_modules) do
+    case Enum.flat_map(filters_or_modules, &expand_filters/1) do
+      [] ->
+        raise ArgumentError, "cannot combine an empty list of event filters"
 
-        if Map.has_key?(selectors, topic_0) do
-          {topic_0s, selectors}
-        else
-          {[topic_0 | topic_0s], Map.put(selectors, topic_0, filter.selector)}
-        end
-      end)
+      event_filters ->
+        Enum.each(event_filters, &validate_filter!/1)
 
-    %__MODULE__{
-      topics: [Enum.reverse(topic_0s)],
-      selectors: selectors,
-      default_address: combined_default_address!(event_filters)
-    }
-  end
+        {topic_0s, selectors} = Enum.reduce(event_filters, {[], %{}}, &collect_topic_0/2)
 
-  def new(event_filters) when is_list(event_filters) do
-    raise ArgumentError, "cannot combine an empty list of event filters"
+        %__MODULE__{
+          topics: [Enum.reverse(topic_0s)],
+          selectors: selectors,
+          default_address: combined_default_address!(event_filters)
+        }
+    end
   end
 
   @doc false
   @spec from_events_module(module()) :: t()
-  def from_events_module(events_module) do
-    events_module.__events__()
-    |> Enum.map(fn selector ->
-      wildcard_args = Enum.map(ContractHelpers.event_indexed_types(selector), fn _ -> nil end)
+  def from_events_module(events_module), do: new([events_module])
 
-      selector
-      |> ContractHelpers.encode_event_topics(wildcard_args)
-      |> EventFilter.new(selector, events_module.__default_address__())
-    end)
-    |> new()
+  @doc false
+  @spec all!(module()) :: t()
+  def all!(events_module) when is_module(events_module) do
+    if Code.ensure_loaded?(events_module) and function_exported?(events_module, :__all__, 0) do
+      events_module.__all__()
+    else
+      raise ArgumentError,
+            "#{inspect(events_module)} is not an EventFilters module of an Ethers contract"
+    end
   end
 
   @doc false
@@ -118,6 +121,47 @@ defmodule Ethers.CombinedEventFilter do
     end)
   end
 
+  defp expand_filters(%EventFilter{} = filter), do: [filter]
+
+  defp expand_filters(events_module) when is_module(events_module) do
+    unless Code.ensure_loaded?(events_module) and
+             function_exported?(events_module, :__events__, 0) do
+      raise ArgumentError,
+            "#{inspect(events_module)} is not an EventFilters module of an Ethers contract"
+    end
+
+    case events_module.__events__() do
+      [] ->
+        raise ArgumentError, "#{inspect(events_module)} does not have any events"
+
+      selectors ->
+        Enum.map(selectors, &wildcard_filter(&1, events_module.__default_address__()))
+    end
+  end
+
+  defp expand_filters(other) do
+    raise ArgumentError,
+          "expected an Ethers.EventFilter struct or an EventFilters module, got: #{inspect(other)}"
+  end
+
+  defp wildcard_filter(selector, default_address) do
+    wildcard_args = Enum.map(ContractHelpers.event_indexed_types(selector), fn _ -> nil end)
+
+    selector
+    |> ContractHelpers.encode_event_topics(wildcard_args)
+    |> EventFilter.new(selector, default_address)
+  end
+
+  defp collect_topic_0(%EventFilter{topics: [topic_0 | _]} = filter, {topic_0s, selectors}) do
+    topic_0 = String.downcase(topic_0)
+
+    if Map.has_key?(selectors, topic_0) do
+      {topic_0s, selectors}
+    else
+      {[topic_0 | topic_0s], Map.put(selectors, topic_0, filter.selector)}
+    end
+  end
+
   defp validate_filter!(%EventFilter{topics: [_topic_0 | sub_topics]} = filter) do
     if Enum.all?(sub_topics, &is_nil/1) do
       :ok
@@ -126,10 +170,6 @@ defmodule Ethers.CombinedEventFilter do
             "cannot combine event filter with indexed-argument values: #{inspect(filter)}" <>
               " (use nil as a wildcard for all indexed arguments)"
     end
-  end
-
-  defp validate_filter!(other) do
-    raise ArgumentError, "expected an Ethers.EventFilter struct, got: #{inspect(other)}"
   end
 
   defp combined_default_address!(event_filters) do

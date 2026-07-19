@@ -444,7 +444,7 @@ defmodule EthersTest do
     end
 
     test "is included in combined event filters when has default address" do
-      filter = HelloWorldWithDefaultAddressContract.EventFilters.all()
+      filter = HelloWorldWithDefaultAddressContract.EventFilters.__all__()
 
       assert %Ethers.CombinedEventFilter{
                default_address: "0x1000bf6a479f320ead074411a4b0e7944ea8c9c1"
@@ -457,7 +457,7 @@ defmodule EthersTest do
     end
 
     test "is not included in combined event filters when does not have default address" do
-      filter = HelloWorldContract.EventFilters.all()
+      filter = Ethers.EventFilter.combine(HelloWorldContract.EventFilters)
 
       assert %Ethers.CombinedEventFilter{default_address: nil} = filter
 

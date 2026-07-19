@@ -55,6 +55,11 @@ defmodule Ethers.Types do
   defguardp valid_bytesize(bytesize) when bytesize >= 1 and bytesize <= 32
 
   @doc """
+  Guard to check if the given term can be a module name. (an atom excluding `nil` and booleans)
+  """
+  defguard is_module(term) when is_atom(term) and term not in [nil, true, false]
+
+  @doc """
   Converts EVM data types to typespecs for documentation
   """
   def to_elixir_type(:address) do

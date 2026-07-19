@@ -36,8 +36,8 @@ defmodule Ethers.EventFilter do
   an OR-ed list of `topic_0` values and each fetched log is decoded using its matching
   event selector.
 
-  To combine all events of a contract, use the generated `EventFilters.all/0` function
-  of the contract module instead. (e.g. `Ethers.Contracts.ERC20.EventFilters.all()`)
+  Accepts event filters as well as EventFilters modules of contracts, which translate
+  to all events of that contract. (e.g. `Ethers.Contracts.ERC20.EventFilters`)
 
   ## Rules
 
@@ -60,8 +60,11 @@ defmodule Ethers.EventFilter do
 
       Ethers.get_logs(filter, address: "0x...")
       #=> {:ok, [%Ethers.Event{...}, ...]}
+
+      # All events of a contract
+      Ethers.EventFilter.combine([Ethers.Contracts.ERC20.EventFilters])
   """
-  @spec combine([t()]) :: Ethers.CombinedEventFilter.t()
+  @spec combine([t() | module()] | module()) :: Ethers.CombinedEventFilter.t()
   defdelegate combine(event_filters), to: Ethers.CombinedEventFilter, as: :new
 
   @doc false

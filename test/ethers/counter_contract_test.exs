@@ -351,7 +351,7 @@ defmodule Ethers.CounterContractTest do
              } = reset_called_event
     end
 
-    test "EventFilters.all/0 matches all events of the contract", %{address: address} do
+    test "passing an EventFilters module matches all events of the contract", %{address: address} do
       %{block_range: block_range} = emit_set_and_reset(address)
 
       assert [
@@ -359,9 +359,21 @@ defmodule Ethers.CounterContractTest do
                %Event{topics: ["ResetCalled()"], data: []}
              ] =
                Ethers.get_logs!(
-                 CounterContract.EventFilters.all(),
+                 CounterContract.EventFilters,
                  [address: address] ++ block_range
                )
+    end
+
+    test "combine accepts EventFilters modules", %{address: address} do
+      %{block_range: block_range} = emit_set_and_reset(address)
+
+      filter = Ethers.EventFilter.combine([CounterContract.EventFilters])
+
+      assert filter == Ethers.EventFilter.combine(CounterContract.EventFilters)
+      assert filter == CounterContract.EventFilters.__all__()
+
+      assert {:ok, [%Event{}, %Event{}]} =
+               Ethers.get_logs(filter, [address: address] ++ block_range)
     end
 
     test "only fetches logs of the combined events", %{address: address} do
@@ -382,8 +394,11 @@ defmodule Ethers.CounterContractTest do
           CounterContract.EventFilters.reset_called()
         ])
 
-      assert {:ok, [ok: [set_called_event, reset_called_event]]} =
-               Ethers.batch([{:get_logs, filter, [address: address] ++ block_range}])
+      assert {:ok, [ok: [set_called_event, reset_called_event], ok: [_, _]]} =
+               Ethers.batch([
+                 {:get_logs, filter, [address: address] ++ block_range},
+                 {:get_logs, CounterContract.EventFilters, [address: address] ++ block_range}
+               ])
 
       assert %Event{topics: ["SetCalled(uint256,uint256)", 100]} = set_called_event
       assert %Event{topics: ["ResetCalled()"]} = reset_called_event
@@ -442,8 +457,18 @@ defmodule Ethers.CounterContractTest do
     end
 
     test "combining non event filters raises" do
+      assert_raise ArgumentError, ~r/is not an EventFilters module/, fn ->
+        Ethers.EventFilter.combine([:not_a_module])
+      end
+
       assert_raise ArgumentError, ~r/expected an Ethers.EventFilter struct/, fn ->
-        Ethers.EventFilter.combine([:not_a_filter])
+        Ethers.EventFilter.combine([%{some: :map}])
+      end
+    end
+
+    test "get_logs with a non EventFilters module raises" do
+      assert_raise ArgumentError, ~r/is not an EventFilters module/, fn ->
+        Ethers.get_logs(:not_a_module)
       end
     end
 

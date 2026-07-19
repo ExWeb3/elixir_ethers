@@ -120,7 +120,6 @@ defmodule Ethers.Contract do
 
     events_impl = Enum.map(events, &impl(&1, module, impl_opts))
     event_selectors = Enum.flat_map(events, & &1.selectors)
-    events_all_ast = events_all_impl(events, skip_docs)
 
     external_resource_ast =
       if abi_file do
@@ -138,7 +137,12 @@ defmodule Ethers.Contract do
 
           defdelegate __default_address__, to: unquote(module)
           unquote(events_impl)
-          unquote(events_all_ast)
+
+          @doc false
+          @spec __all__() :: Ethers.CombinedEventFilter.t()
+          def __all__ do
+            Ethers.CombinedEventFilter.from_events_module(__MODULE__)
+          end
 
           def __events__, do: unquote(Macro.escape(event_selectors))
         end
@@ -348,33 +352,6 @@ defmodule Ethers.Contract do
           defimpl Inspect do
             defdelegate inspect(error, opts), to: Ethers.Error
           end
-        end
-      end
-    end
-  end
-
-  defp events_all_impl([], _skip_docs), do: nil
-
-  defp events_all_impl(events, skip_docs) do
-    # Skip generation if the contract has an `All()` event with no indexed arguments
-    # since it would collide with this function
-    if Enum.any?(events, &(Macro.underscore(&1.function) == "all" and &1.arity == 0)) do
-      nil
-    else
-      quote location: :keep do
-        if unquote(generate_docs?(:all, skip_docs)) do
-          @doc """
-          Create a combined event filter matching any event of this contract.
-
-          The filter can be used with `Ethers.get_logs/2` to fetch and decode all events
-          of this contract in a single request. See `Ethers.EventFilter.combine/1` for
-          combining a custom set of event filters.
-          """
-          @spec all() :: Ethers.CombinedEventFilter.t()
-        end
-
-        def all do
-          Ethers.CombinedEventFilter.from_events_module(__MODULE__)
         end
       end
     end

@@ -125,8 +125,8 @@ filter =
     MyToken.EventFilters.approval(nil, nil)
   ])
 
-# Or fetch all events of a contract
-{:ok, events} = Ethers.get_logs(MyToken.EventFilters.all(), address: "0x...")
+# Or fetch all events of a contract by passing its EventFilters module
+{:ok, events} = Ethers.get_logs(MyToken.EventFilters, address: "0x...")
 ```
 
 ## Documentation

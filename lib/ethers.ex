@@ -708,7 +708,7 @@ defmodule Ethers do
   - `:fromBlock` | `:from_block`: Minimum block number of logs to filter.
   - `:toBlock` | `:to_block`: Maximum block number of logs to filter.
   """
-  @spec get_logs(map() | module(), Keyword.t()) :: {:ok, [Event.t()]} | {:error, atom()}
+@spec get_logs(map() | module(), Keyword.t()) :: {:ok, [Event.t()]} | {:error, term()}
   def get_logs(event_filter, overrides \\ [])
 
   def get_logs(events_module, overrides) when is_module(events_module) do

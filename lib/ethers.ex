@@ -60,6 +60,7 @@ defmodule Ethers do
   ```
   """
 
+  alias Ethers.CombinedEventFilter
   alias Ethers.Event
   alias Ethers.EventFilter
   alias Ethers.ExecutionError
@@ -687,6 +688,11 @@ defmodule Ethers do
   @doc """
   Fetches the event logs with the given filter.
 
+  The filter can either be a single event filter (e.g. `MyContract.EventFilters.transfer(nil, nil)`)
+  or a combined event filter matching multiple events in one request. Combined filters
+  are created with `Ethers.EventFilter.combine/1` or a contract's generated
+  `EventFilters.all/0` function. (e.g. `MyContract.EventFilters.all()`)
+
   ## Overrides and Options
 
   - `:address`: Indicates event emitter contract address. (nil means all contracts)
@@ -886,6 +892,8 @@ defmodule Ethers do
       |> ensure_hex_value(:from_block)
       |> ensure_hex_value(:toBlock)
       |> ensure_hex_value(:to_block)
+      |> rename_key(:from_block, :fromBlock)
+      |> rename_key(:to_block, :toBlock)
 
     {:ok, log_params}
   end
@@ -928,6 +936,11 @@ defmodule Ethers do
   defp post_process({:ok, gas_hex}, _tx_data, action)
        when valid_result(gas_hex) and action in @hex_decode_post_process do
     Utils.hex_to_integer(gas_hex)
+  end
+
+  defp post_process({:ok, resp}, %CombinedEventFilter{} = combined_filter, :get_logs)
+       when is_list(resp) do
+    {:ok, CombinedEventFilter.decode_logs(resp, combined_filter)}
   end
 
   defp post_process({:ok, resp}, event_filter, :get_logs) when is_list(resp) do
@@ -990,6 +1003,13 @@ defmodule Ethers do
     case Map.get(params, key) do
       v when is_integer(v) -> %{params | key => Utils.integer_to_hex(v)}
       _ -> params
+    end
+  end
+
+  defp rename_key(params, key, new_key) do
+    case Map.pop(params, key) do
+      {nil, params} -> params
+      {value, params} -> Map.put(params, new_key, value)
     end
   end
 

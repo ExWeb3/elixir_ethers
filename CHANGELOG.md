@@ -4,6 +4,11 @@
 
 ### Enhancements
 
+- Add combined event filters: fetch multiple events (OR semantics) in a single `eth_getLogs`
+  request with `Ethers.EventFilter.combine/1` or all events of a contract with the generated
+  `EventFilters.all/0` function (e.g. `MyContract.EventFilters.all()`) — the resulting
+  `Ethers.CombinedEventFilter` works with `Ethers.get_logs/2` and `Ethers.batch/2` and decodes
+  each fetched log with its matching event selector
 - Add [EIP-191](https://eips.ethereum.org/EIPS/eip-191) personal message support: hash, recover
   and verify messages with `Ethers.PersonalMessage`, and sign them via `Ethers.personal_sign/2`
   with the `Ethers.Signer.Local` and `Ethers.Signer.JsonRPC` signers through the new optional

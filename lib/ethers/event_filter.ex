@@ -27,12 +27,53 @@ defmodule Ethers.EventFilter do
     }
   end
 
+  @doc """
+  Combines multiple event filters into a single `Ethers.CombinedEventFilter` matching
+  any of the given events (OR semantics) in one `eth_getLogs` request.
+
+  The combined filter can be used anywhere a regular event filter is accepted
+  (e.g. `Ethers.get_logs/2` and `Ethers.batch/2`). Filtering happens server side using
+  an OR-ed list of `topic_0` values and each fetched log is decoded using its matching
+  event selector.
+
+  To combine all events of a contract, use the generated `EventFilters.all/0` function
+  of the contract module instead. (e.g. `Ethers.Contracts.ERC20.EventFilters.all()`)
+
+  ## Rules
+
+  Raises `ArgumentError` if:
+
+  - The list of filters is empty.
+  - Any filter has indexed-argument values. Only wildcard filters (all indexed
+    arguments set to `nil`) can be combined, since `eth_getLogs` topics are positional
+    and OR-ing them across events would match unintended logs.
+  - Filters have conflicting default addresses. `eth_getLogs` accepts a single address,
+    so all combined filters must belong to the same contract.
+
+  ## Examples
+
+      filter =
+        Ethers.EventFilter.combine([
+          Ethers.Contracts.ERC20.EventFilters.transfer(nil, nil),
+          Ethers.Contracts.ERC20.EventFilters.approval(nil, nil)
+        ])
+
+      Ethers.get_logs(filter, address: "0x...")
+      #=> {:ok, [%Ethers.Event{...}, ...]}
+  """
+  @spec combine([t()]) :: Ethers.CombinedEventFilter.t()
+  defdelegate combine(event_filters), to: Ethers.CombinedEventFilter, as: :new
+
   @doc false
-  @spec to_map(t() | map(), Keyword.t()) :: map()
+  @spec to_map(t() | Ethers.CombinedEventFilter.t() | map(), Keyword.t()) :: map()
   def to_map(%__MODULE__{} = tx_data, overrides) do
     tx_data
     |> event_filter_map()
     |> to_map(overrides)
+  end
+
+  def to_map(%Ethers.CombinedEventFilter{} = combined_filter, overrides) do
+    Ethers.CombinedEventFilter.to_map(combined_filter, overrides)
   end
 
   def to_map(event_filter, overrides) do

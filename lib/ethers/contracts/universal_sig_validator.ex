@@ -28,7 +28,7 @@ defmodule Ethers.Contracts.UniversalSigValidator do
   @doc """
   Returns the creation (init) bytecode of the validator contract.
   """
-  @spec creation_code() :: binary()
+  @spec creation_code() :: <<_::13_472>>
   def creation_code, do: @creation_code
 
   @doc """
@@ -38,7 +38,7 @@ defmodule Ethers.Contracts.UniversalSigValidator do
   the creation code followed by the ABI-encoded
   `(address _signer, bytes32 _hash, bytes _signature)` constructor arguments.
   """
-  @spec encode_validation_call(<<_::160>>, <<_::256>>, binary()) :: binary()
+  @spec encode_validation_call(<<_::160>>, <<_::256>>, binary()) :: <<_::64, _::_*8>>
   def encode_validation_call(
         <<_::binary-size(20)>> = signer,
         <<_::binary-size(32)>> = hash,

@@ -13,6 +13,11 @@
   and counterfactual, not-yet-deployed wallets ([ERC-6492](https://eips.ethereum.org/EIPS/eip-6492)) —
   against a digest, an EIP-191 personal message or EIP-712 typed data with
   `Ethers.Signature.verify_hash/4`, `verify_message/4` and `verify_typed_data/4`
+- Add Sign-In with Ethereum ([EIP-4361](https://eips.ethereum.org/EIPS/eip-4361)) support with
+  `Ethers.Siwe`: build (`new/1`), render (`to_message/1`), parse (`parse/1`) and validate
+  (`validate/2`) SIWE messages, generate session nonces (`generate_nonce/0`), and verify a
+  message and its signature end-to-end with `Ethers.Siwe.verify/3` — smart-contract wallets
+  included via the universal signature verification above
 - Add [EIP-712](https://eips.ethereum.org/EIPS/eip-712) typed data support: construct typed
   structured data with `Ethers.TypedData`, hash it (`encode_type`, `type_hash`, `hash_struct`,
   `domain_separator`, `hash`), sign it via `Ethers.sign_typed_data/2` with the `Ethers.Signer.Local`

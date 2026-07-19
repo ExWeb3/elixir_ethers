@@ -13,6 +13,8 @@ defmodule Ethers.Siwe do
   - `to_message/1` - render the EIP-4361 string for the wallet to sign
   - `parse/1` - parse a message string received from a client
   - `validate/2` - stateless validation (validity window, domain/nonce/address binding)
+  - `verify/3` - the one-call backend flow: parse, validate and check the signature
+    (including ERC-1271/ERC-6492 smart-contract wallets)
 
   See the [Sign-In with Ethereum guide](siwe.html) for a complete Phoenix integration recipe.
 
@@ -32,6 +34,7 @@ defmodule Ethers.Siwe do
       "example.com wants you to sign in with your Ethereum account:\\n0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2\\n\\nSign in to Example\\n\\nURI: https://example.com/login\\nVersion: 1\\nChain ID: 1\\nNonce: 32891756\\nIssued At: 2021-09-30T16:25:24.000Z"
   """
 
+  alias Ethers.Signature
   alias Ethers.Siwe.Message
   alias Ethers.Utils
 
@@ -259,6 +262,65 @@ defmodule Ethers.Siwe do
          :ok <- check_exact(message.scheme, Keyword.get(opts, :scheme), :scheme_mismatch),
          :ok <- check_exact(message.nonce, Keyword.get(opts, :nonce), :nonce_mismatch) do
       check_address(message, Keyword.get(opts, :address))
+    end
+  end
+
+  @doc """
+  Verifies a SIWE message end-to-end: parse (when given a string), validate the fields and
+  check the signature.
+
+  This is the one-call backend flow. The signature check uses
+  `Ethers.Signature.verify_message/4`, so EOA signatures verify locally without any RPC
+  round-trip while smart-contract wallets ([ERC-1271](https://eips.ethereum.org/EIPS/eip-1271),
+  deployed or not — [ERC-6492](https://eips.ethereum.org/EIPS/eip-6492)) are verified with a
+  single `eth_call`.
+
+  ## Parameters
+
+  - `message`: The raw EIP-4361 message string received from the client, or an already-parsed
+    `Ethers.Siwe.Message`. When given a string, the signature is verified over that exact
+    string.
+  - `signature`: The signature as a `0x`-prefixed hex string or raw binary. ERC-6492-wrapped
+    signatures are supported.
+  - `opts`: Options.
+
+  ## Options
+
+  All of `validate/2`'s options (`:time`, `:domain`, `:scheme`, `:nonce`, `:address`) plus
+  the RPC options forwarded to `Ethers.Signature.verify_hash/4` for smart-wallet
+  verification: `:rpc_client`, `:rpc_opts` and `:block`.
+
+  ## Returns
+
+  - `{:ok, message}` with the parsed/validated `Ethers.Siwe.Message` on success — trust
+    `message.address` afterwards.
+  - `{:error, :invalid_signature}` if the signature does not verify for `message.address`.
+  - `{:error, reason}` for parse errors, `validate/2` errors or RPC transport failures.
+  """
+  @spec verify(String.t() | Message.t(), binary(), Keyword.t()) ::
+          {:ok, Message.t()} | {:error, term()}
+  def verify(message, signature, opts \\ [])
+
+  def verify(%Message{} = message, signature, opts) do
+    do_verify(message, to_message(message), signature, opts)
+  end
+
+  def verify(raw_message, signature, opts) when is_binary(raw_message) do
+    with {:ok, message} <- parse(raw_message) do
+      do_verify(message, raw_message, signature, opts)
+    end
+  end
+
+  defp do_verify(%Message{} = message, raw_message, signature, opts) do
+    signature_opts = Keyword.take(opts, [:rpc_client, :rpc_opts, :block])
+
+    with :ok <- validate(message, opts),
+         {:ok, true} <-
+           Signature.verify_message(raw_message, signature, message.address, signature_opts) do
+      {:ok, message}
+    else
+      {:ok, false} -> {:error, :invalid_signature}
+      {:error, reason} -> {:error, reason}
     end
   end
 

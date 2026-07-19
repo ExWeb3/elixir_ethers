@@ -149,7 +149,12 @@ defmodule Ethers.Signature do
 
     case Ethers.secp256k1_module().recover(hash, r, s, recovery_id) do
       {:ok, public_key} ->
-        Utils.public_key_to_address(public_key, false) |> Utils.decode_address!() == address_bin
+        recovered_address_bin =
+          public_key
+          |> Utils.public_key_to_address(false)
+          |> Utils.decode_address!()
+
+        recovered_address_bin == address_bin
 
       {:error, _reason} ->
         false

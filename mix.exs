@@ -70,6 +70,7 @@ defmodule Ethers.MixProject do
         "CHANGELOG.md": [title: "Changelog"],
         "guides/typed-arguments.md": [title: "Typed Arguments"],
         "guides/eip-712.md": [title: "EIP-712 Typed Data"],
+        "guides/siwe.md": [title: "Sign-In with Ethereum"],
         "guides/configuration.md": [title: "Configuration"],
         "guides/upgrading.md": [title: "Upgrading"]
       ],
@@ -92,6 +93,10 @@ defmodule Ethers.MixProject do
         Signer: [
           ~r/^Ethers\.Signer\.[A-Za-z0-9.]+$/,
           ~r/^Ethers\.Signer$/
+        ],
+        "Sign-In with Ethereum": [
+          "Ethers.Siwe",
+          "Ethers.Siwe.Message"
         ],
         "Typed Data": [
           "Ethers.TypedData",

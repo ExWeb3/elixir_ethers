@@ -352,6 +352,9 @@ defmodule Ethers.TypedData do
   `signature` may be given as a `0x`-prefixed hex string (130 hex chars) or a raw 65-byte binary
   (`r ‖ s ‖ v`).
 
+  Recovery is `ecrecover`-based and therefore works for externally-owned accounts (EOAs)
+  only — smart-contract wallets (ERC-1271/ERC-6492) do not have a recoverable signer.
+
   ## Returns
 
   - a checksummed `0x` address string on success.
@@ -388,6 +391,11 @@ defmodule Ethers.TypedData do
   comparison is done on the decoded 20-byte addresses, so checksum/case differences are ignored.
 
   `signature` may be a `0x`-prefixed hex string or a raw 65-byte binary.
+
+  EOA-only — signatures from smart-contract wallets (ERC-1271/ERC-6492) always fail this
+  check. Prefer `Ethers.Signature.verify_typed_data/4`, which verifies EOA and
+  smart-contract wallet signatures alike; use this function when you specifically need a
+  pure, RPC-free check for signatures known to come from EOA keys.
 
   ## Examples
 

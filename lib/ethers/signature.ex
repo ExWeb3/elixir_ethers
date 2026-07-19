@@ -164,7 +164,7 @@ defmodule Ethers.Signature do
     data = UniversalSigValidator.encode_validation_call(address_bin, hash, signature)
 
     case rpc_client.eth_call(%{data: Utils.hex_encode(data)}, block(opts), rpc_opts) do
-      {:ok, "0x01"} -> {:ok, true}
+      {:ok, result} when result in ["0x01", "0x1"] -> {:ok, true}
       {:ok, result} when result in ["0x00", "0x"] -> {:ok, false}
       {:ok, result} -> {:error, {:unexpected_result, result}}
       {:error, reason} -> handle_rpc_error(reason)

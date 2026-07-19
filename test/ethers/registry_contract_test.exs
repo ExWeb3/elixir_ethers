@@ -11,7 +11,7 @@ defmodule Ethers.RegistryContractTest do
 
   alias Ethers.Contract.Test.RegistryContract
 
-  @from "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
+  @from "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
   @from1 "0x70997970C51812dc3A010C7d01b50e0d17dc79C8"
   @from2 "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC"
 

@@ -10,7 +10,7 @@ defmodule Ethers.EventMixedIndexContractTest do
 
   alias Ethers.Contract.Test.EventMixedIndexContract
 
-  @from "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
+  @from "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
 
   describe "event filters" do
     test "works with mixed indexed events" do
@@ -76,7 +76,7 @@ defmodule Ethers.EventMixedIndexContractTest do
     end
 
     test "inspect returns correct value" do
-      assert ~s'#Ethers.EventFilter<event Transfer(uint256 amount, address indexed sender "0x90f8bf6a479f320ead074411a4b0e7944ea80000", bool isFinal, address indexed receiver "0x90f8bf6a479f320ead074411a4b0e7944ea80001")>' ==
+      assert ~s'#Ethers.EventFilter<event Transfer(uint256 amount, address indexed sender "0x90F8BF6A479f320EAd074411a4b0E7944ea80000", bool isFinal, address indexed receiver "0x90f8Bf6A479f320eaD074411a4B0e7944ea80001")>' ==
                inspect(
                  EventMixedIndexContract.EventFilters.transfer(
                    "0x90f8bf6a479f320ead074411a4b0e7944ea80000",
@@ -84,7 +84,7 @@ defmodule Ethers.EventMixedIndexContractTest do
                  )
                )
 
-      assert ~s'#Ethers.EventFilter<event Transfer(uint256 amount, address indexed sender any, bool isFinal, address indexed receiver "0x90f8bf6a479f320ead074411a4b0e7944ea80001")>' ==
+      assert ~s'#Ethers.EventFilter<event Transfer(uint256 amount, address indexed sender any, bool isFinal, address indexed receiver "0x90f8Bf6A479f320eaD074411a4B0e7944ea80001")>' ==
                inspect(
                  EventMixedIndexContract.EventFilters.transfer(
                    nil,

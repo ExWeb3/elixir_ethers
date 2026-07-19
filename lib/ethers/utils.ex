@@ -192,7 +192,7 @@ defmodule Ethers.Utils do
       <<192, 42, 170, 57, 178, 35, 254, 141, 10, 14, 92, 79, 39, 234, 217, 8, 60, 117, 108, 194>>
   """
   @spec prepare_arg(term(), ABI.FunctionSelector.type()) :: term()
-  def prepare_arg("0x" <> _ = argument, :address), do: hex_decode!(argument)
+  def prepare_arg(<<"0x", address::binary-40>>, :address), do: hex_decode!(address)
   def prepare_arg(arguments, {:array, type}), do: Enum.map(arguments, &prepare_arg(&1, type))
   def prepare_arg(arguments, {:array, type, _}), do: Enum.map(arguments, &prepare_arg(&1, type))
 
@@ -212,14 +212,17 @@ defmodule Ethers.Utils do
   ## Examples
       iex> Ethers.Utils.human_arg(<<192, 42, 170, 57, 178, 35, 254, 141, 10, 14, 92, 79, 39,
       ...> 234, 217, 8, 60, 117, 108, 194>>, :address)
-      "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
+      "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
 
       iex> Ethers.Utils.human_arg("0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2", :address)
-      "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
+      "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
   """
   @spec human_arg(term(), ABI.FunctionSelector.type()) :: term()
-  def human_arg("0x" <> _ = argument, :address), do: argument
-  def human_arg(argument, :address), do: hex_encode(argument)
+  def human_arg(<<"0x", _::binary-40>> = address, :address), do: to_checksum_address(address)
+  def human_arg(<<address::binary-20>>, :address), do: to_checksum_address(address)
+
+  def human_arg(invalid, :address),
+    do: raise(ArgumentError, "Invalid address: #{inspect(invalid)}")
 
   def human_arg(arguments, {:array, type}), do: Enum.map(arguments, &human_arg(&1, type))
   def human_arg(arguments, {:array, type, _}), do: Enum.map(arguments, &human_arg(&1, type))
@@ -255,12 +258,15 @@ defmodule Ethers.Utils do
       iex> Ethers.Utils.to_checksum_address("0XDE709F2102306220921060314715629080e2Fb77", 30)
       "0xDe709F2102306220921060314715629080e2FB77"
   """
-  @spec to_checksum_address(Ethers.Types.t_address(), pos_integer() | nil) ::
+  @spec to_checksum_address(Ethers.Types.t_address() | <<_::320>>, pos_integer() | nil) ::
           Ethers.Types.t_address()
   def to_checksum_address(address, chain_id \\ nil)
 
-  def to_checksum_address("0x" <> address, chain_id), do: to_checksum_address(address, chain_id)
-  def to_checksum_address("0X" <> address, chain_id), do: to_checksum_address(address, chain_id)
+  def to_checksum_address(<<"0x", address::binary-40>>, chain_id),
+    do: to_checksum_address(address, chain_id)
+
+  def to_checksum_address(<<"0X", address::binary-40>>, chain_id),
+    do: to_checksum_address(address, chain_id)
 
   def to_checksum_address(<<address_bin::binary-20>>, chain_id),
     do: hex_encode(address_bin, false) |> to_checksum_address(chain_id)
@@ -341,18 +347,18 @@ defmodule Ethers.Utils do
     public_key_to_address(public_key, use_checksum_address)
   end
 
-  unless Code.ensure_loaded?(Ethers.secp256k1_module()) do
-    def public_key_to_address(<<pre, _::binary-32>> = compressed, _use_checksum_address)
+  if Code.ensure_loaded?(Ethers.secp256k1_module()) do
+    def public_key_to_address(<<pre, _::binary-32>> = compressed, use_checksum_address)
+        when pre in [2, 3] do
+      case Ethers.secp256k1_module().public_key_decompress(compressed) do
+        {:ok, public_key} -> public_key_to_address(public_key, use_checksum_address)
+        error -> raise ArgumentError, "Invalid compressed public key #{inspect(error)}"
+      end
+    end
+  else
+    def public_key_to_address(<<pre, _::binary-32>> = _compressed, _use_checksum_address)
         when pre in [2, 3],
         do: raise("secp256k1 module not loaded")
-  end
-
-  def public_key_to_address(<<pre, _::binary-32>> = compressed, use_checksum_address)
-      when pre in [2, 3] do
-    case Ethers.secp256k1_module().public_key_decompress(compressed) do
-      {:ok, public_key} -> public_key_to_address(public_key, use_checksum_address)
-      error -> raise ArgumentError, "Invalid compressed public key #{inspect(error)}"
-    end
   end
 
   def public_key_to_address("0x" <> _ = key, use_checksum_address) do

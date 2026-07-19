@@ -468,6 +468,140 @@ defmodule Ethers do
   end
 
   @doc """
+  Signs an [EIP-712](https://eips.ethereum.org/EIPS/eip-712) typed-data payload and returns the
+  signature as a `0x`-prefixed hex string (65 bytes: `r ‖ s ‖ v`).
+
+  Unlike `sign_transaction/2`, no transaction fields are auto-fetched; the given
+  `Ethers.TypedData` is signed as-is. The signer is resolved the same way as for transactions:
+  the `:signer` option, otherwise the `:default_signer` application env, otherwise
+  `Ethers.Signer.JsonRPC`.
+
+  ## Options
+
+  - `:signer`: The signer module to use. (e.g. `Ethers.Signer.Local` or `Ethers.Signer.JsonRPC`)
+  - `:signer_opts`: Options passed to the signer. Use `:from` here (and `:private_key` for
+    `Ethers.Signer.Local`) so the signer knows which account signs.
+
+  ## Examples
+
+  ```elixir
+  typed_data = Ethers.TypedData.new!(...)
+
+  Ethers.sign_typed_data(typed_data,
+    signer: Ethers.Signer.Local,
+    signer_opts: [private_key: "0x...", from: "0x..."]
+  )
+  #=> {:ok, "0x..."}
+  ```
+  """
+  @spec sign_typed_data(Ethers.TypedData.t(), Keyword.t()) ::
+          {:ok, binary()} | {:error, term()}
+  def sign_typed_data(typed_data, opts \\ []) do
+    {opts, _} = Keyword.split(opts, @option_keys)
+
+    default_signer = default_signer() || Ethers.Signer.JsonRPC
+
+    with {:ok, signer} <- get_signer(opts, default_signer) do
+      do_sign_typed_data(signer, typed_data, build_signer_opts(%{}, opts))
+    end
+  end
+
+  # `sign_typed_data/2` is an optional signer callback. If the resolved signer does not
+  # implement it, translate the resulting UndefinedFunctionError into `{:error, :not_supported}`
+  # (matching the behaviour contract in `Ethers.Signer`). Any other UndefinedFunctionError raised
+  # from within the signer is re-raised untouched.
+  defp do_sign_typed_data(signer, typed_data, signer_opts) do
+    signer.sign_typed_data(typed_data, signer_opts)
+  rescue
+    error in UndefinedFunctionError ->
+      case error do
+        %UndefinedFunctionError{module: ^signer, function: :sign_typed_data, arity: 2} ->
+          {:error, :not_supported}
+
+        _ ->
+          reraise error, __STACKTRACE__
+      end
+  end
+
+  @doc """
+  Same as `Ethers.sign_typed_data/2` but raises on error.
+  """
+  @spec sign_typed_data!(Ethers.TypedData.t(), Keyword.t()) :: binary() | no_return()
+  def sign_typed_data!(typed_data, opts \\ []) do
+    case sign_typed_data(typed_data, opts) do
+      {:ok, signature} -> signature
+      {:error, reason} -> raise ExecutionError, reason
+    end
+  end
+
+  @doc """
+  Signs an [EIP-191](https://eips.ethereum.org/EIPS/eip-191) personal message (the
+  `personal_sign` scheme) and returns the signature as a `0x`-prefixed hex string
+  (65 bytes: `r ‖ s ‖ v`).
+
+  The message is treated as raw bytes, exactly as given — a `"0x..."`-prefixed string is
+  signed as literal text, not hex-decoded. See `Ethers.PersonalMessage` for the hashing
+  scheme and the pure recover/verify counterparts.
+
+  The signer is resolved the same way as for transactions: the `:signer` option, otherwise
+  the `:default_signer` application env, otherwise `Ethers.Signer.JsonRPC`.
+
+  ## Options
+
+  - `:signer`: The signer module to use. (e.g. `Ethers.Signer.Local` or `Ethers.Signer.JsonRPC`)
+  - `:signer_opts`: Options passed to the signer. Use `:from` here (and `:private_key` for
+    `Ethers.Signer.Local`) so the signer knows which account signs.
+
+  ## Examples
+
+  ```elixir
+  Ethers.personal_sign("Hello world",
+    signer: Ethers.Signer.Local,
+    signer_opts: [private_key: "0x...", from: "0x..."]
+  )
+  #=> {:ok, "0x..."}
+  ```
+  """
+  @spec personal_sign(binary(), Keyword.t()) :: {:ok, binary()} | {:error, term()}
+  def personal_sign(message, opts \\ []) when is_binary(message) do
+    {opts, _} = Keyword.split(opts, @option_keys)
+
+    default_signer = default_signer() || Ethers.Signer.JsonRPC
+
+    with {:ok, signer} <- get_signer(opts, default_signer) do
+      do_personal_sign(signer, message, build_signer_opts(%{}, opts))
+    end
+  end
+
+  # `personal_sign/2` is an optional signer callback. If the resolved signer does not
+  # implement it, translate the resulting UndefinedFunctionError into `{:error, :not_supported}`
+  # (matching the behaviour contract in `Ethers.Signer`). Any other UndefinedFunctionError raised
+  # from within the signer is re-raised untouched.
+  defp do_personal_sign(signer, message, signer_opts) do
+    signer.personal_sign(message, signer_opts)
+  rescue
+    error in UndefinedFunctionError ->
+      case error do
+        %UndefinedFunctionError{module: ^signer, function: :personal_sign, arity: 2} ->
+          {:error, :not_supported}
+
+        _ ->
+          reraise error, __STACKTRACE__
+      end
+  end
+
+  @doc """
+  Same as `Ethers.personal_sign/2` but raises on error.
+  """
+  @spec personal_sign!(binary(), Keyword.t()) :: binary() | no_return()
+  def personal_sign!(message, opts \\ []) do
+    case personal_sign(message, opts) do
+      {:ok, signature} -> signature
+      {:error, reason} -> raise ExecutionError, reason
+    end
+  end
+
+  @doc """
   Makes an eth_estimate_gas rpc call with the given parameters and overrides.
 
   ## Overrides and Options

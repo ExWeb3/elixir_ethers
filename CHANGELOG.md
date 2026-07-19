@@ -1,5 +1,75 @@
 # Changelog
 
+## Unreleased
+
+### Enhancements
+
+- Add [EIP-191](https://eips.ethereum.org/EIPS/eip-191) personal message support: hash, recover
+  and verify messages with `Ethers.PersonalMessage`, and sign them via `Ethers.personal_sign/2`
+  with the `Ethers.Signer.Local` and `Ethers.Signer.JsonRPC` signers through the new optional
+  `personal_sign/2` signer callback (named after the RPC method it mirrors)
+- Add universal signature verification with `Ethers.Signature`: verify any signature —
+  EOA (`ecrecover`), smart-contract wallets ([ERC-1271](https://eips.ethereum.org/EIPS/eip-1271))
+  and counterfactual, not-yet-deployed wallets ([ERC-6492](https://eips.ethereum.org/EIPS/eip-6492)) —
+  against a digest, an EIP-191 personal message or EIP-712 typed data with
+  `Ethers.Signature.verify_hash/4`, `verify_message/4` and `verify_typed_data/4`
+- Add Sign-In with Ethereum ([EIP-4361](https://eips.ethereum.org/EIPS/eip-4361)) support with
+  `Ethers.Siwe`: build (`new/1`), render (`to_message/1`), parse (`parse/1`) and validate
+  (`validate/2`) SIWE messages, generate session nonces (`generate_nonce/0`), and verify a
+  message and its signature end-to-end with `Ethers.Siwe.verify/3` — smart-contract wallets
+  included via the universal signature verification above
+- Add [EIP-712](https://eips.ethereum.org/EIPS/eip-712) typed data support: construct typed
+  structured data with `Ethers.TypedData`, hash it (`encode_type`, `type_hash`, `hash_struct`,
+  `domain_separator`, `hash`), sign it via `Ethers.sign_typed_data/2` with the `Ethers.Signer.Local`
+  and `Ethers.Signer.JsonRPC` (`eth_signTypedData_v4`) signers, and recover/verify the signer with
+  `Ethers.TypedData.recover_signer/2` and `Ethers.TypedData.valid_signature?/3`
+- Add a struct DSL for EIP-712 typed data: declare typed-data struct types as Elixir modules with
+  `use Ethers.TypedData.Schema` and the `typed_schema`/`field` macros, then build an
+  `Ethers.TypedData` directly from struct instances via `Ethers.TypedData.new/2` (and `new!/2`)
+
+## 0.6.13 (2026-07-15)
+
+### Enhancements
+
+- Handle elixir 1.20 false positives
+
+## 0.6.12 (2026-04-14)
+
+### Bug Fixes
+
+- Fix indexed dynamic types event decoding (Thanks @ddallaire)
+- Fix event filter typespec generation for events with interleaved indexed and non-indexed
+  fields (Thanks @ricomateo)
+
+## 0.6.11 (2026-03-08)
+
+### Enhancements
+
+- Relax version requiremnet on `ex_secp256k1`
+
+## 0.6.10 (2025-10-24)
+
+### Breaking Changes
+
+- `Ethers.Utils.human_arg/2` now returns checksummed addresses instead of lowercase addresses for better EIP-55 compliance
+
+### Bug Fixes
+
+- Fix `Ethers.Utils.human_arg/2` incorrectly handling 20-byte binary addresses that start with bytes `0x30` and `0x78` (which represent the string "0x")
+
+## 0.6.9 (2025-10-16)
+
+### Bug Fixes
+
+- Fix decoding of `input` values from RPC results
+- Handle the case when the RPC result does not have a transaction signature
+
+## 0.6.8 (2025-10-13)
+
+### Enhancements
+
+- Fix compiler warnings in Elixir 1.19-rc2
+
 ## v0.6.7 (2025-05-09)
 
 ### Bug Fixes

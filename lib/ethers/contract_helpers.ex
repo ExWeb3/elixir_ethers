@@ -1,8 +1,6 @@
 defmodule Ethers.ContractHelpers do
   @moduledoc false
 
-  require Logger
-
   @spec read_abi(Keyword.t()) :: {abi :: [...], file_path :: String.t() | nil}
   def read_abi(opts) do
     case Keyword.take(opts, [:abi, :abi_file]) do
@@ -152,10 +150,10 @@ defmodule Ethers.ContractHelpers do
       selectors
       |> Enum.uniq_by(& &1.returns)
       |> Enum.map_join("\n\n### OR\n", fn selector ->
-        if Enum.count(selector.returns) > 0 do
-          document_types(selector.returns, selector.return_names)
-        else
+        if Enum.empty?(selector.returns) do
           "This function does not return any values!"
+        else
+          document_types(selector.returns, selector.return_names)
         end
       end)
 
@@ -217,8 +215,8 @@ defmodule Ethers.ContractHelpers do
     |> do_generate_typescpecs()
   end
 
-  def generate_event_typespecs(selectors, arity) do
-    Enum.map(selectors, &Enum.take(&1.types, arity))
+  def generate_event_typespecs(selectors) do
+    Enum.map(selectors, &event_indexed_types/1)
     |> do_generate_typescpecs(true)
   end
 

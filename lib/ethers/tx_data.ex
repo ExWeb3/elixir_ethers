@@ -123,7 +123,9 @@ defmodule Ethers.TxData do
         |> Enum.intersperse(concat(color(",", :operator, opts), break(" ")))
 
       returns_doc =
-        if Enum.count(returns) > 0 do
+        if Enum.empty?(returns) do
+          []
+        else
           [
             " ",
             color("returns ", :atom, opts),
@@ -132,8 +134,6 @@ defmodule Ethers.TxData do
             break(""),
             color(")", :operator, opts)
           ]
-        else
-          []
         end
 
       default_address =

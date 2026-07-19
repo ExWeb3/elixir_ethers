@@ -1,27 +1,20 @@
 defmodule Ethers.MixProject do
   use Mix.Project
 
-  @version "0.6.7"
+  @version "0.6.13"
   @source_url "https://github.com/ExWeb3/elixir_ethers"
 
   def project do
     [
       app: :ethers,
       version: @version,
-      elixir: "~> 1.11",
+      elixir: "~> 1.15",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       name: "Ethers",
       source_url: @source_url,
       deps: deps(),
       test_coverage: [tool: ExCoveralls],
-      preferred_cli_env: [
-        coveralls: :test,
-        "coveralls.detail": :test,
-        "coveralls.post": :test,
-        "coveralls.html": :test,
-        test_prepare: :test
-      ],
       description:
         "A comprehensive Web3 library for interacting with smart contracts on Ethereum using Elixir.",
       package: package(),
@@ -38,10 +31,25 @@ defmodule Ethers.MixProject do
     ]
   end
 
+  def cli do
+    [
+      preferred_envs: [
+        coveralls: :test,
+        "coveralls.detail": :test,
+        "coveralls.post": :test,
+        "coveralls.html": :test,
+        test_prepare: :test
+      ]
+    ]
+  end
+
   defp package do
     [
       licenses: ["Apache-2.0"],
-      links: %{"GitHub" => @source_url},
+      links: %{
+        "GitHub" => @source_url,
+        "Changelog" => Path.join(@source_url, "/blob/main/CHANGELOG.md")
+      },
       maintainers: ["Alisina Bahadori"],
       files: ["lib", "priv", "mix.exs", "README*", "LICENSE*", "CHANGELOG*"]
     ]
@@ -61,6 +69,8 @@ defmodule Ethers.MixProject do
         "README.md": [title: "Introduction"],
         "CHANGELOG.md": [title: "Changelog"],
         "guides/typed-arguments.md": [title: "Typed Arguments"],
+        "guides/eip-712.md": [title: "EIP-712 Typed Data"],
+        "guides/siwe.md": [title: "Sign-In with Ethereum"],
         "guides/configuration.md": [title: "Configuration"],
         "guides/upgrading.md": [title: "Upgrading"]
       ],
@@ -83,6 +93,16 @@ defmodule Ethers.MixProject do
         Signer: [
           ~r/^Ethers\.Signer\.[A-Za-z0-9.]+$/,
           ~r/^Ethers\.Signer$/
+        ],
+        "Sign-In with Ethereum": [
+          "Ethers.Siwe",
+          "Ethers.Siwe.Message"
+        ],
+        "Typed Data": [
+          "Ethers.TypedData",
+          "Ethers.TypedData.Schema",
+          "Ethers.TypedData.Domain",
+          "Ethers.TypedData.Field"
         ],
         "Builtin Contract Errors": [
           ~r/^Ethers\.Contracts\..*$/
@@ -111,9 +131,9 @@ defmodule Ethers.MixProject do
       {:ex_doc, "~> 0.32", only: :dev, runtime: false},
       {:ex_keccak, "~> 0.7.5"},
       {:ex_rlp, "~> 0.6.0"},
-      {:ex_secp256k1, "~> 0.7.2", optional: true},
+      {:ex_secp256k1, "~> 0.7", optional: true},
       {:excoveralls, "~> 0.10", only: :test},
-      {:idna, "~> 6.1"},
+      {:idna, "~> 7.1"},
       {:jason, "~> 1.4"},
       {:makeup_syntect, "~> 0.1", only: :dev, runtime: false},
       {:plug, ">= 1.0.0", only: :test},

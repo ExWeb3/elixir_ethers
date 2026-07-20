@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.7.0 (2026-07-20)
 
 ### Enhancements
 
@@ -15,7 +15,7 @@
   `personal_sign/2` signer callback (named after the RPC method it mirrors)
 - Add universal signature verification with `Ethers.Signature`: verify any signature —
   EOA (`ecrecover`), smart-contract wallets ([ERC-1271](https://eips.ethereum.org/EIPS/eip-1271))
-  and counterfactual, not-yet-deployed wallets ([ERC-6492](https://eips.ethereum.org/EIPS/eip-6492)) —
+  and counterfactual, not-yet-deployed wallets ([ERC-6492](https://eips.ethereum.org/EIPS/eip-6492))
   against a digest, an EIP-191 personal message or EIP-712 typed data with
   `Ethers.Signature.verify_hash/4`, `verify_message/4` and `verify_typed_data/4`
 - Add Sign-In with Ethereum ([EIP-4361](https://eips.ethereum.org/EIPS/eip-4361)) support with

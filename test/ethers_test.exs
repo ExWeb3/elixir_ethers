@@ -16,6 +16,7 @@ defmodule EthersTest do
 
   import Ethers.TestHelpers
 
+  alias Ethers.Signer
   alias Ethers.Transaction
   alias Ethers.Utils
 
@@ -1040,7 +1041,7 @@ defmodule EthersTest do
         address: "0x2222222222222222222222222222222222222222",
         nonce: 1_000_000
       )
-      |> Ethers.Signer.Local.sign_authorization(
+      |> Signer.Local.sign_authorization(
         private_key: "0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a"
       )
 

@@ -115,7 +115,8 @@ defmodule Ethers.Transaction.Eip7702 do
         authorization_list
         | rest
       ]) do
-    with {:ok, authorization_list} <- decode_authorization_list(authorization_list) do
+    with {:ok, to} <- decode_to_address(to),
+         {:ok, authorization_list} <- decode_authorization_list(authorization_list) do
       {:ok,
        %__MODULE__{
          chain_id: :binary.decode_unsigned(chain_id),
@@ -123,7 +124,7 @@ defmodule Ethers.Transaction.Eip7702 do
          max_priority_fee_per_gas: :binary.decode_unsigned(max_priority_fee_per_gas),
          max_fee_per_gas: :binary.decode_unsigned(max_fee_per_gas),
          gas: :binary.decode_unsigned(gas),
-         to: (to != "" && Utils.encode_address!(to)) || nil,
+         to: to,
          value: :binary.decode_unsigned(value),
          input: input,
          access_list: access_list,
@@ -133,6 +134,9 @@ defmodule Ethers.Transaction.Eip7702 do
   end
 
   def from_rlp_list(_rlp_list), do: {:error, :transaction_decode_failed}
+
+  defp decode_to_address(""), do: {:error, :missing_to_address}
+  defp decode_to_address(to), do: Utils.encode_address(to)
 
   defp decode_authorization_list(authorization_list) when is_list(authorization_list) do
     authorization_list

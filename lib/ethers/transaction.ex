@@ -363,8 +363,8 @@ defmodule Ethers.Transaction do
         address: authorization.address,
         nonce: Utils.integer_to_hex(authorization.nonce),
         yParity: Utils.integer_to_hex(signed.signature_y_parity),
-        r: Utils.integer_to_hex(:binary.decode_unsigned(signed.signature_r)),
-        s: Utils.integer_to_hex(:binary.decode_unsigned(signed.signature_s))
+        r: Utils.hex_encode(signed.signature_r),
+        s: Utils.hex_encode(signed.signature_s)
       }
     end)
   end
@@ -451,8 +451,8 @@ defmodule Ethers.Transaction do
           nonce: from_map_value_int(authorization, :nonce)
         },
         signature_y_parity: from_map_value_int(authorization, :yParity),
-        signature_r: authorization |> from_map_value_int(:r) |> :binary.encode_unsigned(),
-        signature_s: authorization |> from_map_value_int(:s) |> :binary.encode_unsigned()
+        signature_r: from_map_value_bin(authorization, :r),
+        signature_s: from_map_value_bin(authorization, :s)
       }
     end)
   end

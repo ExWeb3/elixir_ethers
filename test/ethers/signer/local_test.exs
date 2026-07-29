@@ -1,6 +1,7 @@
 defmodule Ethers.Signer.LocalTest do
   use ExUnit.Case
 
+  alias Ethers.Authorization
   alias Ethers.Signer
   alias Ethers.Transaction.Eip1559
   alias Ethers.Utils
@@ -195,13 +196,13 @@ defmodule Ethers.Signer.LocalTest do
       #   cast wallet sign-auth 0x2222222222222222222222222222222222222222 \
       #     --private-key $PK --nonce 7 --chain 1
       authorization =
-        Ethers.Authorization.new!(
+        Authorization.new!(
           chain_id: 1,
           address: "0x2222222222222222222222222222222222222222",
           nonce: 7
         )
 
-      assert {:ok, %Ethers.Authorization.Signed{} = signed} =
+      assert {:ok, %Authorization.Signed{} = signed} =
                Signer.Local.sign_authorization(authorization, private_key: @private_key)
 
       assert signed.authorization == authorization
@@ -214,15 +215,15 @@ defmodule Ethers.Signer.LocalTest do
                "0x194dd94cb56eb4f90accaed679537fefa8d0f2f1f24632ea868ffbedd9ed99ee"
 
       assert {:ok, "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1"} =
-               Ethers.Authorization.Signed.recover_authority(signed)
+               Authorization.Signed.recover_authority(signed)
     end
 
     test "produces the exact signature for a clear (zero address) authorization" do
       # cast wallet sign-auth 0x0000000000000000000000000000000000000000 \
       #   --private-key $PK --nonce 0 --chain 0
-      authorization = Ethers.Authorization.clear!(chain_id: 0, nonce: 0)
+      authorization = Authorization.clear!(chain_id: 0, nonce: 0)
 
-      assert {:ok, %Ethers.Authorization.Signed{} = signed} =
+      assert {:ok, %Authorization.Signed{} = signed} =
                Signer.Local.sign_authorization(authorization, private_key: @private_key)
 
       assert signed.signature_y_parity == 1
@@ -236,7 +237,7 @@ defmodule Ethers.Signer.LocalTest do
 
     test "returns :wrong_key when :from does not match the private key" do
       authorization =
-        Ethers.Authorization.new!(
+        Authorization.new!(
           chain_id: 1,
           address: "0x2222222222222222222222222222222222222222",
           nonce: 7

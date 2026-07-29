@@ -206,6 +206,35 @@ defmodule Ethers.TransactionTest do
       assert Ethers.Utils.hex_encode(Transaction.encode(decoded_tx)) == raw_tx
     end
 
+    test "returns error for EIP-7702 transaction with empty to address" do
+      # Type-4 transactions cannot create contracts, so an empty `to` must be rejected
+      authorization_rlp = [
+        <<1>>,
+        <<0x69E6BD1C4082403FC7917A61F6216552FC1A541D::160>>,
+        <<2>>,
+        "",
+        <<1>>,
+        <<1>>
+      ]
+
+      raw_tx =
+        <<4>> <>
+          ExRLP.encode([
+            <<1>>,
+            "",
+            <<1>>,
+            <<1>>,
+            <<0x5208::16>>,
+            "",
+            "",
+            "",
+            [],
+            [authorization_rlp]
+          ])
+
+      assert {:error, :missing_to_address} = Transaction.decode(raw_tx)
+    end
+
     test "decodes raw EIP-1559 transaction and re-encodes it correctly" do
       raw_tx =
         "0x02f8af0177837a12008502c4bfbc3282f88c948881562783028f5c1bcb985d2283d5e170d8888880b844a9059cbb0000000000000000000000002ef7f5c7c727d8845e685f462a5b4f8ac4972a6700000000000000000000000000000000000000000000051ab2ea6fbbb7420000c001a007280557e86f690290f9ea9e26cc17e0cf09a17f6c2d041e95b33be4b81888d0a06c7a24e8fba5cceb455b19950849b9733f0deb92d7e8c2a919f4a82df9c6036a"
@@ -533,8 +562,8 @@ defmodule Ethers.TransactionTest do
                  address: "0x69e6bd1C4082403Fc7917a61F6216552fC1a541D",
                  nonce: "0x2",
                  yParity: "0x0",
-                 r: "0x3C67C1F1203DD722E316796C37C4B828B98F5A27578627879F415763E2AC5AFD",
-                 s: "0x4C77ABA7874855A80C7357FB13AE953CF9D819A615C00BAAA15A2E165A0F08F7"
+                 r: "0x3c67c1f1203dd722e316796c37c4b828b98f5a27578627879f415763e2ac5afd",
+                 s: "0x4c77aba7874855a80c7357fb13ae953cf9d819a615c00baaa15a2e165a0f08f7"
                }
              ]
     end

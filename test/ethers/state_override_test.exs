@@ -44,16 +44,20 @@ defmodule Ethers.StateOverrideTest do
              }
     end
 
-    test "accepts binary addresses and hex quantities" do
-      address_bin = Utils.hex_decode!(@empty_address)
+    test "treats code as raw bytes even when it starts with the characters 0x" do
+      # A raw binary may legitimately start with the bytes "0x" - it must never be
+      # mistaken for a hex encoded string
+      code = "0xab"
 
-      assert {:ok, %{@empty_address => %{balance: "0x1234"}}} ==
-               StateOverride.to_rpc_map(%{address_bin => %{balance: "0x1234"}})
+      assert {:ok, %{@empty_address => %{code: "0x30786162"}}} ==
+               StateOverride.to_rpc_map(%{@empty_address => %{code: code}})
     end
 
-    test "encodes full state replacement with padded hex slots" do
+    test "encodes full state replacement with integer and 32-byte binary words" do
+      slot_bin = <<0::248, 1>>
+
       assert {:ok, %{@empty_address => %{state: state}}} =
-               StateOverride.to_rpc_map(%{@empty_address => %{state: %{"0x1" => "0xff"}}})
+               StateOverride.to_rpc_map(%{@empty_address => %{state: %{slot_bin => 255}}})
 
       assert state == %{
                ("0x" <> String.duplicate("0", 63) <> "1") =>
@@ -61,11 +65,28 @@ defmodule Ethers.StateOverrideTest do
              }
     end
 
-    test "rejects invalid addresses" do
+    test "rejects invalid addresses including raw binary addresses" do
       assert {:error, {:invalid_address, "0xinvalid"}} =
                StateOverride.to_rpc_map(%{"0xinvalid" => %{balance: 1}})
 
       assert {:error, {:invalid_address, :bad}} = StateOverride.to_rpc_map(%{bad: %{balance: 1}})
+
+      # Only one representation is accepted for addresses: hex strings
+      address_bin = Utils.hex_decode!(@empty_address)
+
+      assert {:error, {:invalid_address, ^address_bin}} =
+               StateOverride.to_rpc_map(%{address_bin => %{balance: 1}})
+    end
+
+    test "rejects hex string quantities and storage words" do
+      assert {:error, {:invalid_account_override, {:balance, "0x1234"}}} =
+               StateOverride.to_rpc_map(%{@empty_address => %{balance: "0x1234"}})
+
+      assert {:error, {:invalid_account_override, {:state, {:invalid_storage_word, "0x1"}}}} =
+               StateOverride.to_rpc_map(%{@empty_address => %{state: %{"0x1" => 255}}})
+
+      assert {:error, {:invalid_account_override, {:state_diff, {:invalid_storage_word, "0xff"}}}} =
+               StateOverride.to_rpc_map(%{@empty_address => %{state_diff: %{0 => "0xff"}}})
     end
 
     test "rejects unknown account override keys and invalid values" do
@@ -112,7 +133,8 @@ defmodule Ethers.StateOverrideTest do
     end
 
     test "code override runs a contract at an address with no code", %{address: address} do
-      {:ok, code} = Ethereumex.HttpClient.eth_get_code(String.downcase(address), "latest")
+      {:ok, code_hex} = Ethereumex.HttpClient.eth_get_code(String.downcase(address), "latest")
+      code = Utils.hex_decode!(code_hex)
 
       assert {:error, _} = CounterContract.get() |> Ethers.call(to: @empty_address)
 
@@ -162,7 +184,8 @@ defmodule Ethers.StateOverrideTest do
     setup :deploy_counter_contract
 
     test "code override changes the gas estimate", %{address: address} do
-      {:ok, code} = Ethereumex.HttpClient.eth_get_code(String.downcase(address), "latest")
+      {:ok, code_hex} = Ethereumex.HttpClient.eth_get_code(String.downcase(address), "latest")
+      code = Utils.hex_decode!(code_hex)
 
       set_call = CounterContract.set(842)
 

@@ -23,45 +23,51 @@ defmodule Ethers.StateOverride do
 
   ## Structure
 
-  A state override set is a map of `address => account override`. Each account override
-  is a map accepting these keys:
+  A state override set is a map of `address => account override`. Following Ethers
+  conventions, every value has exactly one accepted representation — native types, never
+  hex strings:
 
-  - `:balance` - fake balance to set for the account (integer or hex string)
-  - `:nonce` - fake nonce to set for the account (integer or hex string)
-  - `:code` - fake EVM bytecode to inject into the account (binary or hex string)
+  - `:balance` - fake balance to set for the account (`non_neg_integer`)
+  - `:nonce` - fake nonce to set for the account (`non_neg_integer`)
+  - `:code` - fake EVM bytecode to inject into the account (raw `binary`, **not** hex
+    encoded — hex decode first if you have `"0x..."` bytecode e.g. from `eth_getCode`)
   - `:state` - fake key-value mapping to override **all** slots in the account storage
   - `:state_diff` - fake key-value mapping to override **individual** slots in the
     account storage (all other slots keep their on-chain values)
 
   `:state` and `:state_diff` are mutually exclusive per account. Their keys (storage
-  slots) and values (storage words) accept integers, 32-byte binaries or hex strings,
-  and are encoded as 32-byte hex words.
+  slots) and values (storage words) accept a `non_neg_integer` or a raw 32-byte binary
+  (e.g. a keccak-derived mapping slot), and are encoded as 32-byte hex words.
 
-  Addresses accept hex strings or 20-byte binaries.
+  Addresses are hex strings (`"0x..."`), like everywhere else in Ethers.
   """
 
+  alias Ethers.Types
   alias Ethers.Utils
+
+  @typedoc """
+  A storage slot or storage value: a non-negative integer or a raw 32-byte binary.
+  """
+  @type storage_word :: non_neg_integer() | <<_::256>>
 
   @typedoc """
   Overrides for a single account. See the module documentation for the accepted keys.
   """
   @type account_override :: %{
-          optional(:balance) => non_neg_integer() | String.t(),
-          optional(:nonce) => non_neg_integer() | String.t(),
+          optional(:balance) => non_neg_integer(),
+          optional(:nonce) => non_neg_integer(),
           optional(:code) => binary(),
-          optional(:state) => %{(non_neg_integer() | binary()) => non_neg_integer() | binary()},
-          optional(:state_diff) => %{
-            (non_neg_integer() | binary()) => non_neg_integer() | binary()
-          }
+          optional(:state) => %{storage_word() => storage_word()},
+          optional(:state_diff) => %{storage_word() => storage_word()}
         }
 
   @typedoc "A state override set: a map of account address to account override."
-  @type t :: %{Ethers.Types.t_address() => account_override()}
+  @type t :: %{Types.t_address() => account_override()}
 
   @doc """
   Encodes a state override set into the JSON-RPC representation.
 
-  Returns `{:ok, rpc_map}` with all addresses, quantities and storage words hex-encoded,
+  Returns `{:ok, rpc_map}` with all quantities, code and storage words hex-encoded,
   or `{:error, reason}` if the input is not a valid state override set.
 
   ## Examples
@@ -74,7 +80,7 @@ defmodule Ethers.StateOverride do
   @spec to_rpc_map(t()) :: {:ok, map()} | {:error, term()}
   def to_rpc_map(state_overrides) when is_map(state_overrides) do
     Enum.reduce_while(state_overrides, {:ok, %{}}, fn {address, account_override}, {:ok, acc} ->
-      with {:ok, address} <- encode_address(address),
+      with {:ok, address} <- validate_address(address),
            {:ok, account_override} <- encode_account_override(account_override) do
         {:cont, {:ok, Map.put(acc, address, account_override)}}
       else
@@ -85,16 +91,12 @@ defmodule Ethers.StateOverride do
 
   def to_rpc_map(_state_overrides), do: {:error, :invalid_state_overrides}
 
-  defp encode_address(<<_::binary-20>> = address), do: {:ok, Utils.hex_encode(address)}
-
-  defp encode_address("0x" <> _ = address) do
+  defp validate_address(address) do
     case Utils.decode_address(address) do
       {:ok, _bin} -> {:ok, address}
       {:error, reason} -> {:error, {reason, address}}
     end
   end
-
-  defp encode_address(address), do: {:error, {:invalid_address, address}}
 
   defp encode_account_override(account_override) when is_map(account_override) do
     if Map.has_key?(account_override, :state) and Map.has_key?(account_override, :state_diff) do
@@ -116,20 +118,9 @@ defmodule Ethers.StateOverride do
     end)
   end
 
-  defp encode_account_override_value(key, value) when key in [:balance, :nonce] do
-    case value do
-      quantity when is_integer(quantity) and quantity >= 0 ->
-        {:ok, key, Utils.integer_to_hex(quantity)}
-
-      "0x" <> _ = hex ->
-        {:ok, key, hex}
-
-      _other ->
-        {:error, {:invalid_account_override, {key, value}}}
-    end
-  end
-
-  defp encode_account_override_value(:code, "0x" <> _ = code), do: {:ok, :code, code}
+  defp encode_account_override_value(key, quantity)
+       when key in [:balance, :nonce] and is_integer(quantity) and quantity >= 0,
+       do: {:ok, key, Utils.integer_to_hex(quantity)}
 
   defp encode_account_override_value(:code, code) when is_binary(code),
     do: {:ok, :code, Utils.hex_encode(code)}
@@ -161,16 +152,6 @@ defmodule Ethers.StateOverride do
     do: {:ok, Utils.hex_encode(<<word::256>>)}
 
   defp encode_storage_word(<<_::binary-32>> = word), do: {:ok, Utils.hex_encode(word)}
-
-  defp encode_storage_word("0x" <> hex = word) do
-    case Utils.hex_decode(hex) do
-      {:ok, decoded} when byte_size(decoded) <= 32 ->
-        {:ok, Utils.hex_encode(<<0::size((32 - byte_size(decoded)) * 8), decoded::binary>>)}
-
-      _other ->
-        {:error, {:invalid_storage_word, word}}
-    end
-  end
 
   defp encode_storage_word(word), do: {:error, {:invalid_storage_word, word}}
 end

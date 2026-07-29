@@ -8,15 +8,17 @@ defmodule Ethers.Transaction do
   - Handle different transaction types (legacy, EIP-1559, etc.)
   """
 
+  alias Ethers.Authorization
   alias Ethers.Transaction.Eip1559
   alias Ethers.Transaction.Eip2930
   alias Ethers.Transaction.Eip4844
+  alias Ethers.Transaction.Eip7702
   alias Ethers.Transaction.Legacy
   alias Ethers.Transaction.Protocol, as: TxProtocol
   alias Ethers.Transaction.Signed
   alias Ethers.Utils
 
-  @default_transaction_types [Eip1559, Eip2930, Eip4844, Legacy]
+  @default_transaction_types [Eip1559, Eip2930, Eip4844, Eip7702, Legacy]
 
   @transaction_types Application.compile_env(
                        :ethers,
@@ -28,6 +30,7 @@ defmodule Ethers.Transaction do
 
   @rpc_fields %{
     access_list: :accessList,
+    authorization_list: :authorizationList,
     blob_versioned_hashes: :blobVersionedHashes,
     chain_id: :chainId,
     gas_price: :gasPrice,
@@ -261,6 +264,8 @@ defmodule Ethers.Transaction do
       # Convert from RPC-style field names to EVM field names.
       new(%{
         access_list: from_map_value(tx, :accessList),
+        authorization_list:
+          tx |> from_map_value(:authorizationList) |> from_rpc_authorization_list(),
         blob_versioned_hashes: from_map_value(tx, :blobVersionedHashes),
         block_hash: from_map_value(tx, :blockHash),
         block_number: from_map_value_int(tx, :blockNumber),
@@ -317,6 +322,9 @@ defmodule Ethers.Transaction do
       {:access_list, al} when is_list(al) ->
         {:access_list, encode_access_list(al)}
 
+      {:authorization_list, authorization_list} when is_list(authorization_list) ->
+        {:authorization_list, encode_authorization_list(authorization_list)}
+
       {:blob_versioned_hashes, hashes} when is_list(hashes) ->
         {:blob_versioned_hashes, Enum.map(hashes, &Utils.hex_encode/1)}
 
@@ -345,6 +353,19 @@ defmodule Ethers.Transaction do
         Utils.encode_address!(address),
         Enum.map(storage_keys, &Utils.hex_encode/1)
       ]
+    end)
+  end
+
+  defp encode_authorization_list(authorization_list) do
+    Enum.map(authorization_list, fn %Authorization.Signed{authorization: authorization} = signed ->
+      %{
+        chainId: Utils.integer_to_hex(authorization.chain_id),
+        address: authorization.address,
+        nonce: Utils.integer_to_hex(authorization.nonce),
+        yParity: Utils.integer_to_hex(signed.signature_y_parity),
+        r: Utils.hex_encode(signed.signature_r),
+        s: Utils.hex_encode(signed.signature_s)
+      }
     end)
   end
 
@@ -417,6 +438,23 @@ defmodule Ethers.Transaction do
 
   defp from_map_value(tx, key) do
     Map.get_lazy(tx, key, fn -> Map.get(tx, to_string(key)) end)
+  end
+
+  defp from_rpc_authorization_list(nil), do: nil
+
+  defp from_rpc_authorization_list(authorization_list) when is_list(authorization_list) do
+    Enum.map(authorization_list, fn authorization ->
+      %Authorization.Signed{
+        authorization: %Authorization{
+          chain_id: from_map_value_int(authorization, :chainId),
+          address: authorization |> from_map_value(:address) |> Utils.to_checksum_address(),
+          nonce: from_map_value_int(authorization, :nonce)
+        },
+        signature_y_parity: from_map_value_int(authorization, :yParity),
+        signature_r: from_map_value_bin(authorization, :r),
+        signature_s: from_map_value_bin(authorization, :s)
+      }
+    end)
   end
 
   @doc false

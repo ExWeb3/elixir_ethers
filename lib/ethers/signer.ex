@@ -20,10 +20,12 @@ defmodule Ethers.Signer do
   become handy. Check out the source code of built in signers for in depth info.
 
   A signer may also implement the optional `c:sign_typed_data/2` callback to support signing
-  [EIP-712](https://eips.ethereum.org/EIPS/eip-712) typed structured data (see `Ethers.TypedData`)
-  and the optional `c:personal_sign/2` callback to support signing
+  [EIP-712](https://eips.ethereum.org/EIPS/eip-712) typed structured data (see `Ethers.TypedData`),
+  the optional `c:personal_sign/2` callback to support signing
   [EIP-191](https://eips.ethereum.org/EIPS/eip-191) personal messages (see
-  `Ethers.PersonalMessage`). Signers that do not implement them will simply not support those
+  `Ethers.PersonalMessage`) and the optional `c:sign_authorization/2` callback to support signing
+  [EIP-7702](https://eips.ethereum.org/EIPS/eip-7702) authorizations (see
+  `Ethers.Authorization`). Signers that do not implement them will simply not support those
   signing schemes.
 
   ## Globally Default Signer
@@ -96,5 +98,21 @@ defmodule Ethers.Signer do
   @callback personal_sign(message :: binary(), opts :: Keyword.t()) ::
               {:ok, binary()} | {:error, reason :: term()}
 
-  @optional_callbacks sign_typed_data: 2, personal_sign: 2
+  @doc """
+  Signs an [EIP-7702](https://eips.ethereum.org/EIPS/eip-7702) authorization and returns the
+  signed authorization.
+
+  This is an optional callback. Signers that do not implement it do not support authorization
+  signing. Note that unlike the other signing callbacks this one does not return a hex
+  signature — it returns the `Ethers.Authorization.Signed` struct, ready for use in the
+  `authorization_list` of an `Ethers.Transaction.Eip7702` transaction.
+
+  ## Parameters
+   - authorization: The authorization to sign. (An `Ethers.Authorization` struct)
+   - opts: Other options passed to the signer as `signer_opts`.
+  """
+  @callback sign_authorization(authorization :: Ethers.Authorization.t(), opts :: Keyword.t()) ::
+              {:ok, Ethers.Authorization.Signed.t()} | {:error, reason :: term()}
+
+  @optional_callbacks sign_typed_data: 2, personal_sign: 2, sign_authorization: 2
 end

@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Enhancements
+
+- Add [EIP-7702](https://eips.ethereum.org/EIPS/eip-7702) set-code transaction support (type 4)
+
 ## 0.7.0 (2026-07-20)
 
 ### Enhancements

@@ -62,6 +62,7 @@ defmodule Ethers do
   ```
   """
 
+  alias Ethers.Authorization
   alias Ethers.CombinedEventFilter
   alias Ethers.Event
   alias Ethers.EventFilter
@@ -607,6 +608,161 @@ defmodule Ethers do
   end
 
   @doc """
+  Signs an [EIP-7702](https://eips.ethereum.org/EIPS/eip-7702) authorization and returns an
+  `Ethers.Authorization.Signed` struct ready for use in the `authorization_list` of a type-4
+  transaction (`Ethers.Transaction.Eip7702`).
+
+  Accepts either a ready `Ethers.Authorization` struct (signed as-is) or a map/keyword list of
+  authorization params. With params, missing fields are auto-fetched from the network:
+  `chain_id` via `eth_chainId` and `nonce` via `eth_getTransactionCount` of the authority (the
+  signing account, resolved from `signer_opts[:from]` or the signer's accounts).
+
+  The signer is resolved the same way as for transactions: the `:signer` option, otherwise
+  the `:default_signer` application env, otherwise `Ethers.Signer.JsonRPC`. Note that
+  `Ethers.Signer.JsonRPC` does not support authorization signing (no standard RPC method
+  exists) and returns `{:error, :not_supported}`.
+
+  ## Options
+
+  - `:executor`: Set to `:self` when the authority itself will send the type-4 transaction
+    (self-sponsoring). The transaction increments the account nonce before authorizations are
+    applied, so the auto-fetched nonce is bumped by one. Defaults to `nil` (another account —
+    a sponsor/relayer — sends the transaction). An explicitly given `nonce` is never adjusted.
+  - `:signer`: The signer module to use. (e.g. `Ethers.Signer.Local`)
+  - `:signer_opts`: Options passed to the signer. Use `:from` here (and `:private_key` for
+    `Ethers.Signer.Local`) so the signer knows which account signs.
+  - `:rpc_client`: The RPC Client to use for auto-fetching missing fields.
+  - `:rpc_opts`: Specific RPC options to specify for auto-fetch requests.
+
+  ## Examples
+
+  ```elixir
+  # Fully specified authorization
+  {:ok, authorization} = Ethers.Authorization.new(chain_id: 1, address: delegate, nonce: 42)
+  Ethers.sign_authorization(authorization,
+    signer: Ethers.Signer.Local,
+    signer_opts: [private_key: "0x..."]
+  )
+  #=> {:ok, %Ethers.Authorization.Signed{...}}
+
+  # Auto-fetch chain_id and nonce; the authority sends the transaction itself
+  Ethers.sign_authorization(%{address: delegate},
+    executor: :self,
+    signer: Ethers.Signer.Local,
+    signer_opts: [private_key: "0x..."]
+  )
+  ```
+  """
+  @spec sign_authorization(Authorization.t() | map() | Keyword.t(), Keyword.t()) ::
+          {:ok, Authorization.Signed.t()} | {:error, term()}
+  def sign_authorization(authorization_or_params, opts \\ [])
+
+  def sign_authorization(%Authorization{} = authorization, opts) do
+    {opts, _} = Keyword.split(opts, @option_keys)
+
+    default_signer = default_signer() || Ethers.Signer.JsonRPC
+
+    with {:ok, signer} <- get_signer(opts, default_signer) do
+      do_sign_authorization(signer, authorization, build_signer_opts(%{}, opts))
+    end
+  end
+
+  def sign_authorization(params, opts) when is_map(params) or is_list(params) do
+    {executor, opts} = Keyword.pop(opts, :executor)
+
+    unless executor in [nil, :self] do
+      raise ArgumentError,
+            "invalid :executor option #{inspect(executor)} (only :self is supported)"
+    end
+
+    {opts, _} = Keyword.split(opts, @option_keys)
+
+    default_signer = default_signer() || Ethers.Signer.JsonRPC
+    params = Map.new(params)
+
+    with {:ok, signer} <- get_signer(opts, default_signer),
+         {:ok, params} <- fill_authorization_fields(params, executor, signer, opts),
+         {:ok, authorization} <- Authorization.new(params) do
+      do_sign_authorization(signer, authorization, build_signer_opts(%{}, opts))
+    end
+  end
+
+  # `sign_authorization/2` is an optional signer callback. If the resolved signer does not
+  # implement it, translate the resulting UndefinedFunctionError into `{:error, :not_supported}`
+  # (matching the behaviour contract in `Ethers.Signer`). Any other UndefinedFunctionError raised
+  # from within the signer is re-raised untouched.
+  defp do_sign_authorization(signer, authorization, signer_opts) do
+    signer.sign_authorization(authorization, signer_opts)
+  rescue
+    error in UndefinedFunctionError ->
+      case error do
+        %UndefinedFunctionError{module: ^signer, function: :sign_authorization, arity: 2} ->
+          {:error, :not_supported}
+
+        _ ->
+          reraise error, __STACKTRACE__
+      end
+  end
+
+  defp fill_authorization_fields(params, executor, signer, opts) do
+    with {:ok, params} <- fill_authorization_chain_id(params, opts) do
+      fill_authorization_nonce(params, executor, signer, opts)
+    end
+  end
+
+  defp fill_authorization_chain_id(%{chain_id: chain_id} = params, _opts)
+       when not is_nil(chain_id),
+       do: {:ok, params}
+
+  defp fill_authorization_chain_id(params, opts) do
+    with {:ok, chain_id} <- chain_id(opts) do
+      {:ok, Map.put(params, :chain_id, chain_id)}
+    end
+  end
+
+  defp fill_authorization_nonce(%{nonce: nonce} = params, _executor, _signer, _opts)
+       when not is_nil(nonce),
+       do: {:ok, params}
+
+  defp fill_authorization_nonce(params, executor, signer, opts) do
+    with {:ok, authority} <- authorization_authority(signer, build_signer_opts(%{}, opts)),
+         {:ok, nonce} <- get_transaction_count(authority, Keyword.put(opts, :block, "latest")) do
+      # When the authority sends the type-4 transaction itself, its account nonce is
+      # incremented before authorizations are applied — the authorization must be signed
+      # over the next nonce.
+      nonce = if executor == :self, do: nonce + 1, else: nonce
+
+      {:ok, Map.put(params, :nonce, nonce)}
+    end
+  end
+
+  defp authorization_authority(signer, signer_opts) do
+    case Keyword.get(signer_opts, :from) do
+      nil ->
+        case signer.accounts(signer_opts) do
+          {:ok, [address | _]} -> {:ok, address}
+          {:ok, []} -> {:error, :no_accounts}
+          {:error, reason} -> {:error, reason}
+        end
+
+      from ->
+        {:ok, from}
+    end
+  end
+
+  @doc """
+  Same as `Ethers.sign_authorization/2` but raises on error.
+  """
+  @spec sign_authorization!(Authorization.t() | map() | Keyword.t(), Keyword.t()) ::
+          Authorization.Signed.t() | no_return()
+  def sign_authorization!(authorization_or_params, opts \\ []) do
+    case sign_authorization(authorization_or_params, opts) do
+      {:ok, signed_authorization} -> signed_authorization
+      {:error, reason} -> raise ExecutionError, reason
+    end
+  end
+
+  @doc """
   Makes an eth_estimate_gas rpc call with the given parameters and overrides.
 
   ## Overrides and Options
@@ -708,7 +864,7 @@ defmodule Ethers do
   - `:fromBlock` | `:from_block`: Minimum block number of logs to filter.
   - `:toBlock` | `:to_block`: Maximum block number of logs to filter.
   """
-@spec get_logs(map() | module(), Keyword.t()) :: {:ok, [Event.t()]} | {:error, term()}
+  @spec get_logs(map() | module(), Keyword.t()) :: {:ok, [Event.t()]} | {:error, term()}
   def get_logs(event_filter, overrides \\ [])
 
   def get_logs(events_module, overrides) when is_module(events_module) do

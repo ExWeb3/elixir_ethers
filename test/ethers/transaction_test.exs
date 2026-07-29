@@ -149,6 +149,63 @@ defmodule Ethers.TransactionTest do
       assert Ethers.Utils.hex_encode(Transaction.encode(decoded_tx)) == raw_tx
     end
 
+    test "decodes raw EIP-7702 transaction and re-encodes it correctly" do
+      # Mainnet transaction 0xafc5627648e9d6944f3087e4aeeb11f950de4b0e64ee0caccf7552ba03e01c7e
+      # (block 25639950): a sponsor sends a type-4 transaction to the authority EOA, which
+      # delegates to 0x69e6bd1C4082403Fc7917a61F6216552fC1a541D and is then called directly.
+      raw_tx =
+        "0x04f903d101829b81845f355f55845f355f558304016494bcb73594df46001f29143f6853c965684cdaf80380b9030432fba9bb000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000280000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000120000000000000000000000000a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000044a9059cbb000000000000000000000000d7eefee617ef6251072294e4a0090b816e1b8f3b00000000000000000000000000000000000000000000000000000000004c4b4000000000000000000000000000000000000000000000000000000000000000000000000000000000a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000044a9059cbb0000000000000000000000009968f86863cd0b7ce2f965fba2ed2749aa36416f0000000000000000000000000000000000000000000000000000000000153eb6000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000041355d1980ed3a88c4dd908723d87313763909184a08b2103f4bfcdb0ba4533eb12ef4968726b9b300e194562bcb0101c19a17a53770251ea8ed1bc6d56d27c9c31b00000000000000000000000000000000000000000000000000000000000000c0f85cf85a019469e6bd1c4082403fc7917a61f6216552fc1a541d0280a03c67c1f1203dd722e316796c37c4b828b98f5a27578627879f415763e2ac5afda04c77aba7874855a80c7357fb13ae953cf9d819a615c00baaa15a2e165a0f08f701a0fcb1caef5bca448a1c02f63ed1e94343bb60cb320f8e3642ef8ceee890b5dc61a05badaf50be7726ae1d0315098e7212492f2b2978685376e4b0ab9ad7c5455eea"
+
+      expected_from = "0x613874e81478ef4213c0ca3fb768b878adb6fd8b"
+      expected_hash = "0xafc5627648e9d6944f3087e4aeeb11f950de4b0e64ee0caccf7552ba03e01c7e"
+
+      assert {:ok, decoded_tx} = Transaction.decode(raw_tx)
+      assert %Transaction.Signed{payload: %Transaction.Eip7702{}} = decoded_tx
+
+      # Verify transaction hash matches
+      assert Transaction.transaction_hash(decoded_tx) == expected_hash
+
+      # Verify recovered from address
+      recovered_from = Transaction.Signed.from_address(decoded_tx)
+      assert String.downcase(recovered_from) == String.downcase(expected_from)
+
+      # Verify other transaction fields
+      assert decoded_tx.payload.chain_id == 1
+      assert decoded_tx.payload.gas == 262_500
+      assert decoded_tx.payload.max_fee_per_gas == 1_597_333_333
+      assert decoded_tx.payload.max_priority_fee_per_gas == 1_597_333_333
+      assert decoded_tx.payload.nonce == 39_809
+      assert decoded_tx.payload.to == "0xBCb73594df46001F29143f6853C965684cdAF803"
+      assert decoded_tx.payload.value == 0
+      assert decoded_tx.payload.access_list == []
+
+      # Verify authorization list
+      assert [%Ethers.Authorization.Signed{} = signed_auth] =
+               decoded_tx.payload.authorization_list
+
+      assert signed_auth.authorization ==
+               Ethers.Authorization.new!(
+                 chain_id: 1,
+                 address: "0x69e6bd1C4082403Fc7917a61F6216552fC1a541D",
+                 nonce: 2
+               )
+
+      assert signed_auth.signature_y_parity == 0
+
+      assert Utils.hex_encode(signed_auth.signature_r) ==
+               "0x3c67c1f1203dd722e316796c37c4b828b98f5a27578627879f415763e2ac5afd"
+
+      assert Utils.hex_encode(signed_auth.signature_s) ==
+               "0x4c77aba7874855a80c7357fb13ae953cf9d819a615c00baaa15a2e165a0f08f7"
+
+      # The authority is the account the transaction is sent to (sponsored delegation) —
+      # its code on mainnet is the designator 0xef0100 ++ 69e6bd1c...
+      assert {:ok, "0xBCb73594df46001F29143f6853C965684cdAF803"} =
+               Ethers.Authorization.Signed.recover_authority(signed_auth)
+
+      assert Ethers.Utils.hex_encode(Transaction.encode(decoded_tx)) == raw_tx
+    end
+
     test "decodes raw EIP-1559 transaction and re-encodes it correctly" do
       raw_tx =
         "0x02f8af0177837a12008502c4bfbc3282f88c948881562783028f5c1bcb985d2283d5e170d8888880b844a9059cbb0000000000000000000000002ef7f5c7c727d8845e685f462a5b4f8ac4972a6700000000000000000000000000000000000000000000051ab2ea6fbbb7420000c001a007280557e86f690290f9ea9e26cc17e0cf09a17f6c2d041e95b33be4b81888d0a06c7a24e8fba5cceb455b19950849b9733f0deb92d7e8c2a919f4a82df9c6036a"
@@ -241,8 +298,21 @@ defmodule Ethers.TransactionTest do
       Transaction.Legacy,
       Transaction.Eip1559,
       Transaction.Eip2930,
-      Transaction.Eip4844
+      Transaction.Eip4844,
+      Transaction.Eip7702
     ]
+
+    signed_authorization = %Ethers.Authorization.Signed{
+      authorization:
+        Ethers.Authorization.new!(
+          chain_id: 1,
+          address: "0x2222222222222222222222222222222222222222",
+          nonce: 0
+        ),
+      signature_y_parity: 0,
+      signature_r: <<1::256>>,
+      signature_s: <<2::256>>
+    }
 
     for type <- types do
       {:ok, tx} =
@@ -250,14 +320,15 @@ defmodule Ethers.TransactionTest do
           nonce: 0,
           gas_price: 1,
           gas: 21_000,
-          to: nil,
+          to: "0x2222222222222222222222222222222222222222",
           value: 0,
           input: "",
           chain_id: 1,
           max_priority_fee_per_gas: 1,
           max_fee_per_blob_gas: 1,
           max_fee_per_gas: 1,
-          access_list: []
+          access_list: [],
+          authorization_list: [signed_authorization]
         })
 
       {:ok, signed_tx} =
@@ -411,6 +482,76 @@ defmodule Ethers.TransactionTest do
       assert {:ok, transaction} = Transaction.from_rpc_map(tx_map)
       assert transaction.input == Utils.hex_decode!("0x112233")
       assert %Transaction.Eip2930{} = transaction
+    end
+
+    test "handles EIP-7702 transaction type" do
+      # Authorization entry shaped exactly like an eth_getTransactionByHash response
+      # (mainnet tx 0xafc5627648e9d6944f3087e4aeeb11f950de4b0e64ee0caccf7552ba03e01c7e)
+      tx_map = %{
+        "type" => "0x4",
+        "chainId" => "0x1",
+        "nonce" => "0x9b81",
+        "to" => "0xbcb73594df46001f29143f6853c965684cdaf803",
+        "value" => "0x0",
+        "input" => "0x32fba9bb",
+        "gas" => "0x40164",
+        "maxFeePerGas" => "0x5f355f55",
+        "maxPriorityFeePerGas" => "0x5f355f55",
+        "accessList" => [],
+        "authorizationList" => [
+          %{
+            "chainId" => "0x1",
+            "address" => "0x69e6bd1c4082403fc7917a61f6216552fc1a541d",
+            "nonce" => "0x2",
+            "yParity" => "0x0",
+            "r" => "0x3c67c1f1203dd722e316796c37c4b828b98f5a27578627879f415763e2ac5afd",
+            "s" => "0x4c77aba7874855a80c7357fb13ae953cf9d819a615c00baaa15a2e165a0f08f7"
+          }
+        ]
+      }
+
+      assert {:ok, %Transaction.Eip7702{} = transaction} = Transaction.from_rpc_map(tx_map)
+
+      assert [%Ethers.Authorization.Signed{} = signed_auth] = transaction.authorization_list
+
+      assert signed_auth.authorization ==
+               Ethers.Authorization.new!(
+                 chain_id: 1,
+                 address: "0x69e6bd1C4082403Fc7917a61F6216552fC1a541D",
+                 nonce: 2
+               )
+
+      assert signed_auth.signature_y_parity == 0
+
+      # Round-trips back to the RPC representation
+      rpc_map = Transaction.to_rpc_map(transaction)
+      assert rpc_map.type == "0x4"
+
+      assert rpc_map.authorizationList == [
+               %{
+                 chainId: "0x1",
+                 address: "0x69e6bd1C4082403Fc7917a61F6216552fC1a541D",
+                 nonce: "0x2",
+                 yParity: "0x0",
+                 r: "0x3C67C1F1203DD722E316796C37C4B828B98F5A27578627879F415763E2AC5AFD",
+                 s: "0x4C77ABA7874855A80C7357FB13AE953CF9D819A615C00BAAA15A2E165A0F08F7"
+               }
+             ]
+    end
+
+    test "returns error for missing authorization list in EIP-7702 transaction" do
+      tx_map = %{
+        "type" => "0x4",
+        "chainId" => "0x1",
+        "nonce" => "0x0",
+        "to" => "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb5",
+        "value" => "0x0",
+        "gas" => "0x5208",
+        "maxFeePerGas" => "0x3b9aca00",
+        "maxPriorityFeePerGas" => "0x0"
+      }
+
+      assert {:error, :empty_authorization_list} = Transaction.from_rpc_map(tx_map)
     end
   end
 end

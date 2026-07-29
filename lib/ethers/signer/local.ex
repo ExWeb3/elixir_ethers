@@ -17,6 +17,7 @@ defmodule Ethers.Signer.Local do
 
   import Ethers, only: [secp256k1_module: 0, keccak_module: 0]
 
+  alias Ethers.Authorization
   alias Ethers.Transaction
   alias Ethers.Transaction.Signed
   alias Ethers.Utils
@@ -66,6 +67,23 @@ defmodule Ethers.Signer.Local do
     end
 
     @impl true
+    def sign_authorization(%Authorization{} = authorization, opts) do
+      digest = Authorization.hash(authorization)
+
+      with {:ok, private_key} <- private_key(opts),
+           :ok <- validate_private_key(private_key, Keyword.get(opts, :from)),
+           {:ok, {r, s, recovery_id}} <- secp256k1_module().sign(digest, private_key) do
+        {:ok,
+         %Authorization.Signed{
+           authorization: authorization,
+           signature_y_parity: recovery_id,
+           signature_r: r,
+           signature_s: s
+         }}
+      end
+    end
+
+    @impl true
     def accounts(opts) do
       with {:ok, private_key} <- private_key(opts),
            {:ok, address} <- do_get_address(private_key) do
@@ -81,6 +99,9 @@ defmodule Ethers.Signer.Local do
 
     @impl true
     def personal_sign(_message, _opts), do: {:error, :secp256k1_module_not_loaded}
+
+    @impl true
+    def sign_authorization(_authorization, _opts), do: {:error, :secp256k1_module_not_loaded}
 
     @impl true
     def accounts(_opts), do: {:error, :secp256k1_module_not_loaded}

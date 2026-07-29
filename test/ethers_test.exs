@@ -631,7 +631,8 @@ defmodule EthersTest do
         Ethers.Transaction.Legacy,
         Ethers.Transaction.Eip1559,
         Ethers.Transaction.Eip2930,
-        Ethers.Transaction.Eip4844
+        Ethers.Transaction.Eip4844,
+        Ethers.Transaction.Eip7702
       ]
 
       for type <- types do
@@ -642,6 +643,7 @@ defmodule EthersTest do
                    from: @from,
                    type: type,
                    to: "0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc",
+                   authorization_list: [authorization_fixture()],
                    rpc_opts: [send_params_to_pid: self()]
                  )
 
@@ -660,7 +662,8 @@ defmodule EthersTest do
       types = [
         Ethers.Transaction.Legacy,
         Ethers.Transaction.Eip1559,
-        Ethers.Transaction.Eip2930
+        Ethers.Transaction.Eip2930,
+        Ethers.Transaction.Eip7702
         # Does not work with Anvil without sidecar
         # Ethers.Transaction.Eip4844
       ]
@@ -679,6 +682,7 @@ defmodule EthersTest do
                      )
                    ],
                    access_list: access_list_fixture(),
+                   authorization_list: [authorization_fixture()],
                    signer_opts: [
                      private_key: @from_private_key
                    ]
@@ -883,6 +887,164 @@ defmodule EthersTest do
     test "bang version returns unwrapped value" do
       assert Ethers.chain_id!() == 31_337
     end
+  end
+
+  describe "sign_authorization/2" do
+    # Anvil dev account #6
+    @authority "0x976EA74026E726554dB657fA54763abd0C3a0aa9"
+    @authority_private_key "0x92db14e403b83dfe3df233f83dfa3a0d7096f21ca9b0d6d6b8d88b2b4ec1564e"
+
+    @delegate "0x2222222222222222222222222222222222222222"
+
+    test "signs an authorization with auto-fetched chain_id and nonce" do
+      {:ok, expected_nonce} = Ethers.get_transaction_count(@authority, block: "latest")
+
+      assert {:ok, %Ethers.Authorization.Signed{} = signed} =
+               Ethers.sign_authorization(%{address: @delegate},
+                 signer: Ethers.Signer.Local,
+                 signer_opts: [private_key: @authority_private_key]
+               )
+
+      assert signed.authorization.chain_id == 31_337
+      assert signed.authorization.nonce == expected_nonce
+      assert signed.authorization.address == @delegate
+
+      assert {:ok, recovered} = Ethers.Authorization.Signed.recover_authority(signed)
+      assert String.downcase(recovered) == String.downcase(@authority)
+    end
+
+    test "executor: :self signs over the next nonce" do
+      {:ok, current_nonce} = Ethers.get_transaction_count(@authority, block: "latest")
+
+      assert {:ok, %Ethers.Authorization.Signed{} = signed} =
+               Ethers.sign_authorization(%{address: @delegate},
+                 executor: :self,
+                 signer: Ethers.Signer.Local,
+                 signer_opts: [private_key: @authority_private_key]
+               )
+
+      assert signed.authorization.nonce == current_nonce + 1
+    end
+
+    test "explicitly given fields are never adjusted or fetched" do
+      assert {:ok, %Ethers.Authorization.Signed{} = signed} =
+               Ethers.sign_authorization(%{address: @delegate, chain_id: 1, nonce: 5},
+                 executor: :self,
+                 signer: Ethers.Signer.Local,
+                 signer_opts: [private_key: @authority_private_key]
+               )
+
+      assert signed.authorization.chain_id == 1
+      assert signed.authorization.nonce == 5
+    end
+
+    test "accepts a ready Ethers.Authorization struct" do
+      authorization = Ethers.Authorization.new!(chain_id: 31_337, address: @delegate, nonce: 3)
+
+      assert {:ok, %Ethers.Authorization.Signed{authorization: ^authorization}} =
+               Ethers.sign_authorization(authorization,
+                 signer: Ethers.Signer.Local,
+                 signer_opts: [private_key: @authority_private_key]
+               )
+    end
+
+    test "raises on invalid :executor option" do
+      assert_raise ArgumentError, ~r/invalid :executor option/, fn ->
+        Ethers.sign_authorization(%{address: @delegate}, executor: :other)
+      end
+    end
+
+    test "returns :not_supported for signers without authorization support" do
+      assert {:error, :not_supported} =
+               Ethers.sign_authorization(%{address: @delegate, chain_id: 31_337, nonce: 0},
+                 signer: Ethers.Signer.JsonRPC
+               )
+    end
+  end
+
+  describe "EIP-7702 delegation" do
+    # Anvil dev account #7
+    @authority_7702 "0x14dC79964da2C08b23698B3D3cc7Ca32193d9955"
+    @authority_7702_private_key "0x4bbbf85ce3377467afe5d46f804f221813b2bb87f24d81f60f1fcdbf7cbf4356"
+
+    @zero_address "0x0000000000000000000000000000000000000000"
+
+    test "full lifecycle: sponsored delegation, delegated execution, self-sponsored clear" do
+      delegate = deploy(HelloWorldContract, from: @from)
+
+      # The authority signs the authorization; @from sponsors the type-4 transaction and
+      # calls the freshly delegated EOA in the same transaction.
+      {:ok, signed_auth} =
+        Ethers.sign_authorization(%{address: delegate},
+          signer: Ethers.Signer.Local,
+          signer_opts: [private_key: @authority_7702_private_key]
+        )
+
+      {:ok, tx_hash} =
+        HelloWorldContract.set_hello("hello 7702")
+        |> Ethers.send_transaction(
+          type: Ethers.Transaction.Eip7702,
+          to: @authority_7702,
+          from: @from,
+          authorization_list: [signed_auth],
+          signer: Ethers.Signer.Local,
+          signer_opts: [private_key: @from_private_key]
+        )
+
+      wait_for_transaction!(tx_hash)
+
+      # The authority's account code is now the delegation designator 0xef0100 ++ delegate
+      assert {:ok, code} =
+               Ethereumex.HttpClient.eth_get_code(String.downcase(@authority_7702), "latest")
+
+      assert code == "0xef0100" <> String.downcase(String.replace_prefix(delegate, "0x", ""))
+
+      # Calls to the EOA now execute the delegate's code against the EOA's own storage
+      assert {:ok, "hello 7702"} =
+               Ethers.call(HelloWorldContract.say_hello(), to: @authority_7702)
+
+      # Clear the delegation with a self-sponsored transaction (authority sends it itself,
+      # so the authorization must be signed over the next nonce via executor: :self)
+      {:ok, clear_auth} =
+        Ethers.sign_authorization(%{address: @zero_address},
+          executor: :self,
+          signer: Ethers.Signer.Local,
+          signer_opts: [private_key: @authority_7702_private_key]
+        )
+
+      {:ok, clear_tx_hash} =
+        Ethers.send_transaction(
+          %{},
+          type: Ethers.Transaction.Eip7702,
+          to: @authority_7702,
+          from: @authority_7702,
+          authorization_list: [clear_auth],
+          signer: Ethers.Signer.Local,
+          signer_opts: [private_key: @authority_7702_private_key]
+        )
+
+      wait_for_transaction!(clear_tx_hash)
+
+      assert {:ok, "0x"} =
+               Ethereumex.HttpClient.eth_get_code(String.downcase(@authority_7702), "latest")
+    end
+  end
+
+  defp authorization_fixture do
+    # Signed offline for Anvil's chain (31337) with a deliberately far-future nonce so the
+    # delegation never applies on the shared node — invalid authorizations do not
+    # invalidate the transaction, so this still exercises the full type-4 path.
+    {:ok, signed} =
+      Ethers.Authorization.new!(
+        chain_id: 31_337,
+        address: "0x2222222222222222222222222222222222222222",
+        nonce: 1_000_000
+      )
+      |> Ethers.Signer.Local.sign_authorization(
+        private_key: "0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a"
+      )
+
+    signed
   end
 
   defp access_list_fixture do

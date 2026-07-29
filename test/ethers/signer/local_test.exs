@@ -187,4 +187,66 @@ defmodule Ethers.Signer.LocalTest do
       assert {:error, :invalid_private_key} == Signer.Local.accounts(private_key: "invalid")
     end
   end
+
+  describe "sign_authorization/2" do
+    test "produces the exact signature for a fixed key and authorization" do
+      # Expected values produced independently by foundry for the same private key
+      # (@private_key -> 0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1):
+      #   cast wallet sign-auth 0x2222222222222222222222222222222222222222 \
+      #     --private-key $PK --nonce 7 --chain 1
+      authorization =
+        Ethers.Authorization.new!(
+          chain_id: 1,
+          address: "0x2222222222222222222222222222222222222222",
+          nonce: 7
+        )
+
+      assert {:ok, %Ethers.Authorization.Signed{} = signed} =
+               Signer.Local.sign_authorization(authorization, private_key: @private_key)
+
+      assert signed.authorization == authorization
+      assert signed.signature_y_parity == 0
+
+      assert Utils.hex_encode(signed.signature_r) ==
+               "0x9d984a806a802bf0c73b1b7e126fc5ee241ebeba33d4adfb0ba595ed21791968"
+
+      assert Utils.hex_encode(signed.signature_s) ==
+               "0x194dd94cb56eb4f90accaed679537fefa8d0f2f1f24632ea868ffbedd9ed99ee"
+
+      assert {:ok, "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1"} =
+               Ethers.Authorization.Signed.recover_authority(signed)
+    end
+
+    test "produces the exact signature for a clear (zero address) authorization" do
+      # cast wallet sign-auth 0x0000000000000000000000000000000000000000 \
+      #   --private-key $PK --nonce 0 --chain 0
+      authorization = Ethers.Authorization.clear!(chain_id: 0, nonce: 0)
+
+      assert {:ok, %Ethers.Authorization.Signed{} = signed} =
+               Signer.Local.sign_authorization(authorization, private_key: @private_key)
+
+      assert signed.signature_y_parity == 1
+
+      assert Utils.hex_encode(signed.signature_r) ==
+               "0x8bc16de717c99f343ccdc7acdf16d8c46ab5de7a50e3504d1c4c28d1a529153f"
+
+      assert Utils.hex_encode(signed.signature_s) ==
+               "0x44743ce31ed05643786db455603ddb30a7a788309bc967a2007464ae3090511b"
+    end
+
+    test "returns :wrong_key when :from does not match the private key" do
+      authorization =
+        Ethers.Authorization.new!(
+          chain_id: 1,
+          address: "0x2222222222222222222222222222222222222222",
+          nonce: 7
+        )
+
+      assert {:error, :wrong_key} =
+               Signer.Local.sign_authorization(authorization,
+                 private_key: @private_key,
+                 from: "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
+               )
+    end
+  end
 end

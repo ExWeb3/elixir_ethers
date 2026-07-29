@@ -70,4 +70,8 @@ defmodule Ethers.Signer.JsonRPC do
 
     rpc_module.request("eth_accounts", [], opts)
   end
+
+  # No standard JSON-RPC method exists for signing EIP-7702 authorizations.
+  @impl true
+  def sign_authorization(_authorization, _opts), do: {:error, :not_supported}
 end

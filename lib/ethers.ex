@@ -109,6 +109,8 @@ defmodule Ethers do
   @fee_estimation_percentiles %{slow: 25, standard: 50, fast: 75}
   @fee_estimation_block_count 10
 
+  @block_tags ["latest", "earliest", "pending", "safe", "finalized"]
+
   @type t_batch_request :: atom() | {atom, term()} | {atom, term(), Keyword.t()}
 
   defguardp valid_result(bin) when bin != "0x"
@@ -860,9 +862,10 @@ defmodule Ethers do
   Also works with `Ethers.batch/2` as `{:fee_history, [block_count, newest_block, reward_percentiles]}`.
 
   ## Parameters
-  - `block_count`: Number of blocks to look back.
-  - `newest_block`: Highest block of the requested range — a block number or a tag like
-    `"latest"` (default `"latest"`).
+  - `block_count`: Number of blocks to look back. (positive integer)
+  - `newest_block`: Highest block of the requested range — a block number (integer) or one
+    of the block tags `"latest"`, `"earliest"`, `"pending"`, `"safe"` or `"finalized"`.
+    Hex encoded block numbers are not accepted. (default `"latest"`)
   - `reward_percentiles`: List of percentiles (0-100) to sample the priority fees of the
     transactions in each block at. When empty, no `:reward` data is returned. (default `[]`)
   - `opts`: RPC related options.
@@ -881,7 +884,7 @@ defmodule Ethers do
   - `:base_fee_per_blob_gas` / `:blob_gas_used_ratio`: Same as their gas counterparts, for
     blob gas (EIP-4844). `nil` when the node does not report them.
   """
-  @spec fee_history(non_neg_integer(), binary() | non_neg_integer(), [number()], Keyword.t()) ::
+  @spec fee_history(pos_integer(), binary() | non_neg_integer(), [number()], Keyword.t()) ::
           {:ok, map()} | {:error, term()}
   def fee_history(block_count, newest_block \\ "latest", reward_percentiles \\ [], opts \\ []) do
     {rpc_client, rpc_opts} = get_rpc_client(opts)
@@ -896,7 +899,7 @@ defmodule Ethers do
   @doc """
   Same as `Ethers.fee_history/4` but raises on error.
   """
-  @spec fee_history!(non_neg_integer(), binary() | non_neg_integer(), [number()], Keyword.t()) ::
+  @spec fee_history!(pos_integer(), binary() | non_neg_integer(), [number()], Keyword.t()) ::
           map() | no_return()
   def fee_history!(block_count, newest_block \\ "latest", reward_percentiles \\ [], opts \\ []) do
     case fee_history(block_count, newest_block, reward_percentiles, opts) do
@@ -1181,13 +1184,20 @@ defmodule Ethers do
   end
 
   defp pre_process([block_count, newest_block, reward_percentiles], [], :fee_history, _opts)
-       when is_list(reward_percentiles) do
-    {:ok,
-     [
-       ensure_quantity_hex(block_count),
-       ensure_quantity_hex(newest_block),
-       reward_percentiles
-     ]}
+       when is_integer(block_count) and block_count > 0 and is_list(reward_percentiles) do
+    # Only one representation per input: quantities are integers (hex encoded here for
+    # the RPC), the newest block is an integer or one of the named block tags
+    case newest_block do
+      number when is_integer(number) and number >= 0 ->
+        {:ok,
+         [Utils.integer_to_hex(block_count), Utils.integer_to_hex(number), reward_percentiles]}
+
+      tag when tag in @block_tags ->
+        {:ok, [Utils.integer_to_hex(block_count), tag, reward_percentiles]}
+
+      _other ->
+        {:error, :invalid_fee_history_params}
+    end
   end
 
   defp pre_process(_data, [], :fee_history, _opts), do: {:error, :invalid_fee_history_params}
@@ -1362,9 +1372,6 @@ defmodule Ethers do
 
   defp maybe_hex_to_integer(nil), do: nil
   defp maybe_hex_to_integer(hex), do: Utils.hex_to_integer!(hex)
-
-  defp ensure_quantity_hex(number) when is_integer(number), do: Utils.integer_to_hex(number)
-  defp ensure_quantity_hex(tag), do: tag
 
   defp ensure_hex_value(params, key) do
     case Map.get(params, key) do

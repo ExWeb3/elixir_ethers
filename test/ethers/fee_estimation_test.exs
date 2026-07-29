@@ -84,6 +84,15 @@ defmodule Ethers.FeeEstimationTest do
 
     test "returns error for invalid params" do
       assert {:error, :invalid_fee_history_params} = Ethers.fee_history(2, "latest", 50)
+      assert {:error, :invalid_fee_history_params} = Ethers.fee_history(0, "latest", [50])
+    end
+
+    test "accepts only one representation per input - no hex encoded quantities" do
+      # Quantities are integers and the newest block is an integer or a named block tag.
+      # Hex encoded strings are rejected instead of being passed through.
+      assert {:error, :invalid_fee_history_params} = Ethers.fee_history("0x2", "latest", [50])
+      assert {:error, :invalid_fee_history_params} = Ethers.fee_history(2, "0x10", [50])
+      assert {:error, :invalid_fee_history_params} = Ethers.fee_history(2, "newest", [50])
     end
 
     test "bang version returns unwrapped value and raises on error" do

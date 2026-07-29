@@ -877,7 +877,7 @@ defmodule Ethers do
     entry: the expected base fee of the next block**.
   - `:gas_used_ratio`: Gas used ratio (0..1) of each block in the range.
   - `:reward`: For each block, the transaction priority fees at each requested percentile.
-    `nil` when `reward_percentiles` is empty.
+    `nil` (or sometimes `[]`, depending on the node) when `reward_percentiles` is empty.
   - `:base_fee_per_blob_gas` / `:blob_gas_used_ratio`: Same as their gas counterparts, for
     blob gas (EIP-4844). `nil` when the node does not report them.
   """
@@ -1328,7 +1328,7 @@ defmodule Ethers do
       max_priority_fee_per_gas ->
         {:ok,
          %{
-           # Covers two consecutive 100% base fee increases plus the tip
+           # Adds 100% headroom for base fee growth (one doubling) plus the tip
            max_fee_per_gas: 2 * next_base_fee + max_priority_fee_per_gas,
            max_priority_fee_per_gas: max_priority_fee_per_gas
          }}

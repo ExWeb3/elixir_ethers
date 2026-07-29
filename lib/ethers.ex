@@ -92,6 +92,7 @@ defmodule Ethers do
     current_block_number: :eth_block_number,
     current_gas_price: :eth_gas_price,
     estimate_gas: :eth_estimate_gas,
+    fee_history: :eth_fee_history,
     gas_price: :eth_gas_price,
     get_logs: :eth_get_logs,
     get_transaction_count: :eth_get_transaction_count,
@@ -103,6 +104,10 @@ defmodule Ethers do
     send: :eth_send_transaction
   }
   @send_transaction_actions [:send_transaction, :send]
+
+  # Percentiles the priority fees of recent blocks are sampled at per fee estimation speed
+  @fee_estimation_percentiles %{slow: 25, standard: 50, fast: 75}
+  @fee_estimation_block_count 10
 
   @type t_batch_request :: atom() | {atom, term()} | {atom, term(), Keyword.t()}
 
@@ -396,8 +401,12 @@ defmodule Ethers do
   - `:chain_id`: Chain id for the transaction (defaults to chain id from RPC server).
   - `:gas_price`: (legacy only) max price willing to pay for each gas.
   - `:gas`: Gas limit for execution of this transaction.
-  - `:max_fee_per_gas`: (EIP-1559 only) max fee per gas (defaults to 120% current gas price estimate).
-  - `:max_priority_fee_per_gas`: (EIP-1559 only) max priority fee per gas or validator tip. (defaults to zero)
+  - `:max_fee_per_gas`: (EIP-1559 only) max fee per gas (estimated with `Ethers.estimate_fees/1`
+    from recent blocks, falling back to 120% of the current gas price on RPC clients without
+    `eth_feeHistory` support).
+  - `:max_priority_fee_per_gas`: (EIP-1559 only) max priority fee per gas or validator tip.
+    (estimated with `Ethers.estimate_fees/1` from recent blocks, falling back to
+    `eth_maxPriorityFeePerGas`)
   - `:nonce`: Nonce of the transaction. (defaults to number of transactions of from address)
   - `:rpc_client`: The RPC Client to use. It should implement ethereum jsonRPC API. default: Ethereumex.HttpClient
   - `:rpc_opts`: Extra options to pass to rpc_client. (Like timeout, Server URL, etc.)
@@ -846,6 +855,110 @@ defmodule Ethers do
   end
 
   @doc """
+  Returns the fee history from the RPC API (`eth_feeHistory`).
+
+  Also works with `Ethers.batch/2` as `{:fee_history, [block_count, newest_block, reward_percentiles]}`.
+
+  ## Parameters
+  - `block_count`: Number of blocks to look back.
+  - `newest_block`: Highest block of the requested range — a block number or a tag like
+    `"latest"` (default `"latest"`).
+  - `reward_percentiles`: List of percentiles (0-100) to sample the priority fees of the
+    transactions in each block at. When empty, no `:reward` data is returned. (default `[]`)
+  - `opts`: RPC related options.
+
+  ## Returns
+
+  `{:ok, fee_history}` where fee_history is a map with these keys (quantities decoded to
+  integers):
+
+  - `:oldest_block`: Number of the first block in the range.
+  - `:base_fee_per_gas`: Base fee per gas for each block in the range, **plus one extra
+    entry: the expected base fee of the next block**.
+  - `:gas_used_ratio`: Gas used ratio (0..1) of each block in the range.
+  - `:reward`: For each block, the transaction priority fees at each requested percentile.
+    `nil` when `reward_percentiles` is empty.
+  - `:base_fee_per_blob_gas` / `:blob_gas_used_ratio`: Same as their gas counterparts, for
+    blob gas (EIP-4844). `nil` when the node does not report them.
+  """
+  @spec fee_history(non_neg_integer(), binary() | non_neg_integer(), [number()], Keyword.t()) ::
+          {:ok, map()} | {:error, term()}
+  def fee_history(block_count, newest_block \\ "latest", reward_percentiles \\ [], opts \\ []) do
+    {rpc_client, rpc_opts} = get_rpc_client(opts)
+
+    with {:ok, [block_count, newest_block, reward_percentiles]} <-
+           pre_process([block_count, newest_block, reward_percentiles], [], :fee_history, opts) do
+      rpc_client.eth_fee_history(block_count, newest_block, reward_percentiles, rpc_opts)
+      |> post_process(nil, :fee_history)
+    end
+  end
+
+  @doc """
+  Same as `Ethers.fee_history/4` but raises on error.
+  """
+  @spec fee_history!(non_neg_integer(), binary() | non_neg_integer(), [number()], Keyword.t()) ::
+          map() | no_return()
+  def fee_history!(block_count, newest_block \\ "latest", reward_percentiles \\ [], opts \\ []) do
+    case fee_history(block_count, newest_block, reward_percentiles, opts) do
+      {:ok, fee_history} -> fee_history
+      {:error, reason} -> raise ExecutionError, reason
+    end
+  end
+
+  @doc """
+  Estimates EIP-1559 fees (`max_fee_per_gas` and `max_priority_fee_per_gas`) based on
+  recent blocks using `Ethers.fee_history/4`.
+
+  The priority fee is the median of the recent blocks' priority fees sampled at the
+  percentile selected by `:speed`, and the max fee adds headroom for base fee growth:
+
+      max_priority_fee_per_gas = median(reward at percentile over recent blocks)
+      max_fee_per_gas          = 2 * next_block_base_fee + max_priority_fee_per_gas
+
+  This is also what transaction auto-fill uses to price EIP-1559 transactions when the fees
+  are not explicitly provided (with a fallback to the legacy gas price based estimation on
+  RPC clients without `eth_feeHistory` support).
+
+  ## Options
+  - `:speed`: `:slow`, `:standard` or `:fast` — samples priority fees at the 25th, 50th or
+    75th percentile respectively. Also accepts a raw percentile number (0-100).
+    (default `:standard`)
+  - `:block_count`: Number of recent blocks to sample. (default `10`)
+  - `:rpc_client` / `:rpc_opts`: RPC related options.
+
+  ## Returns
+  - `{:ok, %{max_fee_per_gas: integer, max_priority_fee_per_gas: integer}}` on success.
+  - `{:error, :invalid_speed}` if `:speed` is not recognized.
+  - `{:error, :no_fee_history_data}` if the node returned no usable fee history.
+  - `{:error, reason}` on RPC failures.
+  """
+  @spec estimate_fees(Keyword.t()) ::
+          {:ok,
+           %{max_fee_per_gas: non_neg_integer(), max_priority_fee_per_gas: non_neg_integer()}}
+          | {:error, term()}
+  def estimate_fees(opts \\ []) do
+    block_count = Keyword.get(opts, :block_count, @fee_estimation_block_count)
+
+    with {:ok, percentile} <- fee_percentile(Keyword.get(opts, :speed, :standard)),
+         {:ok, fee_history} <- fee_history(block_count, "latest", [percentile], opts) do
+      calculate_fee_estimation(fee_history)
+    end
+  end
+
+  @doc """
+  Same as `Ethers.estimate_fees/1` but raises on error.
+  """
+  @spec estimate_fees!(Keyword.t()) ::
+          %{max_fee_per_gas: non_neg_integer(), max_priority_fee_per_gas: non_neg_integer()}
+          | no_return()
+  def estimate_fees!(opts \\ []) do
+    case estimate_fees(opts) do
+      {:ok, fees} -> fees
+      {:error, reason} -> raise ExecutionError, reason
+    end
+  end
+
+  @doc """
   Fetches the event logs with the given filter.
 
   The filter can be one of:
@@ -1067,6 +1180,18 @@ defmodule Ethers do
     {:ok, log_params}
   end
 
+  defp pre_process([block_count, newest_block, reward_percentiles], [], :fee_history, _opts)
+       when is_list(reward_percentiles) do
+    {:ok,
+     [
+       ensure_quantity_hex(block_count),
+       ensure_quantity_hex(newest_block),
+       reward_percentiles
+     ]}
+  end
+
+  defp pre_process(_data, [], :fee_history, _opts), do: {:error, :invalid_fee_history_params}
+
   defp pre_process([], [], _action, _opts), do: :ok
 
   defp pre_process(data, [], _action, _opts), do: {:ok, data}
@@ -1142,6 +1267,20 @@ defmodule Ethers do
   defp post_process({:ok, nil}, _tx_hash, :get_transaction_receipt),
     do: {:error, :transaction_receipt_not_found}
 
+  defp post_process({:ok, resp}, _data, :fee_history) when is_map(resp) do
+    {:ok,
+     %{
+       oldest_block: resp |> Map.get("oldestBlock") |> maybe_hex_to_integer(),
+       base_fee_per_gas:
+         resp |> Map.get("baseFeePerGas", []) |> Enum.map(&Utils.hex_to_integer!/1),
+       gas_used_ratio: Map.get(resp, "gasUsedRatio", []),
+       reward: resp |> Map.get("reward") |> decode_fee_history_rewards(),
+       base_fee_per_blob_gas:
+         resp |> Map.get("baseFeePerBlobGas") |> maybe_map(&Utils.hex_to_integer!/1),
+       blob_gas_used_ratio: Map.get(resp, "blobGasUsedRatio")
+     }}
+  end
+
   defp post_process({:ok, result}, _tx_data, _action),
     do: {:ok, result}
 
@@ -1167,6 +1306,65 @@ defmodule Ethers do
 
   defp post_process({:error, cause}, _tx_data, _action),
     do: {:error, cause}
+
+  defp fee_percentile(speed) when is_map_key(@fee_estimation_percentiles, speed),
+    do: {:ok, Map.fetch!(@fee_estimation_percentiles, speed)}
+
+  defp fee_percentile(percentile)
+       when is_number(percentile) and percentile >= 0 and percentile <= 100,
+       do: {:ok, percentile}
+
+  defp fee_percentile(_speed), do: {:error, :invalid_speed}
+
+  defp calculate_fee_estimation(%{base_fee_per_gas: base_fees, reward: rewards})
+       when base_fees != [] and is_list(rewards) do
+    # base_fee_per_gas has one extra entry: the expected base fee of the next block
+    next_base_fee = List.last(base_fees)
+
+    case rewards |> Enum.flat_map(&List.wrap/1) |> median() do
+      nil ->
+        {:error, :no_fee_history_data}
+
+      max_priority_fee_per_gas ->
+        {:ok,
+         %{
+           # Covers two consecutive 100% base fee increases plus the tip
+           max_fee_per_gas: 2 * next_base_fee + max_priority_fee_per_gas,
+           max_priority_fee_per_gas: max_priority_fee_per_gas
+         }}
+    end
+  end
+
+  defp calculate_fee_estimation(_fee_history), do: {:error, :no_fee_history_data}
+
+  defp median([]), do: nil
+
+  defp median(values) do
+    sorted = Enum.sort(values)
+    count = length(sorted)
+    middle = div(count, 2)
+
+    if rem(count, 2) == 1 do
+      Enum.at(sorted, middle)
+    else
+      div(Enum.at(sorted, middle - 1) + Enum.at(sorted, middle), 2)
+    end
+  end
+
+  defp decode_fee_history_rewards(nil), do: nil
+
+  defp decode_fee_history_rewards(rewards) when is_list(rewards),
+    do:
+      Enum.map(rewards, fn block_rewards -> maybe_map(block_rewards, &Utils.hex_to_integer!/1) end)
+
+  defp maybe_map(nil, _fun), do: nil
+  defp maybe_map(list, fun) when is_list(list), do: Enum.map(list, fun)
+
+  defp maybe_hex_to_integer(nil), do: nil
+  defp maybe_hex_to_integer(hex), do: Utils.hex_to_integer!(hex)
+
+  defp ensure_quantity_hex(number) when is_integer(number), do: Utils.integer_to_hex(number)
+  defp ensure_quantity_hex(tag), do: tag
 
   defp ensure_hex_value(params, key) do
     case Map.get(params, key) do

@@ -87,6 +87,14 @@ defmodule Ethers.FeeEstimationTest do
       assert {:error, :invalid_fee_history_params} = Ethers.fee_history(0, "latest", [50])
     end
 
+    test "returns error when the RPC client does not support eth_feeHistory" do
+      assert {:error, :not_supported} =
+               Ethers.fee_history(2, "latest", [50], rpc_client: Ethers.TestRPCModule)
+
+      # estimate_fees propagates the error instead of raising
+      assert {:error, :not_supported} = Ethers.estimate_fees(rpc_client: Ethers.TestRPCModule)
+    end
+
     test "accepts only one representation per input - no hex encoded quantities" do
       # Quantities are integers and the newest block is an integer or a named block tag.
       # Hex encoded strings are rejected instead of being passed through.

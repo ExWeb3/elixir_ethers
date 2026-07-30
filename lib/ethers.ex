@@ -883,6 +883,9 @@ defmodule Ethers do
     `nil` (or sometimes `[]`, depending on the node) when `reward_percentiles` is empty.
   - `:base_fee_per_blob_gas` / `:blob_gas_used_ratio`: Same as their gas counterparts, for
     blob gas (EIP-4844). `nil` when the node does not report them.
+
+  Returns `{:error, :not_supported}` if the configured RPC client does not implement the
+  optional `eth_fee_history/4` callback.
   """
   @spec fee_history(pos_integer(), binary() | non_neg_integer(), [number()], Keyword.t()) ::
           {:ok, map()} | {:error, term()}
@@ -891,7 +894,11 @@ defmodule Ethers do
 
     with {:ok, [block_count, newest_block, reward_percentiles]} <-
            pre_process([block_count, newest_block, reward_percentiles], [], :fee_history, opts) do
-      rpc_client.eth_fee_history(block_count, newest_block, reward_percentiles, rpc_opts)
+      if rpc_callback_supported?(rpc_client, :eth_fee_history, 4) do
+        rpc_client.eth_fee_history(block_count, newest_block, reward_percentiles, rpc_opts)
+      else
+        {:error, :not_supported}
+      end
       |> post_process(nil, :fee_history)
     end
   end
@@ -1372,6 +1379,10 @@ defmodule Ethers do
 
   defp maybe_hex_to_integer(nil), do: nil
   defp maybe_hex_to_integer(hex), do: Utils.hex_to_integer!(hex)
+
+  defp rpc_callback_supported?(rpc_client, callback, arity) do
+    Code.ensure_loaded?(rpc_client) and function_exported?(rpc_client, callback, arity)
+  end
 
   defp ensure_hex_value(params, key) do
     case Map.get(params, key) do

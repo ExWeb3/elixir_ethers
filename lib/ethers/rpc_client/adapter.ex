@@ -10,9 +10,17 @@ defmodule Ethers.RpcClient.Adapter do
 
   @callback eth_call(map(), binary(), keyword()) :: {:ok, binary()} | error()
 
+  @callback eth_call(map(), binary(), state_overrides :: map(), keyword()) ::
+              {:ok, binary()} | error()
+
   @callback eth_chain_id(keyword()) :: {:ok, binary()} | error()
 
+  @callback eth_create_access_list(map(), binary(), keyword()) :: {:ok, map()} | error()
+
   @callback eth_estimate_gas(map(), keyword()) :: {:ok, binary()} | error()
+
+  @callback eth_estimate_gas(map(), binary(), state_overrides :: map(), keyword()) ::
+              {:ok, binary()} | error()
 
   @callback eth_fee_history(
               block_count :: binary(),
@@ -44,8 +52,10 @@ defmodule Ethers.RpcClient.Adapter do
 
   @callback eth_send_raw_transaction(binary(), keyword()) :: {:ok, binary()} | error()
 
-  # Optional to keep custom RPC client adapters backwards compatible. Ethers checks
-  # availability with `function_exported?/3` and falls back to the legacy gas price
-  # based fee estimation when the adapter does not implement it.
-  @optional_callbacks eth_fee_history: 4
+  # New callbacks are optional to keep custom RPC client adapters backwards compatible.
+  # Ethers checks their availability with `function_exported?/3` before use.
+  @optional_callbacks eth_call: 4,
+                      eth_create_access_list: 3,
+                      eth_estimate_gas: 4,
+                      eth_fee_history: 4
 end

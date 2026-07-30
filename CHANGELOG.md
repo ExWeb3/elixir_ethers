@@ -13,6 +13,12 @@
 - Transaction auto-fill now prices EIP-1559 transactions with `Ethers.estimate_fees/1`
   instead of overpaying with a margin over `eth_gasPrice`, falling back to the legacy
   behaviour on RPC clients without `eth_feeHistory` support
+- Add state override support to `Ethers.call/2` and `Ethers.estimate_gas/2` via the new
+  `:state_overrides` option: simulate calls against spoofed balances/nonces, injected
+  contract code or rewritten storage slots (see `Ethers.StateOverride`)
+- Add `Ethers.create_access_list/2` (`eth_createAccessList`): generate the
+  [EIP-2930](https://eips.ethereum.org/EIPS/eip-2930) access list a transaction would touch,
+  in a format that plugs directly back into the `:access_list` transaction override
 
 ## 0.7.0 (2026-07-20)
 

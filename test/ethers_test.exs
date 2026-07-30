@@ -852,6 +852,99 @@ defmodule EthersTest do
     end
   end
 
+  describe "create_access_list/2" do
+    test "returns the touched storage slots and gas used" do
+      address = deploy(HelloWorldContract, from: @from)
+      address_bin = Utils.hex_decode!(address)
+
+      assert {:ok, %{access_list: access_list, gas_used: gas_used}} =
+               HelloWorldContract.set_hello("access list")
+               |> Ethers.create_access_list(to: address, from: @from)
+
+      assert is_integer(gas_used) and gas_used > 21_000
+
+      assert [[^address_bin, storage_keys]] = access_list
+      assert Enum.all?(storage_keys, &match?(<<_::256>>, &1))
+
+      # The result plugs directly into an EIP-2930 transaction
+      assert {:ok, tx_hash} =
+               HelloWorldContract.set_hello("with access list")
+               |> Ethers.send_transaction(
+                 to: address,
+                 from: @from,
+                 type: Ethers.Transaction.Eip2930,
+                 access_list: access_list,
+                 signer: Ethers.Signer.Local,
+                 signer_opts: [private_key: @from_private_key]
+               )
+
+      wait_for_transaction!(tx_hash)
+
+      assert {:ok, "with access list"} =
+               HelloWorldContract.say_hello() |> Ethers.call(to: address)
+    end
+
+    test "returns the node error when the simulated transaction reverts" do
+      address = deploy(HelloWorldContract, from: @from)
+
+      # Anvil rejects reverting calls at the RPC level. Geth instead reports the revert
+      # in the result's "error" field, which post processing preserves under :error.
+      assert {:error, %{"message" => message}} =
+               Ethers.create_access_list(%{data: "0xffffffff", value: 1},
+                 to: address,
+                 from: @from
+               )
+
+      assert message =~ "revert"
+    end
+
+    test "works in batch requests" do
+      address = deploy(HelloWorldContract, from: @from)
+
+      assert {:ok,
+              [
+                {:ok, %{access_list: [_ | _], gas_used: gas_used}},
+                {:ok, block_number}
+              ]} =
+               Ethers.batch([
+                 {:create_access_list, HelloWorldContract.set_hello("batch access list"),
+                  [to: address, from: @from]},
+                 :current_block_number
+               ])
+
+      assert is_integer(gas_used)
+      assert is_integer(block_number)
+    end
+
+    test "returns error without to address" do
+      assert {:error, :no_to_address} =
+               HelloWorldContract.set_hello("access list")
+               |> Ethers.create_access_list(from: @from)
+    end
+
+    test "returns error when the RPC client does not support it" do
+      assert {:error, :not_supported} =
+               HelloWorldContract.set_hello("access list")
+               |> Ethers.create_access_list(
+                 to: @to,
+                 from: @from,
+                 rpc_client: Ethers.TestRPCModule
+               )
+    end
+
+    test "bang version returns unwrapped value and raises on error" do
+      address = deploy(HelloWorldContract, from: @from)
+
+      assert %{access_list: _, gas_used: _} =
+               HelloWorldContract.set_hello("access list")
+               |> Ethers.create_access_list!(to: address, from: @from)
+
+      assert_raise ExecutionError, fn ->
+        HelloWorldContract.set_hello("access list") |> Ethers.create_access_list!(from: @from)
+      end
+    end
+  end
+
   describe "deprecated send/2 and send!/2 still work" do
     test "send/2 still works" do
       address = deploy(HelloWorldContract, from: @from)

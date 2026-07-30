@@ -35,6 +35,7 @@ defmodule Ethers do
   - `{action_name_atom, data, overrides_keyword_list}`: Use this to override or add attributes
     to the action data. This is only accepted for these actions and will through error on others.
     - `:call`: data should be a Ethers.TxData struct and overrides are accepted.
+    - `:create_access_list`: data should be a Ethers.TxData struct and overrides are accepted.
     - `:estimate_gas`: data should be a Ethers.TxData struct or a map and overrides are accepted.
     - `:get_logs`: data should be a Ethers.EventFilter struct, an Ethers.CombinedEventFilter
       struct or an EventFilters module (to match all events of a contract) and overrides
@@ -67,6 +68,7 @@ defmodule Ethers do
   alias Ethers.Event
   alias Ethers.EventFilter
   alias Ethers.ExecutionError
+  alias Ethers.StateOverride
   alias Ethers.Transaction
   alias Ethers.TxData
   alias Ethers.Types
@@ -89,6 +91,7 @@ defmodule Ethers do
   @rpc_actions_map %{
     call: :eth_call,
     chain_id: :eth_chain_id,
+    create_access_list: :eth_create_access_list,
     current_block_number: :eth_block_number,
     current_gas_price: :eth_gas_price,
     estimate_gas: :eth_estimate_gas,
@@ -346,6 +349,9 @@ defmodule Ethers do
   - `:block`: The block number or block alias. Defaults to `latest`
   - `:rpc_client`: The RPC Client to use. It should implement ethereum jsonRPC API. default: Ethereumex.HttpClient
   - `:rpc_opts`: Extra options to pass to rpc_client. (Like timeout, Server URL, etc.)
+  - `:state_overrides`: Execute the call against a modified chain state (spoofed balances,
+    injected contract code, rewritten storage slots, ...). See `Ethers.StateOverride` for the
+    accepted structure. Not supported in `Ethers.batch/2`.
 
   ## Return structure
 
@@ -366,11 +372,13 @@ defmodule Ethers do
 
   def call(tx_data, overrides) do
     {opts, overrides} = Keyword.split(overrides, @option_keys)
+    {state_overrides, overrides} = Keyword.pop(overrides, :state_overrides)
 
     {rpc_client, rpc_opts} = get_rpc_client(opts)
 
-    with {:ok, tx_params, block} <- pre_process(tx_data, overrides, :call, opts) do
-      rpc_client.eth_call(tx_params, block, rpc_opts)
+    with {:ok, tx_params, block} <- pre_process(tx_data, overrides, :call, opts),
+         {:ok, state_overrides} <- encode_state_overrides(state_overrides) do
+      eth_call(rpc_client, tx_params, block, state_overrides, rpc_opts)
       |> post_process(tx_data, :call)
     end
   end
@@ -779,8 +787,13 @@ defmodule Ethers do
   ## Overrides and Options
 
   - `:to`: Indicates recipient address. (Contract address in this case)
+  - `:block`: The block number or block alias. Only sent to the RPC server when
+    `:state_overrides` are given. Defaults to `latest`
   - `:rpc_client`: The RPC Client to use. It should implement ethereum jsonRPC API. default: Ethereumex.HttpClient
   - `:rpc_opts`: Extra options to pass to rpc_client. (Like timeout, Server URL, etc.)
+  - `:state_overrides`: Estimate against a modified chain state (spoofed balances, injected
+    contract code, rewritten storage slots, ...). See `Ethers.StateOverride` for the accepted
+    structure. Not supported in `Ethers.batch/2`.
 
   ```elixir
   Ethers.Contract.ERC20.transfer("0xff0...ea2", 1000) |> Ethers.estimate_gas(to: "0xa0b...ef6")
@@ -790,11 +803,20 @@ defmodule Ethers do
   @spec estimate_gas(map(), Keyword.t()) :: {:ok, non_neg_integer()} | {:error, term()}
   def estimate_gas(tx_data, overrides \\ []) do
     {opts, overrides} = Keyword.split(overrides, @option_keys)
+    {state_overrides, overrides} = Keyword.pop(overrides, :state_overrides)
+    {block, overrides} = Keyword.pop(overrides, :block, "latest")
 
     {rpc_client, rpc_opts} = get_rpc_client(opts)
 
-    with {:ok, tx_params} <- pre_process(tx_data, overrides, :estimate_gas, opts) do
-      rpc_client.eth_estimate_gas(tx_params, rpc_opts)
+    with {:ok, tx_params} <- pre_process(tx_data, overrides, :estimate_gas, opts),
+         {:ok, state_overrides} <- encode_state_overrides(state_overrides) do
+      eth_estimate_gas(
+        rpc_client,
+        tx_params,
+        ensure_block_tag_hex(block),
+        state_overrides,
+        rpc_opts
+      )
       |> post_process(tx_data, :estimate_gas)
     end
   end
@@ -806,6 +828,66 @@ defmodule Ethers do
   def estimate_gas!(tx_data, overrides \\ []) do
     case estimate_gas(tx_data, overrides) do
       {:ok, gas} -> gas
+      {:error, reason} -> raise ExecutionError, reason
+    end
+  end
+
+  @doc """
+  Makes an eth_createAccessList rpc call with the given parameters and overrides.
+
+  Simulates the transaction and returns the list of addresses and storage slots it accesses,
+  in the format transaction functions accept as the `:access_list` override — so the result
+  can be fed straight back into `Ethers.send_transaction/2` (with an EIP-2930 or later
+  transaction type) to reduce gas usage of the transaction.
+
+  Also works with `Ethers.batch/2` as `{:create_access_list, tx_data, overrides}`.
+
+  ## Overrides and Options
+
+  - `:to`: Indicates recipient address. (Contract address in this case)
+  - `:block`: The block number or block alias. Defaults to `latest`
+  - `:rpc_client`: The RPC Client to use. It should implement ethereum jsonRPC API. default: Ethereumex.HttpClient
+  - `:rpc_opts`: Extra options to pass to rpc_client. (Like timeout, Server URL, etc.)
+
+  ## Returns
+
+  `{:ok, result}` where result is a map with these keys:
+
+  - `:access_list`: The generated access list.
+  - `:gas_used`: Gas consumed by the simulated transaction (with the access list applied).
+  - `:error`: Only present when the simulated transaction reverts; holds the node's error
+    message. The access list is still generated in that case.
+
+  ## Examples
+
+  ```elixir
+  MyContract.some_function() |> Ethers.create_access_list(from: address)
+  {:ok, %{access_list: [[<<_::160>>, [<<_::256>>, ...]], ...], gas_used: 25000}}
+  ```
+  """
+  @spec create_access_list(map() | TxData.t(), Keyword.t()) :: {:ok, map()} | {:error, term()}
+  def create_access_list(tx_data, overrides \\ []) do
+    {opts, overrides} = Keyword.split(overrides, @option_keys)
+
+    {rpc_client, rpc_opts} = get_rpc_client(opts)
+
+    with {:ok, tx_params, block} <- pre_process(tx_data, overrides, :create_access_list, opts) do
+      if rpc_callback_supported?(rpc_client, :eth_create_access_list, 3) do
+        rpc_client.eth_create_access_list(tx_params, block, rpc_opts)
+      else
+        {:error, :not_supported}
+      end
+      |> post_process(tx_data, :create_access_list)
+    end
+  end
+
+  @doc """
+  Same as `Ethers.create_access_list/2` but raises on error.
+  """
+  @spec create_access_list!(map() | TxData.t(), Keyword.t()) :: map() | no_return()
+  def create_access_list!(tx_data, overrides \\ []) do
+    case create_access_list(tx_data, overrides) do
+      {:ok, result} -> result
       {:error, reason} -> raise ExecutionError, reason
     end
   end
@@ -1101,20 +1183,21 @@ defmodule Ethers do
   @spec get_rpc_client(Keyword.t()) :: {atom(), Keyword.t()}
   defdelegate get_rpc_client(opts), to: Ethers.RpcClient
 
-  defp pre_process(tx_data, overrides, :call = _action, _opts) do
-    {block, overrides} = Keyword.pop(overrides, :block, "latest")
+  defp pre_process(tx_data, overrides, action, _opts)
+       when action in [:call, :create_access_list] do
+    # :state_overrides is popped before pre_process in the direct paths, so its presence
+    # here means the action came through a batch request where it is not supported.
+    if Keyword.has_key?(overrides, :state_overrides) do
+      {:error, :state_overrides_not_supported_in_batch}
+    else
+      {block, overrides} = Keyword.pop(overrides, :block, "latest")
 
-    block =
-      case block do
-        number when is_integer(number) -> Utils.integer_to_hex(number)
-        v -> v
+      tx_params = TxData.to_map(tx_data, overrides)
+
+      case check_params(tx_params, action) do
+        :ok -> {:ok, Transaction.to_rpc_map(tx_params), ensure_block_tag_hex(block)}
+        err -> err
       end
-
-    tx_params = TxData.to_map(tx_data, overrides)
-
-    case check_params(tx_params, :call) do
-      :ok -> {:ok, Transaction.to_rpc_map(tx_params), block}
-      err -> err
     end
   end
 
@@ -1169,10 +1252,14 @@ defmodule Ethers do
   end
 
   defp pre_process(tx_data, overrides, :estimate_gas = action, _opts) do
-    tx_params = TxData.to_map(tx_data, overrides)
+    if Keyword.has_key?(overrides, :state_overrides) do
+      {:error, :state_overrides_not_supported_in_batch}
+    else
+      tx_params = TxData.to_map(tx_data, overrides)
 
-    with :ok <- check_params(tx_params, action) do
-      {:ok, Transaction.to_rpc_map(tx_params)}
+      with :ok <- check_params(tx_params, action) do
+        {:ok, Transaction.to_rpc_map(tx_params)}
+      end
     end
   end
 
@@ -1298,6 +1385,18 @@ defmodule Ethers do
      }}
   end
 
+  defp post_process({:ok, %{"accessList" => access_list} = resp}, _tx_data, :create_access_list) do
+    result = %{
+      access_list: decode_rpc_access_list(access_list),
+      gas_used: resp |> Map.get("gasUsed") |> then(&(&1 && Utils.hex_to_integer!(&1)))
+    }
+
+    case Map.get(resp, "error") do
+      nil -> {:ok, result}
+      error -> {:ok, Map.put(result, :error, error)}
+    end
+  end
+
   defp post_process({:ok, result}, _tx_data, _action),
     do: {:ok, result}
 
@@ -1323,6 +1422,33 @@ defmodule Ethers do
 
   defp post_process({:error, cause}, _tx_data, _action),
     do: {:error, cause}
+
+  defp eth_call(rpc_client, tx_params, block, nil = _state_overrides, rpc_opts) do
+    rpc_client.eth_call(tx_params, block, rpc_opts)
+  end
+
+  defp eth_call(rpc_client, tx_params, block, state_overrides, rpc_opts) do
+    if rpc_callback_supported?(rpc_client, :eth_call, 4) do
+      rpc_client.eth_call(tx_params, block, state_overrides, rpc_opts)
+    else
+      {:error, :state_overrides_not_supported}
+    end
+  end
+
+  defp eth_estimate_gas(rpc_client, tx_params, _block, nil = _state_overrides, rpc_opts) do
+    rpc_client.eth_estimate_gas(tx_params, rpc_opts)
+  end
+
+  defp eth_estimate_gas(rpc_client, tx_params, block, state_overrides, rpc_opts) do
+    if rpc_callback_supported?(rpc_client, :eth_estimate_gas, 4) do
+      rpc_client.eth_estimate_gas(tx_params, block, state_overrides, rpc_opts)
+    else
+      {:error, :state_overrides_not_supported}
+    end
+  end
+
+  defp encode_state_overrides(nil), do: {:ok, nil}
+  defp encode_state_overrides(state_overrides), do: StateOverride.to_rpc_map(state_overrides)
 
   defp fee_percentile(speed) when is_map_key(@fee_estimation_percentiles, speed),
     do: {:ok, Map.fetch!(@fee_estimation_percentiles, speed)}
@@ -1383,6 +1509,20 @@ defmodule Ethers do
   defp rpc_callback_supported?(rpc_client, callback, arity) do
     Code.ensure_loaded?(rpc_client) and function_exported?(rpc_client, callback, arity)
   end
+
+  defp decode_rpc_access_list(access_list) when is_list(access_list) do
+    Enum.map(access_list, fn entry ->
+      [
+        entry |> Map.get("address") |> Utils.hex_decode!(),
+        entry |> Map.get("storageKeys", []) |> Enum.map(&Utils.hex_decode!/1)
+      ]
+    end)
+  end
+
+  defp decode_rpc_access_list(_access_list), do: []
+
+  defp ensure_block_tag_hex(number) when is_integer(number), do: Utils.integer_to_hex(number)
+  defp ensure_block_tag_hex(tag), do: tag
 
   defp ensure_hex_value(params, key) do
     case Map.get(params, key) do

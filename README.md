@@ -33,9 +33,9 @@ Add `ethers` to your dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:ethers, "~> 0.7.0"},
+    {:ethers, "~> 0.8.0"},
     # Uncomment next line if you want to use local signers
-    # {:ex_secp256k1, "~> 0.7.6"}
+    # {:ex_secp256k1, "~> 0.8.0"}
   ]
 end
 ```

@@ -35,6 +35,7 @@ defmodule Ethers do
   - `{action_name_atom, data, overrides_keyword_list}`: Use this to override or add attributes
     to the action data. This is only accepted for these actions and will through error on others.
     - `:call`: data should be a Ethers.TxData struct and overrides are accepted.
+    - `:create_access_list`: data should be a Ethers.TxData struct and overrides are accepted.
     - `:estimate_gas`: data should be a Ethers.TxData struct or a map and overrides are accepted.
     - `:get_logs`: data should be a Ethers.EventFilter struct, an Ethers.CombinedEventFilter
       struct or an EventFilters module (to match all events of a contract) and overrides
@@ -90,6 +91,7 @@ defmodule Ethers do
   @rpc_actions_map %{
     call: :eth_call,
     chain_id: :eth_chain_id,
+    create_access_list: :eth_create_access_list,
     current_block_number: :eth_block_number,
     current_gas_price: :eth_gas_price,
     estimate_gas: :eth_estimate_gas,
@@ -837,6 +839,8 @@ defmodule Ethers do
   in the format transaction functions accept as the `:access_list` override — so the result
   can be fed straight back into `Ethers.send_transaction/2` (with an EIP-2930 or later
   transaction type) to reduce gas usage of the transaction.
+
+  Also works with `Ethers.batch/2` as `{:create_access_list, tx_data, overrides}`.
 
   ## Overrides and Options
 

@@ -898,6 +898,24 @@ defmodule EthersTest do
       assert message =~ "revert"
     end
 
+    test "works in batch requests" do
+      address = deploy(HelloWorldContract, from: @from)
+
+      assert {:ok,
+              [
+                {:ok, %{access_list: [_ | _], gas_used: gas_used}},
+                {:ok, block_number}
+              ]} =
+               Ethers.batch([
+                 {:create_access_list, HelloWorldContract.set_hello("batch access list"),
+                  [to: address, from: @from]},
+                 :current_block_number
+               ])
+
+      assert is_integer(gas_used)
+      assert is_integer(block_number)
+    end
+
     test "returns error without to address" do
       assert {:error, :no_to_address} =
                HelloWorldContract.set_hello("access list")

@@ -5,6 +5,14 @@
 ### Enhancements
 
 - Add [EIP-7702](https://eips.ethereum.org/EIPS/eip-7702) set-code transaction support (type 4)
+- Add `Ethers.fee_history/4` (`eth_feeHistory`) with decoded integer quantities, also usable
+  in `Ethers.batch/2` via `{:fee_history, [block_count, newest_block, reward_percentiles]}`
+- Add `Ethers.estimate_fees/1`: estimate EIP-1559 `max_fee_per_gas` and
+  `max_priority_fee_per_gas` from recent blocks' priority fees (`:slow`/`:standard`/`:fast`
+  speeds or a raw percentile) with `max_fee_per_gas = 2 * next_base_fee + priority_fee`
+- Transaction auto-fill now prices EIP-1559 transactions with `Ethers.estimate_fees/1`
+  instead of overpaying with a margin over `eth_gasPrice`, falling back to the legacy
+  behaviour on RPC clients without `eth_feeHistory` support
 
 ## 0.7.0 (2026-07-20)
 

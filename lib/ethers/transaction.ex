@@ -42,6 +42,9 @@ defmodule Ethers.Transaction do
   # Margin precision is 0.01% (12345 = 123.45%)
   @margin_precision 10_000
 
+  # Fields auto-filled through Ethers.estimate_fees/1 when the RPC client supports it
+  @fee_estimation_fields [:max_fee_per_gas, :max_priority_fee_per_gas]
+
   @typedoc """
   EVM Transaction type
   """
@@ -116,6 +119,11 @@ defmodule Ethers.Transaction do
   @doc """
   Fills missing transaction fields with default values from the network based on transaction type.
 
+  Missing `max_fee_per_gas` and `max_priority_fee_per_gas` values are estimated from recent
+  blocks with `Ethers.estimate_fees/1` (`eth_feeHistory`). When the RPC client does not
+  support `eth_feeHistory` (or the node returns no usable data), they fall back to the
+  legacy estimation based on `eth_gasPrice` and `eth_maxPriorityFeePerGas`.
+
   ## Parameters
     - `params` - Updated Transaction params
     - `opts` - Options to pass to the RPC client
@@ -128,9 +136,12 @@ defmodule Ethers.Transaction do
   def add_auto_fetchable_fields(params, opts) do
     params = Map.put_new(params, :type, @default_transaction_type)
 
+    missing_keys = Enum.reject(params.type.auto_fetchable_fields(), &Map.get(params, &1))
+
+    {params, missing_keys} = maybe_estimate_fees(params, missing_keys, opts)
+
     {keys, actions} =
-      params.type.auto_fetchable_fields()
-      |> Enum.reject(&Map.get(params, &1))
+      missing_keys
       |> Enum.map(&{&1, fill_action(&1, params)})
       |> Enum.unzip()
 
@@ -144,6 +155,26 @@ defmodule Ethers.Transaction do
           {:ok, Map.merge(params, results)}
         end
     end
+  end
+
+  defp maybe_estimate_fees(params, missing_keys, opts) do
+    missing_fee_keys = Enum.filter(missing_keys, &(&1 in @fee_estimation_fields))
+
+    with [_ | _] <- missing_fee_keys,
+         true <- fee_history_supported?(opts),
+         {:ok, fees} <- Ethers.estimate_fees(opts) do
+      {Map.merge(params, Map.take(fees, missing_fee_keys)), missing_keys -- missing_fee_keys}
+    else
+      # Nothing to estimate or no eth_feeHistory support - fall back to the legacy
+      # gas price based fill actions for any missing fee field
+      _no_estimation -> {params, missing_keys}
+    end
+  end
+
+  defp fee_history_supported?(opts) do
+    {rpc_client, _rpc_opts} = Ethers.get_rpc_client(opts)
+
+    Code.ensure_loaded?(rpc_client) and function_exported?(rpc_client, :eth_fee_history, 4)
   end
 
   @doc """

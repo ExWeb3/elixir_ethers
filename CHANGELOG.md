@@ -1,5 +1,35 @@
 # Changelog
 
+## Unreleased
+
+### Breaking Changes
+
+- Transactions returned by `Ethers.get_transaction/2` and `Ethers.Transaction.from_rpc_map/1`
+  now hold `access_list` as `[[address_binary, [storage_key_binary]]]` and
+  `blob_versioned_hashes` as 32-byte binaries, the same form `Ethers.Transaction.decode/1`
+  produces, instead of the raw RPC maps and hex strings
+- `Ethers.Transaction.to_rpc_map/1` emits access list entries as
+  `%{address: ..., storageKeys: [...]}` objects (was `[address, [storage_keys]]`) and EIP-7702
+  authorization `r`/`s` as quantities without leading zeros (was the raw bytes as data). Custom
+  RPC client adapters receive these maps as request params, as do custom `Ethers.Signer`
+  implementations that build their request with `to_rpc_map/1`. The `:access_list` override
+  format is unchanged
+- `Ethers.Transaction.to_rpc_map/1` raises `ArgumentError` naming the field and value (was
+  `FunctionClauseError`) for unsupported values, now including access list storage keys and
+  blob versioned hashes that are not 32-byte binaries
+
+### Bug Fixes
+
+- Fix transactions with an access list fetched with `Ethers.get_transaction/2` failing to
+  re-encode: `Ethers.Transaction.transaction_hash/2` now returns their own hash (#281)
+- Fix access lists in JSON-RPC params being rejected by geth, which affected `Ethers.call/2`,
+  `Ethers.estimate_gas/2`, `Ethers.create_access_list/2`, node-signed
+  `Ethers.send_transaction/2`, `Ethers.Signer.JsonRPC` and gas estimation for locally signed
+  transactions (#282)
+- Fix `Ethers.Transaction.to_rpc_map/1` raising `FunctionClauseError` for signed transactions:
+  they now serialise with their signature (`r`, `s`, `yParity`/`v`) and block metadata and read
+  back with `Ethers.Transaction.from_rpc_map/1` (#287)
+
 ## 0.8.0 (2026-07-29)
 
 ### Enhancements

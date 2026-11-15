@@ -20,6 +20,8 @@
 - Add `Ethers.config/1` (`eth_config`, [EIP-7910](https://eips.ethereum.org/EIPS/eip-7910)) returning `Ethers.ForkConfig` structs
 - Update dependencies
 - Allow `idna` 8.x
+- Add `Ethers.get_code/2` (`eth_getCode`)
+- Add `Ethers.get_delegation/2` and `Ethers.Authorization.parse_delegation/1` to inspect EIP-7702 delegations
 
 ### Bug Fixes
 

@@ -35,6 +35,8 @@ defmodule Ethers.RpcClient.Adapter do
 
   @callback eth_get_balance(binary(), binary(), keyword()) :: {:ok, binary()} | error()
 
+  @callback eth_get_code(binary(), binary(), keyword()) :: {:ok, binary()} | error()
+
   @callback eth_get_block_by_number(binary() | non_neg_integer(), boolean(), keyword()) ::
               {:ok, map()} | error()
 
@@ -60,5 +62,6 @@ defmodule Ethers.RpcClient.Adapter do
                       eth_config: 1,
                       eth_create_access_list: 3,
                       eth_estimate_gas: 4,
-                      eth_fee_history: 4
+                      eth_fee_history: 4,
+                      eth_get_code: 3
 end

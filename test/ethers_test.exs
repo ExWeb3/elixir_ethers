@@ -110,6 +110,99 @@ defmodule EthersTest do
     end
   end
 
+  describe "get_code" do
+    @eoa "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045"
+
+    test "returns the runtime code of a contract" do
+      address = deploy(HelloWorldContract, from: @from)
+
+      assert {:ok, code} = Ethers.get_code(address)
+      assert byte_size(code) > 0
+
+      # The creation code returns the runtime code, which it embeds verbatim
+      assert :binary.match(HelloWorldContract.__contract_binary__(), code) != :nomatch
+
+      assert {:ok, ^code} = Ethers.get_code(address)
+    end
+
+    test "returns an empty binary for an account without code" do
+      assert {:ok, ""} == Ethers.get_code(@eoa)
+    end
+
+    test "works with binary addresses" do
+      address = deploy(HelloWorldContract, from: @from)
+
+      assert {:ok, code} = Ethers.get_code(address)
+      assert {:ok, ^code} = address |> Utils.hex_decode!() |> Ethers.get_code()
+    end
+
+    test "queries the code at the given block" do
+      {:ok, block_before} = Ethers.current_block_number()
+      address = deploy(HelloWorldContract, from: @from)
+      {:ok, block_after} = Ethers.current_block_number()
+
+      assert {:ok, ""} == Ethers.get_code(address, block: block_before)
+      assert {:ok, code} = Ethers.get_code(address, block: block_after)
+      assert byte_size(code) > 0
+      assert {:ok, ^code} = Ethers.get_code(address, block: "latest")
+    end
+
+    test "works in batch requests" do
+      {:ok, block_before} = Ethers.current_block_number()
+      address = deploy(HelloWorldContract, from: @from)
+      code = Ethers.get_code!(address)
+
+      assert {:ok, [{:ok, ^code}, {:ok, ""}, {:ok, ""}]} =
+               Ethers.batch([
+                 {:get_code, address},
+                 {:get_code, address, block: block_before},
+                 {:get_code, @eoa}
+               ])
+    end
+
+    test "bang version returns unwrapped value" do
+      assert "" == Ethers.get_code!(@eoa)
+    end
+
+    test "bang version raises on error" do
+      assert_raise ExecutionError, fn ->
+        Ethers.get_code!("invalid account")
+      end
+    end
+
+    test "returns error with invalid account" do
+      assert {:error, :invalid_account} == Ethers.get_code("invalid account")
+    end
+
+    test "returns error when the RPC client does not support it" do
+      assert {:error, :not_supported} == Ethers.get_code(@eoa, rpc_client: Ethers.TestRPCModule)
+    end
+  end
+
+  describe "get_delegation" do
+    test "returns nil for an account without code" do
+      assert {:ok, nil} == Ethers.get_delegation("0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045")
+    end
+
+    test "returns nil for a regular contract" do
+      address = deploy(HelloWorldContract, from: @from)
+
+      assert {:ok, nil} == Ethers.get_delegation(address)
+      assert nil == Ethers.get_delegation!(address)
+    end
+
+    test "returns errors of the underlying request" do
+      assert {:error, :invalid_account} == Ethers.get_delegation("invalid account")
+
+      assert {:error, :not_supported} ==
+               Ethers.get_delegation(@to, rpc_client: Ethers.TestRPCModule)
+
+      assert_raise ExecutionError, fn ->
+        Ethers.get_delegation!("invalid account")
+      end
+    end
+  end
+
   describe "get_transaction_count" do
     @address "0x23618e81E3f5cdF7f54C3d65f7FBc0aBf5B21E8f"
     test "returns the correct transaction count" do
@@ -1294,6 +1387,72 @@ defmodule EthersTest do
       assert {:ok, "0x"} =
                Ethereumex.HttpClient.eth_get_code(String.downcase(@authority_7702), "latest")
     end
+
+    test "get_code/2 and get_delegation/2 report whether an authorization took effect" do
+      # A fresh, unfunded authority: every type-4 transaction below is sponsored by @from,
+      # so no account shared with other tests is ever delegated
+      authority_private_key = :crypto.strong_rand_bytes(32)
+      {:ok, [authority]} = Signer.Local.accounts(private_key: authority_private_key)
+
+      delegate = deploy(HelloWorldContract, from: @from)
+      delegate_bin = Utils.hex_decode!(delegate)
+
+      # An authorization with a mismatched nonce is skipped silently, its transaction is
+      # still included
+      {:ok, skipped_auth} =
+        Ethers.sign_authorization(%{address: delegate, nonce: 1_000},
+          signer: Signer.Local,
+          signer_opts: [private_key: authority_private_key]
+        )
+
+      send_sponsored_authorization!(skipped_auth)
+
+      assert {:ok, ""} == Ethers.get_code(authority)
+      assert {:ok, nil} == Ethers.get_delegation(authority)
+
+      {:ok, block_before_delegation} = Ethers.current_block_number()
+
+      {:ok, auth} =
+        Ethers.sign_authorization(%{address: delegate},
+          signer: Signer.Local,
+          signer_opts: [private_key: authority_private_key]
+        )
+
+      send_sponsored_authorization!(auth)
+
+      assert {:ok, <<0xEF, 0x01, 0x00>> <> ^delegate_bin} = Ethers.get_code(authority)
+      assert {:ok, Utils.to_checksum_address(delegate)} == Ethers.get_delegation(authority)
+      assert Utils.to_checksum_address(delegate) == Ethers.get_delegation!(authority)
+
+      assert {:ok, nil} == Ethers.get_delegation(authority, block: block_before_delegation)
+
+      # Clearing (delegating to the zero address) resets the code to empty, no designator
+      {:ok, clear_auth} =
+        Ethers.sign_authorization(%{address: @zero_address},
+          signer: Signer.Local,
+          signer_opts: [private_key: authority_private_key]
+        )
+
+      send_sponsored_authorization!(clear_auth)
+
+      assert {:ok, ""} == Ethers.get_code(authority)
+      assert {:ok, nil} == Ethers.get_delegation(authority)
+    end
+  end
+
+  # Sends a type-4 transaction carrying the authorization, sent and paid by @from
+  defp send_sponsored_authorization!(signed_authorization) do
+    {:ok, tx_hash} =
+      Ethers.send_transaction(%{},
+        type: Ethers.Transaction.Eip7702,
+        to: @to,
+        from: @from,
+        authorization_list: [signed_authorization],
+        signer: Signer.Local,
+        signer_opts: [private_key: @from_private_key]
+      )
+
+    wait_for_transaction!(tx_hash)
   end
 
   defp authorization_fixture do

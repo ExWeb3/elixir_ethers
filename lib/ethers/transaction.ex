@@ -223,8 +223,9 @@ defmodule Ethers.Transaction do
   Handles all supported transaction types: Legacy (including EIP-155), EIP-2930, EIP-1559,
   EIP-4844 and EIP-7702. An `Ethers.Transaction.Signed` transaction is encoded with its
   signature. An unsigned transaction is encoded as its signing payload, whose keccak hash is
-  what gets signed (for EIP-155 legacy transactions it ends with `chain_id, 0, 0`). EIP-4844
-  transactions are encoded without a blob sidecar (see `Ethers.Transaction.Eip4844`).
+  what gets signed (for EIP-155 legacy transactions it ends with `chain_id, 0, 0`, which
+  `decode/1` reads back as the unsigned transaction). EIP-4844 transactions are encoded without
+  a blob sidecar (see `Ethers.Transaction.Eip4844`).
 
   ## Parameters
     - `transaction` - Transaction struct to encode
@@ -247,15 +248,26 @@ defmodule Ethers.Transaction do
 
   Transaction strings must be prefixed with "0x" for hex-encoded inputs.
   Handles legacy and all supported typed transactions (EIP-2930, EIP-1559, EIP-4844 and
-  EIP-7702). Signed transactions are returned wrapped in `Ethers.Transaction.Signed`. EIP-4844
-  transactions are decoded from the transaction envelope only (without a blob sidecar).
+  EIP-7702). Signed transactions are returned wrapped in `Ethers.Transaction.Signed`, unsigned
+  ones (including the EIP-155 legacy signing payload, see `encode/1`) as the bare transaction
+  struct. EIP-4844 transactions are decoded from the transaction envelope only (without a blob
+  sidecar). Malformed input returns an error instead of raising.
 
   ## Parameters
     - `raw_transaction` - Raw transaction data as a binary or hex string starting with "0x"
 
   ## Returns
     - `{:ok, transaction}` - Decoded transaction struct
-    - `{:error, reason}` - Error decoding transaction
+    - `{:error, reason}` - The input is not a valid transaction, with `reason` one of:
+      - `:invalid_hex` - invalid hex string
+      - `:invalid_rlp` - invalid RLP, or trailing bytes after the transaction
+      - `:unsupported_transaction_type` - a first byte in `0x00..0x7f` that is not a
+        registered transaction type
+      - `:transaction_decode_failed` - fields of the wrong shape, kind or size
+      - `:invalid_address` - a `to` address that is not 20 bytes
+      - `:missing_to_address` - an EIP-7702 transaction without `to`
+      - `:signature_decode_failed` - malformed signature fields
+      - `:authorization_decode_failed` - a malformed EIP-7702 authorization
   """
   @spec decode(String.t() | binary()) :: {:ok, t()} | {:error, term()}
   def decode("0x" <> raw_transaction) do

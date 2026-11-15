@@ -103,9 +103,18 @@ defmodule Ethers.Transaction.Signed do
   """
   @spec from_address(t()) :: {:ok, Ethers.Types.t_address()} | {:error, atom()}
   def from_address(%__MODULE__{} = transaction) do
-    hash_bin = Transaction.transaction_hash(transaction.payload, :bin)
+    case extract_chain_id_and_recovery_id(transaction) do
+      # Ethereum only uses recovery ids 0 and 1, and secp256k1 raises on negative ones
+      {_chain_id, recovery_id} when recovery_id in [0, 1] ->
+        recover_from_address(transaction, recovery_id)
 
-    {_chain_id, recovery_id} = extract_chain_id_and_recovery_id(transaction)
+      {_chain_id, _recovery_id} ->
+        {:error, :invalid_recovery_id}
+    end
+  end
+
+  defp recover_from_address(transaction, recovery_id) do
+    hash_bin = Transaction.transaction_hash(transaction.payload, :bin)
 
     # r and s lose their leading zero bytes in RLP and JSON-RPC quantities
     case Ethers.secp256k1_module().recover(

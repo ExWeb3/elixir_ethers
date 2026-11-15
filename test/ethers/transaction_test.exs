@@ -304,6 +304,26 @@ defmodule Ethers.TransactionTest do
                "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1"
     end
 
+    test "returns error recovering the sender of a legacy signature with an out-of-range v" do
+      {"", fields} = List.keyfind(@unsigned_transactions, "", 0)
+      raw_tx = ExRLP.encode(fields ++ [<<1>>, <<1::256>>, <<1::256>>])
+
+      assert {:ok, %Transaction.Signed{signature_y_parity_or_v: 1} = decoded_tx} =
+               Transaction.decode(raw_tx)
+
+      assert {:error, :invalid_recovery_id} = Transaction.Signed.from_address(decoded_tx)
+    end
+
+    test "returns error recovering the sender of a typed signature with an out-of-range y_parity" do
+      {type, fields} = List.keyfind(@unsigned_transactions, <<2>>, 0)
+      raw_tx = type <> ExRLP.encode(fields ++ [<<27>>, <<1::256>>, <<1::256>>])
+
+      assert {:ok, %Transaction.Signed{signature_y_parity_or_v: 27} = decoded_tx} =
+               Transaction.decode(raw_tx)
+
+      assert {:error, :invalid_recovery_id} = Transaction.Signed.from_address(decoded_tx)
+    end
+
     test "returns error for input that is not valid RLP" do
       [{_legacy, legacy_fields} | _] = @unsigned_transactions
       legacy_tx = ExRLP.encode(legacy_fields)

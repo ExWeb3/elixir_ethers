@@ -358,6 +358,31 @@ defmodule EthersTest do
       assert {:error, :transaction_not_found} = Ethers.deployed_address(tx_hash)
     end
 
+    test "deployed_address works in batch requests" do
+      {:ok, deploy_tx_hash} = Ethers.deploy(HelloWorldContract, from: @from)
+      wait_for_transaction!(deploy_tx_hash)
+      {:ok, contract_address} = Ethers.deployed_address(deploy_tx_hash)
+
+      {:ok, tx_hash} =
+        HelloWorldContract.set_hello("Batch")
+        |> Ethers.send_transaction(to: contract_address, from: @from)
+
+      wait_for_transaction!(tx_hash)
+
+      assert {:ok,
+              [
+                ok: ^contract_address,
+                error: :transaction_not_found,
+                error: :no_contract_address
+              ]} =
+               Ethers.batch([
+                 {:deployed_address, deploy_tx_hash},
+                 {:deployed_address,
+                  "0x5c504ed432cb51138bcf09aa5e8a410dd4a1e204ef84bfed1be16dfba1b22060"},
+                 {:deployed_address, tx_hash}
+               ])
+    end
+
     test "getting the deployed address of a non contract creation transaction" do
       contract_address = deploy(HelloWorldContract, from: @from)
 

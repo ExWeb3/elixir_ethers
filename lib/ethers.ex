@@ -96,6 +96,7 @@ defmodule Ethers do
     create_access_list: :eth_create_access_list,
     current_block_number: :eth_block_number,
     current_gas_price: :eth_gas_price,
+    deployed_address: :eth_get_transaction_receipt,
     estimate_gas: :eth_estimate_gas,
     fee_history: :eth_fee_history,
     gas_price: :eth_gas_price,
@@ -323,6 +324,8 @@ defmodule Ethers do
 
   @doc """
   Returns the address of the deployed contract if the deployment is finished and successful
+
+  Also works with `Ethers.batch/2` as `{:deployed_address, tx_hash}`.
 
   ## Parameters
   - tx_hash: Hash of the Transaction which created a contract.

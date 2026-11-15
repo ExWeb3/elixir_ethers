@@ -30,6 +30,7 @@
 - Fix transaction docs (supported types and options of `Ethers.send_transaction/2`, EIP-4844 limitations)
 - Fix sender recovery for signatures with leading zero bytes in `r` or `s`
 - Fix `Ethers.Transaction.Signed.from_address/1` raising on out-of-range recovery ids
+- Fix `:deployed_address` in `Ethers.batch/2`
 
 ## 0.8.0 (2026-07-29)
 

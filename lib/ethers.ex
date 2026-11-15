@@ -355,7 +355,8 @@ defmodule Ethers do
   - `:to`: Indicates recipient address. (Contract address in this case)
   - `:block`: The block number or block alias. Defaults to `latest`
   - `:rpc_client`: The RPC Client to use. It should implement ethereum jsonRPC API. default: Ethereumex.HttpClient
-  - `:rpc_opts`: Extra options to pass to rpc_client. (Like timeout, Server URL, etc.)
+  - `:rpc_opts`: Extra options to pass to rpc_client. (Like the server URL, see
+    [per-request options](configuration.md#per-request-options).)
   - `:state_overrides`: Execute the call against a modified chain state (spoofed balances,
     injected contract code, rewritten storage slots, ...). See `Ethers.StateOverride` for the
     accepted structure. Not supported in `Ethers.batch/2`.
@@ -434,7 +435,8 @@ defmodule Ethers do
     `eth_maxPriorityFeePerGas`)
   - `:nonce`: Nonce of the transaction. (defaults to number of transactions of from address)
   - `:rpc_client`: The RPC Client to use. It should implement ethereum jsonRPC API. default: Ethereumex.HttpClient
-  - `:rpc_opts`: Extra options to pass to rpc_client. (Like timeout, Server URL, etc.)
+  - `:rpc_opts`: Extra options to pass to rpc_client. (Like the server URL, see
+    [per-request options](configuration.md#per-request-options).)
   - `:signer`: The signer module to use for signing transaction. Default is nil and will rely on the RPC server for signing.
   - `:signer_opts`: Options for signer module. See your signer docs for more details.
   - `:type`: Transaction type. One of `Ethers.Transaction.Eip1559` (default),
@@ -808,7 +810,8 @@ defmodule Ethers do
   - `:block`: The block number or block alias. Only sent to the RPC server when
     `:state_overrides` are given. Defaults to `latest`
   - `:rpc_client`: The RPC Client to use. It should implement ethereum jsonRPC API. default: Ethereumex.HttpClient
-  - `:rpc_opts`: Extra options to pass to rpc_client. (Like timeout, Server URL, etc.)
+  - `:rpc_opts`: Extra options to pass to rpc_client. (Like the server URL, see
+    [per-request options](configuration.md#per-request-options).)
   - `:state_overrides`: Estimate against a modified chain state (spoofed balances, injected
     contract code, rewritten storage slots, ...). See `Ethers.StateOverride` for the accepted
     structure. Not supported in `Ethers.batch/2`.
@@ -865,7 +868,8 @@ defmodule Ethers do
   - `:to`: Indicates recipient address. (Contract address in this case)
   - `:block`: The block number or block alias. Defaults to `latest`
   - `:rpc_client`: The RPC Client to use. It should implement ethereum jsonRPC API. default: Ethereumex.HttpClient
-  - `:rpc_opts`: Extra options to pass to rpc_client. (Like timeout, Server URL, etc.)
+  - `:rpc_opts`: Extra options to pass to rpc_client. (Like the server URL, see
+    [per-request options](configuration.md#per-request-options).)
 
   ## Returns
 
@@ -1081,7 +1085,8 @@ defmodule Ethers do
 
   ## Options
   - `:rpc_client`: The RPC Client to use. It should implement ethereum jsonRPC API. default: Ethereumex.HttpClient
-  - `:rpc_opts`: Extra options to pass to rpc_client. (Like timeout, Server URL, etc.)
+  - `:rpc_opts`: Extra options to pass to rpc_client. (Like the server URL, see
+    [per-request options](configuration.md#per-request-options).)
 
   ## Returns
 
@@ -1167,7 +1172,8 @@ defmodule Ethers do
 
   - `:address`: Indicates event emitter contract address. (nil means all contracts)
   - `:rpc_client`: The RPC Client to use. It should implement ethereum jsonRPC API. default: Ethereumex.HttpClient
-  - `:rpc_opts`: Extra options to pass to rpc_client. (Like timeout, Server URL, etc.)
+  - `:rpc_opts`: Extra options to pass to rpc_client. (Like the server URL, see
+    [per-request options](configuration.md#per-request-options).)
   - `:fromBlock` | `:from_block`: Minimum block number of logs to filter.
   - `:toBlock` | `:to_block`: Maximum block number of logs to filter.
   """

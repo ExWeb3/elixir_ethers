@@ -19,6 +19,34 @@ config :ethereumex, url: "https://..."
 Note: If your app requires multiple RPC endpoints (e.g. multi-chain) then you need to pass in the
 URL for each operation via `:rpc_opts` key. (e.g. `Ethers.call(my_fn, rpc_opts: [url: "https://..."])`
 
+### HTTP options
+
+Ethereumex sends requests with [Finch](https://hexdocs.pm/finch). Its `:http_options` are passed to
+`Finch.request/3`, so they take Finch option names, such as `:receive_timeout` (how long to wait for
+the response, 15 seconds by default) and `:pool_timeout` (how long to wait for a free connection,
+5 seconds by default).
+
+```elixir
+config :ethereumex,
+  url: "https://...",
+  http_options: [receive_timeout: 60_000]
+```
+
+HTTPoison/hackney option names such as `:recv_timeout` do not work: Finch versions before 0.22
+ignore them, and Finch 0.22 and later raise an `ArgumentError` on every request.
+
+### Per-request options
+
+`:rpc_opts` is passed to the RPC client as is. With Ethereumex it accepts `:url`, `:http_headers`
+and, from Ethereumex 0.15, `:http_options`, which are merged over the configured ones:
+
+```elixir
+Ethers.call(my_fn, rpc_opts: [url: "https://...", http_options: [receive_timeout: 60_000]])
+```
+
+Ethereumex versions before 0.15 ignore `:http_options` in `:rpc_opts` and always use the configured
+ones.
+
 ## Configuration Options
 
 ### RPC Client `:rpc_client`
@@ -138,8 +166,10 @@ config :ethers, default_max_fee_per_gas_margin: 12000  # 120% of current gas pri
 # Verify your RPC connection
 config :ethereumex,
   url: "https://your-ethereum-node.com",
-  http_options: [recv_timeout: 60_000]  # Increase timeout if needed
+  http_options: [receive_timeout: 60_000]  # Wait longer for slow responses (default 15_000)
 ```
+
+See [HTTP options](#http-options) for the accepted options.
 
 - **Gas Estimation Failures**:
   Increase gas margin for complex contracts

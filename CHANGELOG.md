@@ -15,6 +15,7 @@
 
 - Add `Ethers.config/1` (`eth_config`, [EIP-7910](https://eips.ethereum.org/EIPS/eip-7910)) returning `Ethers.ForkConfig` structs
 - Update dependencies
+- Allow `idna` 8.x
 
 ### Bug Fixes
 

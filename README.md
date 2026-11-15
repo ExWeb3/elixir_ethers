@@ -249,6 +249,19 @@ iex> Ethers.get_logs(filter)
  ]}
 ```
 
+#### Native ETH transfer logs (EIP-7708)
+
+On networks with [EIP-7708](https://eips.ethereum.org/EIPS/eip-7708) active (the Glamsterdam
+upgrade), every ETH transfer with a non-zero value emits a log from
+`0xfffffffffffffffffffffffffffffffffffffffe` that has the same topics and data as an ERC-20
+`Transfer` event. A `Transfer` filter without an address returns these logs too, decoded as token
+transfers. Filter by the token address or tell them apart with `Ethers.Event.eth_transfer_log?/1`:
+
+```elixir
+{:ok, events} = Ethers.get_logs(Ethers.Contracts.ERC20.EventFilters.transfer(nil, nil))
+token_transfers = Enum.reject(events, &Ethers.Event.eth_transfer_log?/1)
+```
+
 ### Resolving Ethereum names (ENS domains) using Ethers
 
 To resolve ENS or any other name service provider (which are ENS compatible) in the blockchain

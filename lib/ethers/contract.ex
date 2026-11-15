@@ -294,6 +294,8 @@ defmodule Ethers.Contract do
         For each indexed parameter you can either pass in the value you want to
         filter or `nil` if you don't want to filter.
 
+        #{unquote(document_eth_transfer_logs(abi.selectors))}
+
         #{unquote(document_parameters(abi.selectors))}
 
         #{unquote(document_returns(abi.selectors))}

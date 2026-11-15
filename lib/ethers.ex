@@ -1163,6 +1163,19 @@ defmodule Ethers do
   - An EventFilters module of a contract (e.g. `MyContract.EventFilters`) to match all
     events of that contract.
 
+  > #### ETH transfers match `Transfer` filters (EIP-7708) {: .warning}
+  >
+  > On networks with [EIP-7708](https://eips.ethereum.org/EIPS/eip-7708) active (the
+  > Glamsterdam upgrade), every ETH transfer with a non-zero value emits a log from
+  > `0xfffffffffffffffffffffffffffffffffffffffe` with the same topics and data as the
+  > `Transfer(address,address,uint256)` event of ERC-20 and ERC-777 tokens. A `Transfer` filter
+  > without an address (neither `:address` nor a default address, e.g.
+  > `Ethers.Contracts.ERC20.EventFilters.transfer(nil, nil)` or a combined filter including it)
+  > therefore also returns native ETH transfers, decoded as token transfers.
+  >
+  > Pass the token contract as `:address` to only get its transfers, or use
+  > `Ethers.Event.eth_transfer_log?/1` to tell the ETH transfer logs apart.
+
   ## Overrides and Options
 
   - `:address`: Indicates event emitter contract address. (nil means all contracts)

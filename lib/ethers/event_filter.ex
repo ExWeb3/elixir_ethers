@@ -1,6 +1,12 @@
 defmodule Ethers.EventFilter do
   @moduledoc """
   Event Filter struct and helper functions to work with the event filters
+
+  > #### ETH transfers match `Transfer` filters (EIP-7708) {: .warning}
+  >
+  > On networks with [EIP-7708](https://eips.ethereum.org/EIPS/eip-7708) active, native ETH
+  > transfers emit `Transfer(address,address,uint256)` logs. Filters for that event without an
+  > address also match them. See `Ethers.get_logs/2` and `Ethers.Event.eth_transfer_log?/1`.
   """
 
   @typedoc """

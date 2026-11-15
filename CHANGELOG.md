@@ -21,6 +21,7 @@
 - Update dependencies
 - Allow `idna` 8.x
 - Add `Ethers.Event.eth_transfer_log?/1` and `Ethers.Event.system_address/0` to identify [EIP-7708](https://eips.ethereum.org/EIPS/eip-7708) ETH transfer logs
+- Document that `Transfer` event filters also match EIP-7708 ETH transfer logs
 
 ### Bug Fixes
 

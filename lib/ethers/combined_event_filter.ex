@@ -19,6 +19,10 @@ defmodule Ethers.CombinedEventFilter do
     topics and match unintended logs.
   - All combined filters must belong to the same address. Filters with conflicting
     default addresses cannot be combined since `eth_getLogs` accepts a single address.
+  - Without an address, a combined filter including the `Transfer(address,address,uint256)`
+    event (e.g. `Ethers.Contracts.ERC20.EventFilters`) also matches the native ETH transfer
+    logs of [EIP-7708](https://eips.ethereum.org/EIPS/eip-7708). See `Ethers.get_logs/2` and
+    `Ethers.Event.eth_transfer_log?/1`.
 
   ## Examples
 

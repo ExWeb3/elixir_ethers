@@ -181,14 +181,27 @@ defmodule Ethers.ConfigTest do
 
     test "decodes members omitted by the node to nil" do
       # activationTime is left out for forks without a scheduled activation time and
-      # systemContracts for forks before Cancun
-      partial_next = Map.drop(Fixtures.hoodi_prague(), ["activationTime", "systemContracts"])
+      # systemContracts for forks before Cancun; any other member is decoded the same way
+      partial_next =
+        Map.drop(Fixtures.hoodi_prague(), [
+          "activationTime",
+          "systemContracts",
+          "blobSchedule",
+          "chainId"
+        ])
+
       response = %{Fixtures.future_fork_scheduled() | "next" => partial_next}
 
       assert {:ok, %{next: next, last: @hoodi_prague}} =
                Ethers.config(rpc_client: ConfigRPC, rpc_opts: [response: {:ok, response}])
 
-      assert next == %ForkConfig{@hoodi_prague | activation_time: nil, system_contracts: nil}
+      assert next == %ForkConfig{
+               @hoodi_prague
+               | activation_time: nil,
+                 system_contracts: nil,
+                 blob_schedule: nil,
+                 chain_id: nil
+             }
     end
 
     test "ignores members unknown to the spec" do

@@ -8,12 +8,15 @@
 - `Ethers.Transaction.to_rpc_map/1` emits access lists as `{address, storageKeys}` objects
 - `Ethers.Transaction.to_rpc_map/1` emits EIP-7702 authorization `r` and `s` as quantities
 - `Ethers.Transaction.to_rpc_map/1` raises `ArgumentError` for unsupported values
+- Transaction `new/1` returns `{:error, :missing_<field>}` for missing required fields instead of raising
+- Stricter transaction `new/1` validation (`to`, access lists, blob versioned hashes, EIP-7702 authorizations)
 
 ### Bug Fixes
 
 - Fix re-encoding and hashing of fetched transactions with access lists
 - Fix access lists in JSON-RPC params being rejected by geth
 - Support signed transactions in `Ethers.Transaction.to_rpc_map/1`
+- Support pre-EIP-155 legacy transactions without `chain_id`
 
 ## 0.8.0 (2026-07-29)
 

@@ -104,7 +104,7 @@ defmodule Ethers.TransactionTest do
       assert Transaction.transaction_hash(decoded_tx) == expected_hash
 
       # Verify recovered from address
-      recovered_from = Transaction.Signed.from_address(decoded_tx)
+      assert {:ok, recovered_from} = Transaction.Signed.from_address(decoded_tx)
       assert String.downcase(recovered_from) == String.downcase(expected_from)
 
       # Verify other transaction fields
@@ -194,7 +194,7 @@ defmodule Ethers.TransactionTest do
       assert Transaction.transaction_hash(decoded_tx) == expected_hash
 
       # Verify recovered from address
-      recovered_from = Transaction.Signed.from_address(decoded_tx)
+      assert {:ok, recovered_from} = Transaction.Signed.from_address(decoded_tx)
       assert String.downcase(recovered_from) == String.downcase(expected_from)
 
       # Verify other transaction fields
@@ -290,7 +290,7 @@ defmodule Ethers.TransactionTest do
       assert byte_size(decoded_tx.signature_r) == 31
 
       assert Transaction.Signed.from_address(decoded_tx) ==
-               "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1"
+               {:ok, "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1"}
     end
 
     test "recovers the sender of a signature whose s has a leading zero byte" do
@@ -301,7 +301,7 @@ defmodule Ethers.TransactionTest do
       assert byte_size(decoded_tx.signature_s) == 31
 
       assert Transaction.Signed.from_address(decoded_tx) ==
-               "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1"
+               {:ok, "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1"}
     end
 
     test "returns error recovering the sender of a legacy signature with an out-of-range v" do
@@ -450,7 +450,7 @@ defmodule Ethers.TransactionTest do
       assert Transaction.transaction_hash(decoded_tx) == expected_hash
 
       # Verify recovered from address
-      recovered_from = Transaction.Signed.from_address(decoded_tx)
+      assert {:ok, recovered_from} = Transaction.Signed.from_address(decoded_tx)
       assert String.downcase(recovered_from) == String.downcase(expected_from)
 
       # Verify other transaction fields
@@ -479,7 +479,7 @@ defmodule Ethers.TransactionTest do
       assert Transaction.transaction_hash(decoded_tx) == expected_hash
 
       # Verify recovered from address
-      recovered_from = Transaction.Signed.from_address(decoded_tx)
+      assert {:ok, recovered_from} = Transaction.Signed.from_address(decoded_tx)
       assert String.downcase(recovered_from) == String.downcase(expected_from)
 
       # Verify other transaction fields
@@ -508,7 +508,7 @@ defmodule Ethers.TransactionTest do
       assert Transaction.transaction_hash(decoded_tx) == expected_hash
 
       # Verify recovered from address
-      recovered_from = Transaction.Signed.from_address(decoded_tx)
+      assert {:ok, recovered_from} = Transaction.Signed.from_address(decoded_tx)
       assert String.downcase(recovered_from) == String.downcase(expected_from)
 
       # Verify other transaction fields

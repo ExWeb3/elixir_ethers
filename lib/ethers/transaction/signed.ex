@@ -98,8 +98,10 @@ defmodule Ethers.Transaction.Signed do
   deriving the corresponding Ethereum address.
 
   ## Returns
-    - `{:ok, address}` - Successfully recovered from address
-    - `{:error, reason}` - Failed to recover address
+    - `{:ok, address}` - Successfully recovered from address (checksummed)
+    - `{:error, :invalid_recovery_id}` - The signature's v / y-parity does not give a recovery
+      id of 0 or 1
+    - `{:error, reason}` - Failed to recover address (e.g. `:invalid_r` or `:invalid_s`)
   """
   @spec from_address(t()) :: {:ok, Ethers.Types.t_address()} | {:error, atom()}
   def from_address(%__MODULE__{} = transaction) do
@@ -123,7 +125,7 @@ defmodule Ethers.Transaction.Signed do
            pad32(transaction.signature_s),
            recovery_id
          ) do
-      {:ok, pubkey} -> Ethers.Utils.public_key_to_address(pubkey)
+      {:ok, pubkey} -> {:ok, Ethers.Utils.public_key_to_address(pubkey)}
       {:error, reason} -> {:error, reason}
     end
   end

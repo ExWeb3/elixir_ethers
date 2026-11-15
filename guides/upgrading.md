@@ -119,6 +119,22 @@ Ethers.Transaction.new(%{type: Ethers.Transaction.Eip2930, access_list: access_l
 | `:invalid_signature_y_parity` | `Eip7702` | `{:ok, transaction}` |
 | `:chain_id_out_of_range` | `Eip7702`, `Ethers.Authorization.new/1` | `{:ok, transaction}`, `{:ok, authorization}` |
 
+### Transaction Decoding and Sender Recovery
+
+#### `Signed.from_address/1` returns `{:ok, address}`
+
+`Ethers.Transaction.Signed.from_address/1` returns `{:ok, address}` on success instead of the
+bare address, matching its typespec and the rest of the API. Errors are still returned as
+`{:error, reason}`.
+
+```elixir
+# Before (0.8.x)
+address = Ethers.Transaction.Signed.from_address(signed_tx)
+
+# After (1.0.0)
+{:ok, address} = Ethers.Transaction.Signed.from_address(signed_tx)
+```
+
 ## Upgrading to 0.6.x
 
 Version 0.6.x and onwards introduce several breaking changes to improve type safety and explicitness.

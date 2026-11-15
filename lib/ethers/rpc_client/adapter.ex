@@ -15,6 +15,8 @@ defmodule Ethers.RpcClient.Adapter do
 
   @callback eth_chain_id(keyword()) :: {:ok, binary()} | error()
 
+  @callback eth_config(keyword()) :: {:ok, map()} | error()
+
   @callback eth_create_access_list(map(), binary(), keyword()) :: {:ok, map()} | error()
 
   @callback eth_estimate_gas(map(), keyword()) :: {:ok, binary()} | error()
@@ -55,6 +57,7 @@ defmodule Ethers.RpcClient.Adapter do
   # New callbacks are optional to keep custom RPC client adapters backwards compatible.
   # Ethers checks their availability with `function_exported?/3` before use.
   @optional_callbacks eth_call: 4,
+                      eth_config: 1,
                       eth_create_access_list: 3,
                       eth_estimate_gas: 4,
                       eth_fee_history: 4

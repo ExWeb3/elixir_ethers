@@ -91,6 +91,7 @@ defmodule Ethers do
   @rpc_actions_map %{
     call: :eth_call,
     chain_id: :eth_chain_id,
+    config: :eth_config,
     create_access_list: :eth_create_access_list,
     current_block_number: :eth_block_number,
     current_gas_price: :eth_gas_price,
@@ -1051,6 +1052,108 @@ defmodule Ethers do
   end
 
   @doc """
+  Returns the fork configuration of the node from the RPC API (`eth_config`,
+  [EIP-7910](https://eips.ethereum.org/EIPS/eip-7910)).
+
+  Describes the fork currently in effect, the next scheduled fork and the last configured
+  fork: activation time, blob schedule, chain id, fork id, precompiles and system contracts.
+  Use it to detect which fork a chain is on, or to check that a node is configured for an
+  upcoming fork.
+
+  Also works with `Ethers.batch/2` as `:config`.
+
+  ## Options
+  - `:rpc_client`: The RPC Client to use. It should implement ethereum jsonRPC API. default: Ethereumex.HttpClient
+  - `:rpc_opts`: Extra options to pass to rpc_client. (Like timeout, Server URL, etc.)
+
+  ## Returns
+
+  `{:ok, config}` where config is a map with these keys:
+
+  - `:current`: Configuration of the fork currently in effect.
+  - `:next`: Configuration of the next scheduled fork. `nil` when no future fork is
+    scheduled.
+  - `:last`: Configuration of the last configured fork. The same as `:next` when the next
+    fork is also the last configured one, `nil` when no future fork is scheduled.
+
+  Each fork configuration is a map with these keys:
+
+  - `:activation_time`: Activation timestamp of the fork in Unix epoch seconds (UTC), as an
+    integer. The actual activation time for `:current` and the scheduled time for `:next`
+    and `:last`. `0` for a fork active since genesis.
+  - `:blob_schedule`: Blob parameters of the fork, a map with the integers `:target` and
+    `:max` (blobs per block) and `:base_fee_update_fraction`.
+  - `:chain_id`: Chain id, decoded to an integer.
+  - `:fork_id`: The [EIP-6122](https://eips.ethereum.org/EIPS/eip-6122) `FORK_HASH` of the
+    fork, kept as returned by the node: a lowercase `0x` prefixed hex string of exactly 4
+    bytes (e.g. `"0x0929e24e"`). It is an identifier and not a quantity, so it is not decoded
+    to an integer; the fixed width canonical form keeps it directly comparable with the fork
+    ids reported by other clients and tools.
+  - `:precompiles`: Active precompiled contracts, a map of contract name to checksummed
+    address. (e.g. `%{"ECREC" => "0x0000000000000000000000000000000000000001", ...}`)
+  - `:system_contracts`: System contracts of the fork, a map of contract name to checksummed
+    address. (e.g. `%{"BEACON_ROOTS_ADDRESS" => "0x000F3df6D732807Ef1319fB7B8bB8522d0Beac02", ...}`)
+
+  Precompile and system contract names are kept as the strings returned by the node (the
+  names used by the EIPs defining them), since each fork can add or remove entries.
+
+  A member the node omits (e.g. `:activation_time` of a fork without a scheduled activation
+  time, or `:system_contracts` of a pre-Cancun fork) is `nil`. Members not listed above are
+  ignored.
+
+  Returns `{:error, :not_supported}` if the configured RPC client does not implement the
+  optional `eth_config/1` callback. Nodes without `eth_config` support return an RPC error.
+
+  ## Examples
+
+  ```elixir
+  Ethers.config()
+  {:ok,
+   %{
+     current: %{
+       activation_time: 1746612311,
+       blob_schedule: %{base_fee_update_fraction: 5007716, max: 9, target: 6},
+       chain_id: 1,
+       fork_id: "0x3ff0e375",
+       precompiles: %{
+         "BLAKE2F" => "0x0000000000000000000000000000000000000009",
+         "ECREC" => "0x0000000000000000000000000000000000000001",
+         ...
+       },
+       system_contracts: %{
+         "BEACON_ROOTS_ADDRESS" => "0x000F3df6D732807Ef1319fB7B8bB8522d0Beac02",
+         ...
+       }
+     },
+     next: nil,
+     last: nil
+   }}
+  ```
+  """
+  @spec config(Keyword.t()) :: {:ok, map()} | {:error, term()}
+  def config(opts \\ []) do
+    {rpc_client, rpc_opts} = get_rpc_client(opts)
+
+    if rpc_callback_supported?(rpc_client, :eth_config, 1) do
+      rpc_client.eth_config(rpc_opts)
+    else
+      {:error, :not_supported}
+    end
+    |> post_process(nil, :config)
+  end
+
+  @doc """
+  Same as `Ethers.config/1` but raises on error.
+  """
+  @spec config!(Keyword.t()) :: map() | no_return()
+  def config!(opts \\ []) do
+    case config(opts) do
+      {:ok, config} -> config
+      {:error, reason} -> raise ExecutionError, reason
+    end
+  end
+
+  @doc """
   Fetches the event logs with the given filter.
 
   The filter can be one of:
@@ -1385,6 +1488,15 @@ defmodule Ethers do
      }}
   end
 
+  defp post_process({:ok, resp}, _data, :config) when is_map(resp) do
+    {:ok,
+     %{
+       current: resp |> Map.get("current") |> decode_fork_config(),
+       next: resp |> Map.get("next") |> decode_fork_config(),
+       last: resp |> Map.get("last") |> decode_fork_config()
+     }}
+  end
+
   defp post_process({:ok, %{"accessList" => access_list} = resp}, _tx_data, :create_access_list) do
     result = %{
       access_list: decode_rpc_access_list(access_list),
@@ -1499,6 +1611,39 @@ defmodule Ethers do
   defp decode_fee_history_rewards(rewards) when is_list(rewards),
     do:
       Enum.map(rewards, fn block_rewards -> maybe_map(block_rewards, &Utils.hex_to_integer!/1) end)
+
+  # Decodes an EIP-7910 configuration object. Only the members known from the spec are
+  # decoded (absent ones become nil), unknown members added by newer nodes are ignored.
+  defp decode_fork_config(nil), do: nil
+
+  defp decode_fork_config(config) when is_map(config) do
+    %{
+      # JSON numbers per spec (already integers), only chainId is a hex encoded quantity
+      activation_time: Map.get(config, "activationTime"),
+      blob_schedule: config |> Map.get("blobSchedule") |> decode_blob_schedule(),
+      chain_id: config |> Map.get("chainId") |> maybe_hex_to_integer(),
+      # Fixed width 4-byte identifier, kept in its canonical form
+      fork_id: Map.get(config, "forkId"),
+      precompiles: config |> Map.get("precompiles") |> decode_named_addresses(),
+      system_contracts: config |> Map.get("systemContracts") |> decode_named_addresses()
+    }
+  end
+
+  defp decode_blob_schedule(nil), do: nil
+
+  defp decode_blob_schedule(blob_schedule) when is_map(blob_schedule) do
+    %{
+      base_fee_update_fraction: Map.get(blob_schedule, "baseFeeUpdateFraction"),
+      max: Map.get(blob_schedule, "max"),
+      target: Map.get(blob_schedule, "target")
+    }
+  end
+
+  # Names stay strings: they are open-ended (defined per fork) and come from the node
+  defp decode_named_addresses(nil), do: nil
+
+  defp decode_named_addresses(addresses) when is_map(addresses),
+    do: Map.new(addresses, fn {name, address} -> {name, Utils.to_checksum_address(address)} end)
 
   defp maybe_map(nil, _fun), do: nil
   defp maybe_map(list, fun) when is_list(list), do: Enum.map(list, fun)

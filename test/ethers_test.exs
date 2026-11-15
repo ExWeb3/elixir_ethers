@@ -545,7 +545,7 @@ defmodule EthersTest do
 
       assert [
                ok: "Hello Batch!",
-               ok: "0x" <> _hash,
+               ok: "0x" <> _ = send_tx_hash,
                ok: <<_net_version::binary>>,
                ok: gas_estimate,
                ok: [%Ethers.Event{}],
@@ -553,6 +553,9 @@ defmodule EthersTest do
                ok: gas_price,
                ok: "0x"
              ] = results
+
+      # Later tests sign locally from the same account and read its nonce
+      wait_for_transaction!(send_tx_hash)
 
       assert is_integer(gas_estimate)
       assert is_integer(block_number)

@@ -1,6 +1,7 @@
 defmodule Ethers.TransactionTest do
   use ExUnit.Case
 
+  alias Ethers.Signer
   alias Ethers.Transaction
   alias Ethers.Utils
 
@@ -420,6 +421,83 @@ defmodule Ethers.TransactionTest do
              }
     end
 
+    test "encodes authorization r and s as quantities" do
+      address = "0x2222222222222222222222222222222222222222"
+
+      authorization = %Ethers.Authorization.Signed{
+        authorization: Ethers.Authorization.new!(chain_id: 1, address: address, nonce: 7),
+        signature_y_parity: 1,
+        # A 32-byte r with a leading zero byte and a 31-byte s with a leading zero nibble
+        signature_r: <<0>> <> :binary.copy(<<0xAB>>, 31),
+        signature_s: <<0x0C>> <> :binary.copy(<<0xCD>>, 30)
+      }
+
+      {:ok, transaction} =
+        Transaction.new(%{
+          type: Transaction.Eip7702,
+          chain_id: 1,
+          nonce: 0,
+          gas: 50_000,
+          max_fee_per_gas: 1,
+          max_priority_fee_per_gas: 1,
+          to: address,
+          authorization_list: [authorization]
+        })
+
+      assert Transaction.to_rpc_map(transaction).authorizationList == [
+               %{
+                 chainId: "0x1",
+                 address: address,
+                 nonce: "0x7",
+                 yParity: "0x1",
+                 r: "0x" <> String.duplicate("AB", 31),
+                 s: "0xC" <> String.duplicate("CD", 30)
+               }
+             ]
+    end
+
+    test "keeps the authority of a signed authorization through from_rpc_map/1" do
+      address = "0x2222222222222222222222222222222222222222"
+      authority = "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC"
+
+      # The signature is deterministic (RFC 6979); this nonce gives an r with a leading zero byte
+      {:ok, signed_authorization} =
+        Ethers.Authorization.new!(chain_id: 1, address: address, nonce: 214)
+        |> Signer.Local.sign_authorization(
+          private_key: "0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a"
+        )
+
+      assert <<0, _::binary-31>> = signed_authorization.signature_r
+
+      {:ok, transaction} =
+        Transaction.new(%{
+          type: Transaction.Eip7702,
+          chain_id: 1,
+          nonce: 0,
+          gas: 50_000,
+          max_fee_per_gas: 1,
+          max_priority_fee_per_gas: 1,
+          to: address,
+          authorization_list: [signed_authorization]
+        })
+
+      rpc_map = Transaction.to_rpc_map(transaction)
+
+      assert [%{r: "0x78F56157D499B516A55B71B212180CDF4B01C0297DA591B79FC37D32CD2143"}] =
+               rpc_map.authorizationList
+
+      assert {:ok, %Transaction.Eip7702{authorization_list: [decoded_authorization]} = decoded} =
+               Transaction.from_rpc_map(rpc_map)
+
+      assert {:ok, ^authority} =
+               Ethers.Authorization.Signed.recover_authority(signed_authorization)
+
+      assert {:ok, ^authority} =
+               Ethers.Authorization.Signed.recover_authority(decoded_authorization)
+
+      assert Transaction.encode(decoded) == Transaction.encode(transaction)
+    end
+
     test "serialises a signed typed transaction with r, s, yParity and v" do
       {:ok, signed} = Transaction.decode(@signed_eip1559_tx)
 
@@ -828,8 +906,8 @@ defmodule Ethers.TransactionTest do
                  address: "0x69e6bd1C4082403Fc7917a61F6216552fC1a541D",
                  nonce: "0x2",
                  yParity: "0x0",
-                 r: "0x3c67c1f1203dd722e316796c37c4b828b98f5a27578627879f415763e2ac5afd",
-                 s: "0x4c77aba7874855a80c7357fb13ae953cf9d819a615c00baaa15a2e165a0f08f7"
+                 r: "0x3C67C1F1203DD722E316796C37C4B828B98F5A27578627879F415763E2AC5AFD",
+                 s: "0x4C77ABA7874855A80C7357FB13AE953CF9D819A615C00BAAA15A2E165A0F08F7"
                }
              ]
     end

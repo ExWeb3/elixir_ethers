@@ -409,8 +409,8 @@ defmodule Ethers.Transaction do
       address: authorization.address,
       nonce: Utils.integer_to_hex(authorization.nonce),
       yParity: Utils.integer_to_hex(signed.signature_y_parity),
-      r: Utils.hex_encode(signed.signature_r),
-      s: Utils.hex_encode(signed.signature_s)
+      r: signature_to_rpc_quantity(:authorization_list, signed.signature_r),
+      s: signature_to_rpc_quantity(:authorization_list, signed.signature_s)
     }
   end
 

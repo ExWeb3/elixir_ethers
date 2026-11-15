@@ -1,5 +1,7 @@
 defmodule Ethers.EventTest do
   use ExUnit.Case
+  alias Ethers.CombinedEventFilter
+  alias Ethers.Contracts.ERC20
   alias Ethers.Event
   doctest Event
 
@@ -290,6 +292,71 @@ defmodule Ethers.EventTest do
     end
   end
 
+  describe "EIP-7708 ETH transfer logs" do
+    @from "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+    @to "0x70997970C51812dc3A010C7d01b50e0d17dc79C8"
+    @token "0xaa107ccfe230a29c345fd97bc6eb9bd2fccd0750"
+
+    test "system_address/0 is the EIP-7708 log emitter" do
+      assert Event.system_address() == "0xfffffffffffffffffffffffffffffffffffffffe"
+    end
+
+    test "decode/2 decodes an ETH transfer log as an ERC-20 Transfer event" do
+      %Ethers.EventFilter{selector: selector} = ERC20.EventFilters.transfer(nil, nil)
+
+      assert %Event{
+               address: "0xfffffffffffffffffffffffffffffffffffffffe",
+               topics: ["Transfer(address,address,uint256)", @from, @to],
+               data: [1_000_000_000_000_000_000]
+             } = event = Event.decode(transfer_log(Event.system_address()), selector)
+
+      assert Event.eth_transfer_log?(event)
+    end
+
+    test "CombinedEventFilter.decode_logs/2 decodes ETH and token transfer logs alike" do
+      logs = [transfer_log(Event.system_address()), transfer_log(@token)]
+
+      assert [eth_transfer, token_transfer] =
+               CombinedEventFilter.decode_logs(logs, ERC20.EventFilters.__all__())
+
+      for event <- [eth_transfer, token_transfer] do
+        assert %Event{
+                 topics: ["Transfer(address,address,uint256)", @from, @to],
+                 data: [1_000_000_000_000_000_000]
+               } = event
+      end
+
+      assert Event.eth_transfer_log?(eth_transfer)
+      refute Event.eth_transfer_log?(token_transfer)
+    end
+
+    test "eth_transfer_log?/1 ignores the address case" do
+      checksum_address = Ethers.Utils.to_checksum_address(Event.system_address())
+      %Ethers.EventFilter{selector: selector} = ERC20.EventFilters.transfer(nil, nil)
+
+      assert Event.eth_transfer_log?(Event.decode(transfer_log(checksum_address), selector))
+    end
+
+    test "eth_transfer_log?/1 is false for other events emitted by the system address" do
+      %Ethers.EventFilter{selector: selector, topics: [approval_topic | _]} =
+        ERC20.EventFilters.approval(nil, nil)
+
+      log =
+        Event.system_address()
+        |> transfer_log()
+        |> Map.update!("topics", fn [_ | sub_topics] -> [approval_topic | sub_topics] end)
+
+      refute Event.eth_transfer_log?(Event.decode(log, selector))
+    end
+
+    test "the ETH transfer log topic is the ERC-20 Transfer topic" do
+      assert %Ethers.EventFilter{topics: [topic_0, nil, nil]} =
+               ERC20.EventFilters.transfer(nil, nil)
+
+      assert [^topic_0 | _] = transfer_log(Event.system_address())["topics"]
+    end
+  end
+
   describe "find_and_decode/2" do
     test "returns the emitter address checksummed" do
       assert {:ok, %Ethers.Event{address: "0xAA107cCFe230a29C345Fd97bc6eb9Bd2fccD0750"}} =
@@ -338,5 +405,24 @@ defmodule Ethers.EventTest do
                  Ethers.Contracts.ERC20.EventFilters
                )
     end
+  end
+
+  # An RPC log of a 1 ETH transfer from @from to @to, in the EIP-7708 layout
+  defp transfer_log(emitter) do
+    %{
+      "address" => emitter,
+      "blockHash" => "0xe8885761ec559c5e267c48f44b4b12e4169f7d3a116f5e8f43314147722f0d83",
+      "blockNumber" => "0x1138b39",
+      "data" => "0x0000000000000000000000000000000000000000000000000de0b6b3a7640000",
+      "logIndex" => "0x0",
+      "removed" => false,
+      "topics" => [
+        "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+        "0x000000000000000000000000f39fd6e51aad88f6f4ce6ab8827279cfffb92266",
+        "0x00000000000000000000000070997970c51812dc3a010c7d01b50e0d17dc79c8"
+      ],
+      "transactionHash" => "0xf6e06e4f3fbd67088e8278843e55862957537760c63bae7b682a0e39da75b45d",
+      "transactionIndex" => "0x0"
+    }
   end
 end

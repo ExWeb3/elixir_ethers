@@ -62,7 +62,9 @@ defmodule Ethers.Transaction.Signed do
   @doc false
   def from_rlp_list(rlp_list, payload) do
     case rlp_list do
-      [signature_y_parity_or_v, signature_r, signature_s] ->
+      [signature_y_parity_or_v, signature_r, signature_s]
+      when is_binary(signature_y_parity_or_v) and is_binary(signature_r) and
+             is_binary(signature_s) ->
         signed_tx =
           maybe_add_chain_id(%__MODULE__{
             payload: payload,

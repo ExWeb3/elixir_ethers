@@ -266,28 +266,52 @@ defmodule Ethers.Transaction do
   end
 
   def decode(raw_transaction_bin) when is_binary(raw_transaction_bin) do
-    case decode_transaction_data(raw_transaction_bin) do
-      {:ok, transaction, signature} ->
-        maybe_decode_signature(transaction, signature)
-
-      {:error, reason} ->
-        {:error, reason}
+    with {:ok, module, rlp_binary} <- split_type_envelope(raw_transaction_bin),
+         {:ok, rlp_list} <- decode_rlp_list(rlp_binary),
+         {:ok, transaction, signature} <- module.from_rlp_list(rlp_list) do
+      maybe_decode_signature(transaction, signature)
     end
   end
 
-  Enum.each(@transaction_types, fn module ->
+  @transaction_types
+  |> Enum.reject(&(&1.type_envelope() == ""))
+  |> Enum.each(fn module ->
     type_envelope = module.type_envelope()
 
-    defp decode_transaction_data(<<unquote(type_envelope)::binary, rest::binary>>) do
-      rlp_decoded = ExRLP.decode(rest)
-      unquote(module).from_rlp_list(rlp_decoded)
-    end
+    defp split_type_envelope(<<unquote(type_envelope)::binary, rest::binary>>),
+      do: {:ok, unquote(module), rest}
   end)
 
-  defp decode_transaction_data(legacy_transaction) when is_binary(legacy_transaction) do
-    rlp_decoded = ExRLP.decode(legacy_transaction)
+  # EIP-2718: a first byte in 0x00..0x7f is a transaction type, a legacy transaction is an RLP list
+  defp split_type_envelope(<<type, _rest::binary>>) when type <= 0x7F,
+    do: {:error, :unsupported_transaction_type}
 
-    Legacy.from_rlp_list(rlp_decoded)
+  defp split_type_envelope(legacy_transaction), do: {:ok, Legacy, legacy_transaction}
+
+  # ExRLP.decode/1 silently mixes trailing bytes into its result, so the list header has to
+  # span the whole input before decoding
+  defp decode_rlp_list(<<prefix, _rest::binary>> = rlp_binary) when prefix >= 0xC0 do
+    if rlp_list_spans_input?(rlp_binary) do
+      {:ok, ExRLP.decode(rlp_binary)}
+    else
+      {:error, :invalid_rlp}
+    end
+  rescue
+    # ExRLP raises either of these on truncated or otherwise malformed items
+    _error in [ExRLP.DecodeError, MatchError] -> {:error, :invalid_rlp}
+  end
+
+  defp decode_rlp_list(<<>>), do: {:error, :invalid_rlp}
+  defp decode_rlp_list(_not_a_list), do: {:error, :transaction_decode_failed}
+
+  defp rlp_list_spans_input?(<<prefix, payload::binary>>) when prefix <= 0xF7,
+    do: byte_size(payload) == prefix - 0xC0
+
+  defp rlp_list_spans_input?(<<prefix, rest::binary>>) do
+    length_size = prefix - 0xF7
+
+    byte_size(rest) >= length_size and
+      byte_size(rest) - length_size == :binary.decode_unsigned(binary_part(rest, 0, length_size))
   end
 
   defp maybe_decode_signature(transaction, rlp_list) do

@@ -5,6 +5,33 @@ defmodule Ethers.TransactionTest do
   alias Ethers.Transaction
   alias Ethers.Utils
 
+  @address <<0x90F8BF6A479F320EAD074411A4B0E7944EA8C9C1::160>>
+  @access_list [[@address, [<<1::256>>]]]
+  @authorization [<<1>>, @address, "", "", <<1>>, <<1>>]
+
+  # Minimal unsigned transaction of each type as {type envelope, decoded RLP list}
+  @unsigned_transactions [
+    {"", ["", <<1>>, <<0x5208::16>>, @address, "", ""]},
+    {<<1>>, [<<1>>, "", <<1>>, <<0x5208::16>>, @address, "", "", @access_list]},
+    {<<2>>, [<<1>>, "", <<1>>, <<1>>, <<0x5208::16>>, @address, "", "", @access_list]},
+    {<<3>>,
+     [
+       <<1>>,
+       "",
+       <<1>>,
+       <<1>>,
+       <<0x5208::16>>,
+       @address,
+       "",
+       "",
+       @access_list,
+       <<1>>,
+       [<<1::256>>]
+     ]},
+    {<<4>>,
+     [<<1>>, "", <<1>>, <<1>>, <<0x5208::16>>, @address, "", "", @access_list, [@authorization]]}
+  ]
+
   describe "encode/1" do
     test "encodes transaction with address having leading zeros" do
       transaction = %Ethers.Transaction.Eip1559{
@@ -258,6 +285,118 @@ defmodule Ethers.TransactionTest do
 
       assert Transaction.Signed.from_address(decoded_tx) ==
                "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1"
+    end
+
+    test "returns error for input that is not valid RLP" do
+      [{_legacy, legacy_fields} | _] = @unsigned_transactions
+      legacy_tx = ExRLP.encode(legacy_fields)
+
+      assert {:error, :invalid_rlp} = Transaction.decode("0x")
+      assert {:error, :invalid_rlp} = Transaction.decode("0x02")
+      assert {:error, :invalid_rlp} = Transaction.decode("0x02ffff")
+      assert {:error, :invalid_rlp} = Transaction.decode(binary_part(legacy_tx, 0, 10))
+      assert {:error, :invalid_rlp} = Transaction.decode(legacy_tx <> <<0>>)
+      assert {:error, :invalid_rlp} = Transaction.decode(<<2>> <> legacy_tx <> <<0xC0>>)
+    end
+
+    test "returns error for an unsupported transaction type" do
+      for {_type, fields} <- @unsigned_transactions, type <- [0x00, 0x05, 0x7E, 0x7F] do
+        assert {:error, :unsupported_transaction_type} =
+                 Transaction.decode(<<type>> <> ExRLP.encode(fields))
+      end
+    end
+
+    test "returns error for RLP that is not a list of transaction fields" do
+      assert {:error, :transaction_decode_failed} = Transaction.decode("0x80")
+      assert {:error, :transaction_decode_failed} = Transaction.decode("0x0280")
+
+      for {type, fields} <- @unsigned_transactions do
+        assert {:error, :transaction_decode_failed} =
+                 Transaction.decode(type <> ExRLP.encode(Enum.drop(fields, -1)))
+      end
+    end
+
+    test "returns error for transaction fields of the wrong kind" do
+      for {type, fields} <- @unsigned_transactions do
+        assert {:ok, _transaction} = Transaction.decode(type <> ExRLP.encode(fields))
+
+        for index <- 0..(length(fields) - 1) do
+          swapped_fields =
+            List.update_at(fields, index, fn
+              field when is_binary(field) -> [field]
+              _list -> <<1>>
+            end)
+
+          assert Transaction.decode(type <> ExRLP.encode(swapped_fields)) ==
+                   {:error, :transaction_decode_failed},
+                 "expected field #{index} of type #{inspect(type)} to be rejected"
+        end
+      end
+    end
+
+    test "returns error for malformed access list entries" do
+      for access_list <- [
+            [@address],
+            [[@address]],
+            [[[@address], [<<1::256>>]]],
+            [[@address, <<1::256>>]],
+            [[@address, [[<<1::256>>]]]],
+            [[<<1>>, [<<1::256>>]]],
+            [[@address, [<<1>>]]]
+          ],
+          {type, fields} <- tl(@unsigned_transactions) do
+        access_list_index = Enum.find_index(fields, &(&1 == @access_list))
+        malformed_fields = List.replace_at(fields, access_list_index, access_list)
+
+        assert {:error, :transaction_decode_failed} =
+                 Transaction.decode(type <> ExRLP.encode(malformed_fields))
+      end
+    end
+
+    test "returns error for malformed blob versioned hashes" do
+      {type, fields} = List.keyfind(@unsigned_transactions, <<3>>, 0)
+
+      for hashes <- [[[<<1::256>>]], [<<1>>]] do
+        malformed_fields = List.replace_at(fields, 10, hashes)
+
+        assert {:error, :transaction_decode_failed} =
+                 Transaction.decode(type <> ExRLP.encode(malformed_fields))
+      end
+    end
+
+    test "returns error for malformed authorizations" do
+      {type, fields} = List.keyfind(@unsigned_transactions, <<4>>, 0)
+
+      for authorization <- [
+            <<1>>,
+            Enum.drop(@authorization, -1),
+            List.replace_at(@authorization, 1, <<1>>),
+            List.replace_at(@authorization, 1, [@address]),
+            List.replace_at(@authorization, 4, [<<1>>])
+          ] do
+        malformed_fields = List.replace_at(fields, 9, [authorization])
+
+        assert {:error, :authorization_decode_failed} =
+                 Transaction.decode(type <> ExRLP.encode(malformed_fields))
+      end
+    end
+
+    test "returns error for a to address of the wrong size" do
+      for {type, fields} <- @unsigned_transactions do
+        to_index = Enum.find_index(fields, &(&1 == @address))
+        malformed_fields = List.replace_at(fields, to_index, <<1, 2, 3>>)
+
+        assert {:error, :invalid_address} =
+                 Transaction.decode(type <> ExRLP.encode(malformed_fields))
+      end
+    end
+
+    test "returns error for signature fields of the wrong kind" do
+      for {type, fields} <- @unsigned_transactions,
+          signature <- [[[], <<1>>, <<1>>], [<<1>>, [<<1>>], <<1>>], [<<1>>, <<1>>, [<<1>>]]] do
+        assert {:error, :signature_decode_failed} =
+                 Transaction.decode(type <> ExRLP.encode(fields ++ signature))
+      end
     end
 
     test "decodes raw EIP-1559 transaction and re-encodes it correctly" do

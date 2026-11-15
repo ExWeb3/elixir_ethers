@@ -8,6 +8,7 @@ defmodule Ethers.Transaction.Eip1559 do
 
   import Ethers.Transaction.Helpers
 
+  alias Ethers.Transaction.DecodeHelpers
   alias Ethers.Types
   alias Ethers.Utils
 
@@ -106,19 +107,25 @@ defmodule Ethers.Transaction.Eip1559 do
         value,
         input,
         access_list | rest
-      ]) do
-    {:ok,
-     %__MODULE__{
-       chain_id: :binary.decode_unsigned(chain_id),
-       nonce: :binary.decode_unsigned(nonce),
-       max_priority_fee_per_gas: :binary.decode_unsigned(max_priority_fee_per_gas),
-       max_fee_per_gas: :binary.decode_unsigned(max_fee_per_gas),
-       gas: :binary.decode_unsigned(gas),
-       to: (to != "" && Utils.encode_address!(to)) || nil,
-       value: :binary.decode_unsigned(value),
-       input: input,
-       access_list: access_list
-     }, rest}
+      ])
+      when is_binary(chain_id) and is_binary(nonce) and is_binary(max_priority_fee_per_gas) and
+             is_binary(max_fee_per_gas) and is_binary(gas) and is_binary(value) and
+             is_binary(input) do
+    with {:ok, to} <- DecodeHelpers.decode_to_address(to),
+         :ok <- DecodeHelpers.validate_access_list(access_list) do
+      {:ok,
+       %__MODULE__{
+         chain_id: :binary.decode_unsigned(chain_id),
+         nonce: :binary.decode_unsigned(nonce),
+         max_priority_fee_per_gas: :binary.decode_unsigned(max_priority_fee_per_gas),
+         max_fee_per_gas: :binary.decode_unsigned(max_fee_per_gas),
+         gas: :binary.decode_unsigned(gas),
+         to: to,
+         value: :binary.decode_unsigned(value),
+         input: input,
+         access_list: access_list
+       }, rest}
+    end
   end
 
   def from_rlp_list(_rlp_list), do: {:error, :transaction_decode_failed}

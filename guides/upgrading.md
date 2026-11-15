@@ -212,8 +212,8 @@ casing they were configured with:
   build
 
 Other returned addresses (ABI-decoded values, transaction `to`, recovered signers, ...) were
-already checksummed. Raw RPC values (`topics_raw`, `data_raw`, `Ethers.get_transaction_receipt/2`
-maps) are unchanged, and addresses are still accepted in any casing.
+already checksummed. Raw RPC values (`topics_raw`, `data_raw`, the `logs` of an `Ethers.Receipt`)
+are unchanged, and addresses are still accepted in any casing.
 
 ```elixir
 {:ok, address} = Ethers.deployed_address(tx_hash)
@@ -232,6 +232,31 @@ Compare addresses of unknown casing on their checksummed or decoded form, not as
 ```elixir
 address == Ethers.Utils.to_checksum_address(other_address)
 Ethers.Utils.decode_address!(address) == Ethers.Utils.decode_address!(other_address)
+```
+
+### Transaction Receipts
+
+#### `get_transaction_receipt/2` returns an `Ethers.Receipt` struct
+
+`Ethers.get_transaction_receipt/2`, `Ethers.get_transaction_receipt!/2` and the
+`:get_transaction_receipt` action of `Ethers.batch/2` return an `Ethers.Receipt` struct instead of
+the node's JSON map: quantities are integers, `status` is `:success` or `:failure` and addresses are
+checksummed. Logs are kept as returned by the node, decode them with
+`Ethers.Receipt.decode_logs/2`. The node's map, including chain specific members, is available as
+`raw`. A malformed receipt returns `{:error, {:invalid_receipt_member, member}}`.
+
+```elixir
+{:ok, receipt} = Ethers.get_transaction_receipt(tx_hash)
+
+# Before (0.8.x)
+%{"status" => "0x1", "gasUsed" => gas_used_hex, "contractAddress" => contract_address} = receipt
+gas_used = Ethers.Utils.hex_to_integer!(gas_used_hex)
+l1_fee = receipt["l1Fee"]
+
+# After (1.0.0)
+%Ethers.Receipt{status: :success, gas_used: gas_used, contract_address: contract_address} = receipt
+l1_fee = receipt.raw["l1Fee"]
+events = Ethers.Receipt.decode_logs(receipt, MyContract.EventFilters)
 ```
 
 ## Upgrading to 0.6.x

@@ -14,12 +14,15 @@
 - `Ethers.Transaction.decode/1` returns `{:error, reason}` instead of raising on malformed input
 - Unsigned EIP-155 legacy transactions decode as `%Legacy{}` instead of `%Signed{}`
 - All returned addresses are EIP-55 checksummed, including `Ethers.Event` `address` and `Ethers.deployed_address/2`
+- `Ethers.get_transaction_receipt/2` returns an `Ethers.Receipt` struct instead of the raw RPC map
 
 ### Enhancements
 
 - Add `Ethers.config/1` (`eth_config`, [EIP-7910](https://eips.ethereum.org/EIPS/eip-7910)) returning `Ethers.ForkConfig` structs
 - Update dependencies
 - Allow `idna` 8.x
+- Add `Ethers.Receipt` struct with decoded transaction receipt fields
+- Add `Ethers.Receipt.decode_logs/2` to decode receipt logs with event filters
 
 ### Bug Fixes
 
@@ -33,6 +36,7 @@
 - Fix `Ethers.Transaction.Signed.from_address/1` raising on out-of-range recovery ids
 - Fix `:deployed_address` in `Ethers.batch/2`
 - Compare the `:signer_opts` `from` address with the transaction `from` case-insensitively
+- Fix the `:get_transaction_receipt` action of `Ethers.batch/2`
 
 ## 0.8.0 (2026-07-29)
 

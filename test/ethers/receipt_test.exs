@@ -476,13 +476,13 @@ defmodule Ethers.ReceiptTest do
     test "decodes all events of an EventFilters module", %{receipt: receipt} do
       assert [
                %Event{
-                 address: "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+                 address: @usdc,
                  topics: ["Approval(address,address,uint256)", @vitalik, @receiver],
                  data: [1_000_000],
                  log_index: 16
                },
                %Event{
-                 address: "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+                 address: @usdc,
                  topics: ["Transfer(address,address,uint256)", @vitalik, @receiver],
                  data: [1_000_000],
                  log_index: 17,
@@ -493,7 +493,7 @@ defmodule Ethers.ReceiptTest do
                  removed: false
                },
                %Event{
-                 address: "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
+                 address: "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
                  topics: ["Transfer(address,address,uint256)", @receiver, @vitalik],
                  data: [2_000],
                  log_index: 20
@@ -507,7 +507,7 @@ defmodule Ethers.ReceiptTest do
     test "skips events with the same signature but other indexed arguments", %{receipt: receipt} do
       assert [
                %Event{
-                 address: "0xbc4ca0eda7647a8ab7c2061c2e118a18a936f13d",
+                 address: "0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D",
                  topics: ["Transfer(address,address,uint256)", @vitalik, @receiver, 7382],
                  data: [],
                  log_index: 18
@@ -626,7 +626,7 @@ defmodule Ethers.ReceiptTest do
       assert %Receipt{to: nil, status: :success, contract_address: contract_address, extra: extra} =
                Ethers.get_transaction_receipt!(tx_hash)
 
-      assert contract_address == Utils.to_checksum_address(address)
+      assert contract_address == address
       assert Map.take(extra, @known_members) == %{}
 
       assert ReceiptHelloWorldContract.say_hello() |> Ethers.call!(to: contract_address) ==
@@ -642,8 +642,7 @@ defmodule Ethers.ReceiptTest do
 
       wait_for_transaction!(tx_hash)
 
-      assert %Receipt{status: :failure, to: to} = Ethers.get_transaction_receipt!(tx_hash)
-      assert to == Utils.to_checksum_address(address)
+      assert %Receipt{status: :failure, to: ^address} = Ethers.get_transaction_receipt!(tx_hash)
     end
 
     test "decode_logs/2 decodes the events emitted by a contract call" do
@@ -687,12 +686,12 @@ defmodule Ethers.ReceiptTest do
 
       assert [] = Receipt.decode_logs(receipt, ReceiptHelloWorldContract.EventFilters)
 
-      checksummed_default_address = %{
+      lowercase_default_address = %{
         ReceiptCounterContract.EventFilters.set_called(nil)
-        | default_address: Utils.to_checksum_address(address)
+        | default_address: String.downcase(address)
       }
 
-      assert ^events = Receipt.decode_logs(receipt, checksummed_default_address)
+      assert ^events = Receipt.decode_logs(receipt, lowercase_default_address)
 
       other_default_address = %{
         ReceiptCounterContract.EventFilters.set_called(nil)

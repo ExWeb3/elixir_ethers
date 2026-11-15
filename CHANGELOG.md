@@ -21,6 +21,8 @@
 - Fix access lists in JSON-RPC params being rejected by geth
 - Support signed transactions in `Ethers.Transaction.to_rpc_map/1`
 - Support pre-EIP-155 legacy transactions without `chain_id`
+- Fix `access_list` and `blob_versioned_hashes` typespecs of typed transactions
+- Fix transaction docs (supported types and options of `Ethers.send_transaction/2`, EIP-4844 limitations)
 
 ## 0.8.0 (2026-07-29)
 

@@ -8,10 +8,9 @@ This guide provides information about upgrading between different versions of Et
 
 #### Decoded access lists and blob hashes in fetched transactions
 
-`Ethers.get_transaction/2` and `Ethers.Transaction.from_rpc_map/1` now decode `accessList` and
-`blobVersionedHashes` into binaries: the same form `Ethers.Transaction.decode/1` produces and the
-`:access_list` and `:blob_versioned_hashes` overrides accept. Code that read the RPC maps or hex
-strings from these fields needs to handle binaries instead.
+`Ethers.get_transaction/2` and `Ethers.Transaction.from_rpc_map/1` now return `access_list` and
+`blob_versioned_hashes` as binaries, the same form the `:access_list` and `:blob_versioned_hashes`
+overrides accept.
 
 ```elixir
 {:ok, tx} = Ethers.get_transaction(tx_hash)
@@ -28,15 +27,10 @@ storage_keys = Enum.map(storage_key_bins, &Ethers.Utils.hex_encode/1)
 
 #### Access lists and authorizations in JSON-RPC params
 
-`Ethers.Transaction.to_rpc_map/1`, which builds the transaction params sent to the node, now
-emits access list entries as objects, as the JSON-RPC spec requires (geth rejected the old
-arrays). It also emits EIP-7702 authorization `r` and `s` as quantities without leading zeros.
-
-This affects custom RPC client adapters, which receive these maps as params for `eth_call`,
-`eth_estimateGas`, `eth_createAccessList` and `eth_sendTransaction`. It also affects custom
-`Ethers.Signer` implementations that build their request with `to_rpc_map/1`, as
-`Ethers.Signer.JsonRPC` does. The `:access_list` override you pass to `Ethers` functions is
-unchanged.
+`Ethers.Transaction.to_rpc_map/1` now emits access list entries as objects, as the JSON-RPC spec
+requires, and EIP-7702 authorization `r` and `s` as quantities. This affects custom RPC client
+adapters and custom `Ethers.Signer` implementations built on `to_rpc_map/1` (like
+`Ethers.Signer.JsonRPC`). The `:access_list` override format is unchanged.
 
 ```
 // Before (0.8.x)
@@ -56,10 +50,9 @@ unchanged.
 
 #### `ArgumentError` for unsupported values
 
-`Ethers.Transaction.to_rpc_map/1` now raises `ArgumentError` naming the field and value, instead
-of `FunctionClauseError`, when a field holds a value it cannot encode. This includes access list
-storage keys and blob versioned hashes that are not 32-byte binaries (for example hex strings),
-which used to be passed on to the node. Pass these values as binaries.
+`Ethers.Transaction.to_rpc_map/1` raises `ArgumentError` instead of `FunctionClauseError` for
+values it cannot encode, including storage keys and blob versioned hashes that are not 32-byte
+binaries.
 
 ## Upgrading to 0.6.x
 

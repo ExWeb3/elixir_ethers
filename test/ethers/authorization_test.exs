@@ -61,6 +61,16 @@ defmodule Ethers.AuthorizationTest do
                Authorization.new(chain_id: 1, address: "0x1234", nonce: 7)
     end
 
+    test "bounds chain_id to less than 2**256" do
+      assert {:ok, %Authorization{chain_id: chain_id}} =
+               Authorization.new(chain_id: 2 ** 256 - 1, address: @delegate, nonce: 7)
+
+      assert chain_id == 2 ** 256 - 1
+
+      assert {:error, :chain_id_out_of_range} =
+               Authorization.new(chain_id: 2 ** 256, address: @delegate, nonce: 7)
+    end
+
     test "new!/1 raises on error" do
       assert_raise ArgumentError, ~r/missing_address/, fn ->
         Authorization.new!(chain_id: 1, nonce: 7)

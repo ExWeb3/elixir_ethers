@@ -4,6 +4,10 @@ defmodule Ethers.Transaction.Eip4844 do
   transactions. EIP-4844 introduced "blob-carrying transactions" which contain a large amount
   of data that cannot be accessed by EVM execution, but whose commitment can be accessed.
 
+  Two constraints set this type apart from EIP-1559 transactions:
+  - `to` is required — contract creation is not allowed in type-3 transactions.
+  - `blob_versioned_hashes` must contain at least one 32-byte versioned hash.
+
   See: https://eips.ethereum.org/EIPS/eip-4844
   """
 
@@ -15,6 +19,16 @@ defmodule Ethers.Transaction.Eip4844 do
   @behaviour Ethers.Transaction
 
   @type_id 3
+
+  @required_fields [
+    :chain_id,
+    :nonce,
+    :max_priority_fee_per_gas,
+    :max_fee_per_gas,
+    :gas,
+    :to,
+    :max_fee_per_blob_gas
+  ]
 
   @enforce_keys [
     :chain_id,
@@ -45,7 +59,7 @@ defmodule Ethers.Transaction.Eip4844 do
   - `max_priority_fee_per_gas` - maximum fee per gas (in wei) to give to validators as priority fee (introduced in EIP-1559)
   - `max_fee_per_gas` - maximum total fee per gas (in wei) willing to pay (introduced in EIP-1559)
   - `gas` - maximum amount of gas allowed for transaction execution
-  - `to` - destination address for transaction, nil for contract creation
+  - `to` - destination address for transaction. Required — type-3 transactions cannot create contracts
   - `value` - amount of ether (in wei) to transfer
   - `input` - data payload of the transaction
   - `access_list` - list of addresses and storage keys to warm up (introduced in EIP-2930)
@@ -71,13 +85,17 @@ defmodule Ethers.Transaction.Eip4844 do
     to = params[:to]
     input = params[:input] || params[:data] || ""
     value = params[:value] || 0
+    access_list = params[:access_list] || []
 
-    with :ok <- validate_common_fields(params),
+    with :ok <- validate_required(params, @required_fields),
+         :ok <- validate_common_fields(params),
          :ok <- validate_non_neg_integer(params.max_priority_fee_per_gas),
          :ok <- validate_non_neg_integer(params.max_fee_per_gas),
          :ok <- validate_non_neg_integer(params.max_fee_per_blob_gas),
          :ok <- validate_non_neg_integer(value),
-         :ok <- validate_binary(input) do
+         :ok <- validate_binary(input),
+         :ok <- validate_access_list(access_list),
+         :ok <- validate_blob_versioned_hashes(params[:blob_versioned_hashes]) do
       {:ok,
        %__MODULE__{
          chain_id: params.chain_id,
@@ -85,12 +103,12 @@ defmodule Ethers.Transaction.Eip4844 do
          max_priority_fee_per_gas: params.max_priority_fee_per_gas,
          max_fee_per_gas: params.max_fee_per_gas,
          gas: params.gas,
-         to: to && Utils.to_checksum_address(to),
+         to: Utils.to_checksum_address(to),
          value: value,
          input: input,
-         access_list: params[:access_list] || [],
+         access_list: access_list,
          max_fee_per_blob_gas: params.max_fee_per_blob_gas,
-         blob_versioned_hashes: params[:blob_versioned_hashes] || []
+         blob_versioned_hashes: params.blob_versioned_hashes
        }}
     end
   end

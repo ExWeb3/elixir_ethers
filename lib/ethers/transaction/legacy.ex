@@ -12,6 +12,9 @@ defmodule Ethers.Transaction.Legacy do
 
   @type_id 0
 
+  # chain_id is optional: unprotected (pre-EIP-155) transactions have none
+  @required_fields [:nonce, :gas_price, :gas]
+
   @enforce_keys [:nonce, :gas_price, :gas]
   defstruct [
     :nonce,
@@ -49,7 +52,8 @@ defmodule Ethers.Transaction.Legacy do
     input = params[:input] || params[:data] || ""
     value = params[:value] || 0
 
-    with :ok <- validate_common_fields(params),
+    with :ok <- validate_required(params, @required_fields),
+         :ok <- validate_common_fields(params),
          :ok <- validate_non_neg_integer(params.gas_price),
          :ok <- validate_non_neg_integer(value),
          :ok <- validate_binary(input) do

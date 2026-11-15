@@ -54,6 +54,71 @@ adapters and custom `Ethers.Signer` implementations built on `to_rpc_map/1` (lik
 values it cannot encode, including storage keys and blob versioned hashes that are not 32-byte
 binaries.
 
+### Transaction Validation
+
+#### Missing required fields return an error
+
+Transaction `new/1` (and so `Ethers.Transaction.new/1` and `Ethers.Transaction.from_rpc_map/1`)
+returns `{:error, :missing_<field>}` for a missing or `nil` required field. In 0.8.x a missing key
+raised `KeyError` and `nil` returned `{:error, :expected_non_neg_integer_value}`.
+`Ethers.Transaction.Legacy` no longer requires `chain_id` (pre-EIP-155 transactions).
+
+```elixir
+# Before (0.8.x)
+Ethers.Transaction.new(%{type: Ethers.Transaction.Eip1559, nonce: 1})
+#=> ** (KeyError) key :chain_id not found
+
+# After (1.0.0)
+Ethers.Transaction.new(%{type: Ethers.Transaction.Eip1559, nonce: 1})
+#=> {:error, :missing_chain_id}
+```
+
+| Error | Returned by |
+| --- | --- |
+| `:missing_chain_id` | all types except `Legacy` |
+| `:missing_nonce`, `:missing_gas` | all types |
+| `:missing_gas_price` | `Legacy`, `Eip2930` |
+| `:missing_max_fee_per_gas`, `:missing_max_priority_fee_per_gas` | `Eip1559`, `Eip4844`, `Eip7702` |
+| `:missing_max_fee_per_blob_gas` | `Eip4844` |
+
+#### Stricter validation in `new/1`
+
+Transaction `new/1` now rejects transactions it used to build:
+
+- `Ethers.Transaction.Eip4844` requires `to` and at least one 32-byte blob versioned hash.
+- `Ethers.Transaction.Eip1559` validates `to` like the other types (`0x`-prefixed hex or `nil`).
+- Access lists must be `[[<<address::binary-20>>, [<<storage_key::binary-32>>, ...]], ...]`,
+  the form `Ethers.create_access_list/2` returns.
+- EIP-7702 authorizations need a `signature_y_parity` of `0` or `1` and a `chain_id` below
+  `2**256` (also enforced by `Ethers.Authorization.new/1`), and return the
+  `Ethers.Authorization.new/1` errors otherwise.
+
+```elixir
+address = "0x07a6e955ba4345bae83ac2a6faa771fddd8a2011"
+
+# Before (0.8.x)
+Ethers.Transaction.new(%{type: Ethers.Transaction.Eip2930, access_list: [[address, []]], ...})
+#=> {:ok, %Ethers.Transaction.Eip2930{...}}
+
+# After (1.0.0)
+Ethers.Transaction.new(%{type: Ethers.Transaction.Eip2930, access_list: [[address, []]], ...})
+#=> {:error, :invalid_access_list}
+
+access_list = [[Ethers.Utils.decode_address!(address), []]]
+Ethers.Transaction.new(%{type: Ethers.Transaction.Eip2930, access_list: access_list, ...})
+#=> {:ok, %Ethers.Transaction.Eip2930{...}}
+```
+
+| Error | Returned by | 0.8.x |
+| --- | --- | --- |
+| `:missing_to_address` | `Eip4844` | `{:ok, transaction}` with `to: nil` |
+| `:empty_blob_versioned_hashes` | `Eip4844` | `{:ok, transaction}` without blobs |
+| `:invalid_blob_versioned_hashes` | `Eip4844` | `{:ok, transaction}` |
+| `:invalid_address`, `:invalid_address_length` | `Eip1559` | `{:ok, transaction}` |
+| `:invalid_access_list` | `Eip2930`, `Eip1559`, `Eip4844`, `Eip7702` | `{:ok, transaction}` |
+| `:invalid_signature_y_parity` | `Eip7702` | `{:ok, transaction}` |
+| `:chain_id_out_of_range` | `Eip7702`, `Ethers.Authorization.new/1` | `{:ok, transaction}`, `{:ok, authorization}` |
+
 ## Upgrading to 0.6.x
 
 Version 0.6.x and onwards introduce several breaking changes to improve type safety and explicitness.

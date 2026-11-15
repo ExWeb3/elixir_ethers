@@ -32,7 +32,8 @@ defmodule Ethers.Authorization do
   the authorization is silently skipped on chain, so getting these right matters.
   """
 
-  import Ethers.Transaction.Helpers, only: [validate_non_neg_integer: 1, validate_address: 1]
+  import Ethers.Transaction.Helpers,
+    only: [validate_required: 2, validate_non_neg_integer: 1, validate_address: 1]
 
   alias Ethers.Types
   alias Ethers.Utils
@@ -40,7 +41,8 @@ defmodule Ethers.Authorization do
   @magic <<0x05>>
   @zero_address "0x0000000000000000000000000000000000000000"
 
-  # EIP-7702: authorization nonce must be < 2^64
+  # EIP-7702: authorization chain_id must be < 2^256 and nonce < 2^64
+  @max_chain_id 2 ** 256 - 1
   @max_nonce 2 ** 64 - 1
 
   @enforce_keys [:chain_id, :address, :nonce]
@@ -62,7 +64,8 @@ defmodule Ethers.Authorization do
   Creates a new authorization struct with the given parameters.
 
   Accepts a map or a keyword list with the `:chain_id`, `:address` and `:nonce` keys, all
-  required. See the module documentation for the field semantics.
+  required. See the module documentation for the field semantics. As required by EIP-7702,
+  `chain_id` must be below `2**256` and `nonce` below `2**64`.
 
   ## Examples
 
@@ -73,19 +76,27 @@ defmodule Ethers.Authorization do
   def new(params) when is_list(params), do: params |> Map.new() |> new()
 
   def new(params) when is_map(params) do
-    with :ok <- validate_required(params[:chain_id], :missing_chain_id),
-         :ok <- validate_required(params[:address], :missing_address),
-         :ok <- validate_required(params[:nonce], :missing_nonce),
-         :ok <- validate_non_neg_integer(params[:chain_id]),
-         :ok <- validate_non_neg_integer(params[:nonce]),
-         :ok <- validate_nonce_bound(params[:nonce]),
-         :ok <- validate_address(params[:address]) do
+    with :ok <- validate(params) do
       {:ok,
        %__MODULE__{
          chain_id: params[:chain_id],
          address: Utils.to_checksum_address(params[:address]),
          nonce: params[:nonce]
        }}
+    end
+  end
+
+  @doc false
+  # Shared with `Ethers.Transaction.Eip7702.new/1`, which validates the (possibly hand-built)
+  # authorizations of its authorization list.
+  @spec validate(map() | t()) :: :ok | {:error, reason :: atom()}
+  def validate(params) do
+    with :ok <- validate_required(params, [:chain_id, :address, :nonce]),
+         :ok <- validate_non_neg_integer(params.chain_id),
+         :ok <- validate_bound(params.chain_id, @max_chain_id, :chain_id_out_of_range),
+         :ok <- validate_non_neg_integer(params.nonce),
+         :ok <- validate_bound(params.nonce, @max_nonce, :nonce_out_of_range) do
+      validate_address(params.address)
     end
   end
 
@@ -156,11 +167,6 @@ defmodule Ethers.Authorization do
     ]
   end
 
-  defp validate_required(nil, error), do: {:error, error}
-  defp validate_required(_value, _error), do: :ok
-
-  defp validate_nonce_bound(nonce) when is_integer(nonce) and nonce > @max_nonce,
-    do: {:error, :nonce_out_of_range}
-
-  defp validate_nonce_bound(_nonce), do: :ok
+  defp validate_bound(value, max, error) when value > max, do: {:error, error}
+  defp validate_bound(_value, _max, _error), do: :ok
 end

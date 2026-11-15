@@ -358,6 +358,7 @@ defmodule Ethers.TransactionTest do
           max_fee_per_blob_gas: 1,
           max_fee_per_gas: 1,
           access_list: [],
+          blob_versioned_hashes: [<<1, 0::248>>],
           authorization_list: [signed_authorization]
         })
 

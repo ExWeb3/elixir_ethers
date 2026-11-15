@@ -296,25 +296,29 @@ defmodule Ethers.EventTest do
     @from "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
     @to "0x70997970C51812dc3A010C7d01b50e0d17dc79C8"
     @token "0xaa107ccfe230a29c345fd97bc6eb9bd2fccd0750"
+    # As the node returns it
+    @system_address "0xfffffffffffffffffffffffffffffffffffffffe"
 
-    test "system_address/0 is the EIP-7708 log emitter" do
-      assert Event.system_address() == "0xfffffffffffffffffffffffffffffffffffffffe"
+    test "system_address/0 is the checksummed EIP-7708 log emitter" do
+      assert Event.system_address() == "0xffffFFFfFFffffffffffffffFfFFFfffFFFfFFfE"
+      assert Event.system_address() == Ethers.Utils.to_checksum_address(@system_address)
     end
 
     test "decode/2 decodes an ETH transfer log as an ERC-20 Transfer event" do
       %Ethers.EventFilter{selector: selector} = ERC20.EventFilters.transfer(nil, nil)
 
       assert %Event{
-               address: "0xfffffffffffffffffffffffffffffffffffffffe",
+               address: "0xffffFFFfFFffffffffffffffFfFFFfffFFFfFFfE",
                topics: ["Transfer(address,address,uint256)", @from, @to],
                data: [1_000_000_000_000_000_000]
-             } = event = Event.decode(transfer_log(Event.system_address()), selector)
+             } = event = Event.decode(transfer_log(@system_address), selector)
 
+      assert event.address == Event.system_address()
       assert Event.eth_transfer_log?(event)
     end
 
     test "CombinedEventFilter.decode_logs/2 decodes ETH and token transfer logs alike" do
-      logs = [transfer_log(Event.system_address()), transfer_log(@token)]
+      logs = [transfer_log(@system_address), transfer_log(@token)]
 
       assert [eth_transfer, token_transfer] =
                CombinedEventFilter.decode_logs(logs, ERC20.EventFilters.__all__())
@@ -331,10 +335,10 @@ defmodule Ethers.EventTest do
     end
 
     test "eth_transfer_log?/1 ignores the address case" do
-      checksum_address = Ethers.Utils.to_checksum_address(Event.system_address())
       %Ethers.EventFilter{selector: selector} = ERC20.EventFilters.transfer(nil, nil)
+      event = Event.decode(transfer_log(@system_address), selector)
 
-      assert Event.eth_transfer_log?(Event.decode(transfer_log(checksum_address), selector))
+      assert Event.eth_transfer_log?(%{event | address: @system_address})
     end
 
     test "eth_transfer_log?/1 is false for other events emitted by the system address" do
@@ -342,7 +346,7 @@ defmodule Ethers.EventTest do
         ERC20.EventFilters.approval(nil, nil)
 
       log =
-        Event.system_address()
+        @system_address
         |> transfer_log()
         |> Map.update!("topics", fn [_ | sub_topics] -> [approval_topic | sub_topics] end)
 
@@ -353,7 +357,7 @@ defmodule Ethers.EventTest do
       assert %Ethers.EventFilter{topics: [topic_0, nil, nil]} =
                ERC20.EventFilters.transfer(nil, nil)
 
-      assert [^topic_0 | _] = transfer_log(Event.system_address())["topics"]
+      assert [^topic_0 | _] = transfer_log(@system_address)["topics"]
     end
   end
 

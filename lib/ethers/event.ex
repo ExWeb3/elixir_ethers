@@ -18,7 +18,8 @@ defmodule Ethers.Event do
   alias Ethers.Types
   alias Ethers.Utils
 
-  @system_address "0xfffffffffffffffffffffffffffffffffffffffe"
+  @system_address "0xffffFFFfFFffffffffffffffFfFFFfffFFFfFFfE"
+  @system_address_downcased String.downcase(@system_address)
   @transfer_topic "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
 
   defstruct [
@@ -136,7 +137,7 @@ defmodule Ethers.Event do
 
   @doc """
   Returns `SYSTEM_ADDRESS`, the address emitting [EIP-7708](https://eips.ethereum.org/EIPS/eip-7708)
-  ETH transfer logs.
+  ETH transfer logs, EIP-55 checksummed like the `address` of decoded events.
 
   Pass it as `:address` to `Ethers.get_logs/2` with an ERC-20 `Transfer` event filter to fetch
   only native ETH transfers.
@@ -144,7 +145,7 @@ defmodule Ethers.Event do
   ## Examples
 
       iex> Ethers.Event.system_address()
-      "0xfffffffffffffffffffffffffffffffffffffffe"
+      "0xffffFFFfFFffffffffffffffFfFFFfffFFFfFFfE"
   """
   @spec system_address() :: Types.t_address()
   def system_address, do: @system_address
@@ -166,7 +167,8 @@ defmodule Ethers.Event do
   """
   @spec eth_transfer_log?(t()) :: boolean()
   def eth_transfer_log?(%__MODULE__{address: address, topics_raw: [topic_0 | _]}) do
-    String.downcase(address) == @system_address and String.downcase(topic_0) == @transfer_topic
+    String.downcase(address) == @system_address_downcased and
+      String.downcase(topic_0) == @transfer_topic
   end
 
   defp decode_sub_topic(raw, type) when type in [:string, :bytes], do: Utils.hex_encode(raw)

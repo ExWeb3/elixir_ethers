@@ -19,9 +19,9 @@ defmodule Ethers.Receipt do
   - `logs` are kept as returned by the node, see [Logs](#module-logs).
   - A member the node omits is `nil` (e.g. `status` of a pre-Byzantium receipt, or
     `blob_gas_used` of a non-blob transaction).
-  - Members not defined by the schema are ignored. Chain specific members (e.g. the L1 fee
-    members of OP Stack chains) are available in `raw`, the receipt exactly as returned by the
-    node.
+  - Members this version of the library does not decode, such as chain specific members
+    (e.g. the L1 fee members of OP Stack chains) or node extras, are kept undecoded in
+    `extra`.
 
   `Ethers.get_transaction_receipt/2` returns `{:error, {:invalid_receipt_member, member}}`
   when the node returns a member that does not match the schema (e.g. a `status` other than
@@ -54,7 +54,7 @@ defmodule Ethers.Receipt do
         transaction_hash: "0x9c4e...6e5d",
         transaction_index: 94,
         type: 2,
-        raw: %{"blockHash" => "0x5f3a...3b20", "status" => "0x1", ...},
+        extra: %{},
         ...
       }
 
@@ -89,7 +89,7 @@ defmodule Ethers.Receipt do
     :transaction_hash,
     :transaction_index,
     :type,
-    raw: %{}
+    extra: %{}
   ]
 
   @typedoc """
@@ -122,7 +122,11 @@ defmodule Ethers.Receipt do
   - `logs` - the logs emitted by the transaction, as returned by the node. See
     `decode_logs/2`.
   - `logs_bloom` - the 256 byte bloom filter of the logs, as a binary.
-  - `raw` - the receipt exactly as returned by the node, including chain specific members.
+  - `extra` - the members returned by the node that this version of the library does not
+    decode (e.g. the L1 fee members of OP Stack chains), with their RPC member names as keys
+    and their values as returned by the node. `%{}` when there are none. It only holds
+    members this version does not decode, so a member can move from `extra` to a struct
+    field in a later release.
   """
   @type t :: %__MODULE__{
           blob_gas_price: non_neg_integer() | nil,
@@ -132,11 +136,11 @@ defmodule Ethers.Receipt do
           contract_address: Types.t_address() | nil,
           cumulative_gas_used: non_neg_integer() | nil,
           effective_gas_price: non_neg_integer() | nil,
+          extra: %{optional(String.t()) => term()},
           from: Types.t_address() | nil,
           gas_used: non_neg_integer() | nil,
           logs: [map()] | nil,
           logs_bloom: binary() | nil,
-          raw: map(),
           root: Types.t_hash() | nil,
           status: :success | :failure | nil,
           to: Types.t_address() | nil,
@@ -166,11 +170,15 @@ defmodule Ethers.Receipt do
     logs_bloom: {"logsBloom", :bytes}
   ]
 
+  @known_members Enum.map(@members, fn {_field, {member, _kind}} -> member end)
+
   @doc false
   @spec from_rpc_map(term()) ::
           {:ok, t()} | {:error, :invalid_receipt | {:invalid_receipt_member, String.t()}}
   def from_rpc_map(receipt) when is_map(receipt) do
-    Enum.reduce_while(@members, {:ok, %__MODULE__{raw: receipt}}, fn
+    extra = Map.drop(receipt, @known_members)
+
+    Enum.reduce_while(@members, {:ok, %__MODULE__{extra: extra}}, fn
       {field, {member, kind}}, {:ok, decoded} ->
         case receipt |> Map.get(member) |> decode_member(kind) do
           {:ok, value} -> {:cont, {:ok, Map.put(decoded, field, value)}}

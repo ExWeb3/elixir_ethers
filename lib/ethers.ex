@@ -254,8 +254,8 @@ defmodule Ethers do
   `Ethers.Receipt` struct.
 
   The logs of the receipt are kept as returned by the node, decode them with
-  `Ethers.Receipt.decode_logs/2`. The receipt as returned by the node, including chain
-  specific members, is available in the `raw` field.
+  `Ethers.Receipt.decode_logs/2`. Members the library does not decode, such as chain
+  specific members, are kept undecoded in the `extra` field.
 
   Also works with `Ethers.batch/2` as `{:get_transaction_receipt, tx_hash}`.
 

@@ -257,6 +257,10 @@ defmodule Ethers.ReceiptTest do
   @usdc "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
   @missing_tx_hash "0x5194596d703a53f65dcb1d7df60fcfa1f7d904ad3145887677a6ab68a425d8d3"
 
+  @known_members ~w(transactionHash transactionIndex blockHash blockNumber from to
+                    contractAddress type status root gasUsed cumulativeGasUsed
+                    effectiveGasPrice blobGasUsed blobGasPrice logs logsBloom)
+
   defp get_receipt(response) do
     Ethers.get_transaction_receipt(@missing_tx_hash,
       rpc_client: ReceiptRPC,
@@ -294,7 +298,7 @@ defmodule Ethers.ReceiptTest do
                blob_gas_price: nil,
                logs: [],
                logs_bloom: :binary.copy(<<0>>, 256),
-               raw: rpc_receipt
+               extra: %{}
              }
     end
 
@@ -333,17 +337,43 @@ defmodule Ethers.ReceiptTest do
              } = receipt!(Fixtures.pre_byzantium())
     end
 
-    test "keeps chain specific members in raw" do
-      rpc_receipt = Fixtures.op_stack_transaction()
-      receipt = receipt!(rpc_receipt)
+    test "keeps the members it does not decode undecoded in extra" do
+      receipt = receipt!(Fixtures.op_stack_transaction())
 
-      assert receipt.raw == rpc_receipt
-      assert receipt.raw["l1Fee"] == "0x1c5ee8a2b4"
-      assert %{receipt | raw: nil} == %{receipt!(Fixtures.eip1559_transfer()) | raw: nil}
+      assert receipt.extra == %{
+               "l1BaseFeeScalar" => "0x8dd",
+               "l1BlobBaseFee" => "0x1",
+               "l1BlobBaseFeeScalar" => "0x101c12",
+               "l1Fee" => "0x1c5ee8a2b4",
+               "l1GasPrice" => "0x2540be400",
+               "l1GasUsed" => "0x640"
+             }
+
+      for member <- ["gasUsed", "status", "logs"] do
+        refute Map.has_key?(receipt.extra, member)
+      end
+
+      assert %{receipt | extra: %{}} == receipt!(Fixtures.eip1559_transfer())
+    end
+
+    test "has empty extra when the node sends no members it does not decode" do
+      for rpc_receipt <- [
+            Fixtures.eip1559_transfer(),
+            Fixtures.contract_creation(),
+            Fixtures.failed_transaction(),
+            Fixtures.blob_transaction(),
+            Fixtures.pre_byzantium(),
+            Fixtures.token_transfers()
+          ] do
+        assert receipt!(rpc_receipt).extra == %{}
+      end
     end
 
     test "decodes transaction types unknown to the library to their type id" do
-      assert %Receipt{type: 126, effective_gas_price: 0} = receipt!(Fixtures.op_stack_deposit())
+      assert %Receipt{type: 126, effective_gas_price: 0, extra: extra} =
+               receipt!(Fixtures.op_stack_deposit())
+
+      assert extra == %{"depositNonce" => "0x9a2b1", "depositReceiptVersion" => "0x1"}
     end
 
     test "keeps logs as returned by the node" do
@@ -359,7 +389,7 @@ defmodule Ethers.ReceiptTest do
 
       assert receipt!(rpc_receipt) == %Receipt{
                transaction_hash: rpc_receipt["transactionHash"],
-               raw: rpc_receipt
+               extra: %{}
              }
     end
 
@@ -424,8 +454,10 @@ defmodule Ethers.ReceiptTest do
         rpc_opts: [response: {:ok, rpc_receipt}, send_params_to_pid: self()]
       ]
 
-      assert {:ok, [{:ok, %Receipt{type: 2, status: :success, raw: ^rpc_receipt}}]} =
+      assert {:ok, [{:ok, receipt}]} =
                Ethers.batch([{:get_transaction_receipt, @missing_tx_hash}], opts)
+
+      assert receipt == receipt!(rpc_receipt)
 
       assert_received {:batch_request, [{:eth_get_transaction_receipt, [@missing_tx_hash]}]}
 
@@ -568,9 +600,12 @@ defmodule Ethers.ReceiptTest do
                type: 2,
                status: :success,
                gas_used: 21_000,
-               logs: [],
-               raw: %{"transactionHash" => ^tx_hash}
+               logs: []
              } = receipt
+
+      # Node extras differ between anvil versions: only check that known members are decoded
+      assert is_map(receipt.extra)
+      assert Map.take(receipt.extra, @known_members) == %{}
 
       assert receipt.cumulative_gas_used >= receipt.gas_used
       assert receipt.effective_gas_price > 0
@@ -588,10 +623,11 @@ defmodule Ethers.ReceiptTest do
 
       assert {:ok, address} = Ethers.deployed_address(tx_hash)
 
-      assert %Receipt{to: nil, status: :success, contract_address: contract_address} =
+      assert %Receipt{to: nil, status: :success, contract_address: contract_address, extra: extra} =
                Ethers.get_transaction_receipt!(tx_hash)
 
       assert contract_address == Utils.to_checksum_address(address)
+      assert Map.take(extra, @known_members) == %{}
 
       assert ReceiptHelloWorldContract.say_hello() |> Ethers.call!(to: contract_address) ==
                "Hello World!"

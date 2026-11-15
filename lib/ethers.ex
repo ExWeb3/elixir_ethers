@@ -69,6 +69,7 @@ defmodule Ethers do
   alias Ethers.EventFilter
   alias Ethers.ExecutionError
   alias Ethers.ForkConfig
+  alias Ethers.Receipt
   alias Ethers.StateOverride
   alias Ethers.Transaction
   alias Ethers.TxData
@@ -103,6 +104,7 @@ defmodule Ethers do
     get_logs: :eth_get_logs,
     get_transaction_count: :eth_get_transaction_count,
     get_transaction: :eth_get_transaction_by_hash,
+    get_transaction_receipt: :eth_get_transaction_receipt,
     max_priority_fee_per_gas: :eth_max_priority_fee_per_gas,
     send_transaction: :eth_send_transaction,
     blob_base_fee: :eth_blob_base_fee,
@@ -248,16 +250,38 @@ defmodule Ethers do
   end
 
   @doc """
-  Returns the receipt of a transaction by it's hash.
+  Returns the receipt of a transaction by its hash (`eth_getTransactionReceipt`), decoded to an
+  `Ethers.Receipt` struct.
+
+  The logs of the receipt are kept as returned by the node, decode them with
+  `Ethers.Receipt.decode_logs/2`. The receipt as returned by the node, including chain
+  specific members, is available in the `raw` field.
+
+  Also works with `Ethers.batch/2` as `{:get_transaction_receipt, tx_hash}`.
 
   ## Parameters
   - tx_hash: Transaction hash which the transaction receipt is queried for.
   - overrides:
     - rpc_client: The RPC module to use for this request (overrides default).
     - rpc_opts: Specific RPC options to specify for this request.
+
+  ## Returns
+  - `{:ok, receipt}` with an `Ethers.Receipt` struct.
+  - `{:error, :transaction_receipt_not_found}` if the node has no receipt for the
+    transaction (unknown or not yet included in a block).
+  - `{:error, {:invalid_receipt_member, member}}` if the node returned a member that does
+    not match the receipt schema (e.g. `{:invalid_receipt_member, "status"}`).
+  - `{:error, reason}` on RPC failures.
+
+  ## Examples
+
+  ```elixir
+  Ethers.get_transaction_receipt("0x9c4e...6e5d")
+  {:ok, %Ethers.Receipt{status: :success, gas_used: 45029, type: 2, ...}}
+  ```
   """
   @spec get_transaction_receipt(Types.t_hash(), Keyword.t()) ::
-          {:ok, map()} | {:error, term()}
+          {:ok, Receipt.t()} | {:error, term()}
   def get_transaction_receipt(tx_hash, opts \\ []) when is_binary(tx_hash) do
     {rpc_client, rpc_opts} = get_rpc_client(opts)
 
@@ -268,7 +292,7 @@ defmodule Ethers do
   @doc """
   Same as `Ethers.get_transaction_receipt/2` but raises on error.
   """
-  @spec get_transaction_receipt!(Types.t_hash(), Keyword.t()) :: map() | no_return()
+  @spec get_transaction_receipt!(Types.t_hash(), Keyword.t()) :: Receipt.t() | no_return()
   def get_transaction_receipt!(tx_hash, opts \\ []) do
     case get_transaction_receipt(tx_hash, opts) do
       {:ok, receipt} -> receipt
@@ -1472,6 +1496,9 @@ defmodule Ethers do
 
   defp post_process({:ok, nil}, _tx_hash, :get_transaction_receipt),
     do: {:error, :transaction_receipt_not_found}
+
+  defp post_process({:ok, receipt}, _tx_hash, :get_transaction_receipt),
+    do: Receipt.from_rpc_map(receipt)
 
   defp post_process({:ok, resp}, _data, :fee_history) when is_map(resp) do
     {:ok,

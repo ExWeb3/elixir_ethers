@@ -279,13 +279,15 @@ defmodule EthersTest do
 
       wait_for_transaction!(tx_hash)
 
-      downcased_to_addr = String.downcase(@to)
+      from = Utils.to_checksum_address(@from)
+      to = Utils.to_checksum_address(@to)
 
       assert {:ok,
-              %{
-                "transactionHash" => ^tx_hash,
-                "from" => @from,
-                "to" => ^downcased_to_addr
+              %Ethers.Receipt{
+                transaction_hash: ^tx_hash,
+                from: ^from,
+                to: ^to,
+                status: :success
               }} = Ethers.get_transaction_receipt(tx_hash)
     end
 
@@ -304,9 +306,9 @@ defmodule EthersTest do
       wait_for_transaction!(tx_hash)
 
       receipt = Ethers.get_transaction_receipt!(tx_hash)
-      assert receipt["transactionHash"] == tx_hash
-      assert receipt["from"] == @from
-      assert receipt["to"] == String.downcase(@to)
+      assert receipt.transaction_hash == tx_hash
+      assert receipt.from == Utils.to_checksum_address(@from)
+      assert receipt.to == Utils.to_checksum_address(@to)
     end
 
     test "bang version raises on error" do
@@ -794,10 +796,8 @@ defmodule EthersTest do
 
         wait_for_transaction!(tx_hash)
 
-        type_id = Ethers.Utils.integer_to_hex(type.type_id())
-
         assert %Ethers.Transaction.Signed{payload: %^type{}} = Ethers.get_transaction!(tx_hash)
-        assert Ethers.get_transaction_receipt!(tx_hash)["type"] == type_id
+        assert Ethers.get_transaction_receipt!(tx_hash).type == type.type_id()
       end
     end
   end

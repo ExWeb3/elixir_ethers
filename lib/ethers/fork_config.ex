@@ -128,5 +128,6 @@ defmodule Ethers.ForkConfig do
   defp decode_named_addresses(nil), do: nil
 
   defp decode_named_addresses(addresses) when is_map(addresses),
-    do: Map.new(addresses, fn {name, address} -> {name, Utils.to_checksum_address(address)} end)
+    do:
+      Map.new(addresses, fn {name, address} -> {name, Utils.maybe_checksum_address(address)} end)
 end

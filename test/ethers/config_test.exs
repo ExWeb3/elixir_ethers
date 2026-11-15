@@ -219,6 +219,26 @@ defmodule Ethers.ConfigTest do
                Ethers.config(rpc_client: ConfigRPC, rpc_opts: [response: {:ok, response}])
     end
 
+    test "keeps malformed addresses as the node returned them" do
+      current =
+        Map.put(Fixtures.hoodi_cancun(), "systemContracts", %{
+          "BEACON_ROOTS_ADDRESS" => "0x000f3df6d732807ef1319fb7b8bb8522d0beac02",
+          "SHORT" => "0x1234",
+          "MISSING" => nil
+        })
+
+      response = Map.put(Fixtures.no_future_fork(), "current", current)
+
+      assert {:ok, %{current: %ForkConfig{system_contracts: system_contracts}}} =
+               Ethers.config(rpc_client: ConfigRPC, rpc_opts: [response: {:ok, response}])
+
+      assert system_contracts == %{
+               "BEACON_ROOTS_ADDRESS" => "0x000F3df6D732807Ef1319fB7B8bB8522d0Beac02",
+               "SHORT" => "0x1234",
+               "MISSING" => nil
+             }
+    end
+
     test "returns RPC errors as is" do
       error = %{"code" => -32_601, "message" => "the method eth_config does not exist"}
 

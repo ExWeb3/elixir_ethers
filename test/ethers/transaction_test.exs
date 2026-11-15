@@ -1117,6 +1117,40 @@ defmodule Ethers.TransactionTest do
              ]
     end
 
+    test "returns an error for an EIP-7702 authorization with a malformed address" do
+      authorization = %{
+        "chainId" => "0x1",
+        "nonce" => "0x2",
+        "yParity" => "0x0",
+        "r" => "0x3c67c1f1203dd722e316796c37c4b828b98f5a27578627879f415763e2ac5afd",
+        "s" => "0x4c77aba7874855a80c7357fb13ae953cf9d819a615c00baaa15a2e165a0f08f7"
+      }
+
+      tx_map = %{
+        "type" => "0x4",
+        "chainId" => "0x1",
+        "nonce" => "0x0",
+        "to" => "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb5",
+        "value" => "0x0",
+        "gas" => "0x5208",
+        "maxFeePerGas" => "0x3b9aca00",
+        "maxPriorityFeePerGas" => "0x0"
+      }
+
+      for {address, error} <- [
+            {nil, :missing_address},
+            {"0x1234", :invalid_address_length},
+            {"0xzze6bd1c4082403fc7917a61f6216552fc1a541d", :invalid_address}
+          ] do
+        authorization_list = [Map.put(authorization, "address", address)]
+
+        assert {:error, ^error} =
+                 tx_map
+                 |> Map.put("authorizationList", authorization_list)
+                 |> Transaction.from_rpc_map()
+      end
+    end
+
     test "returns error for missing authorization list in EIP-7702 transaction" do
       tx_map = %{
         "type" => "0x4",

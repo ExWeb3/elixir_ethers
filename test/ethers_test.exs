@@ -10,6 +10,12 @@ defmodule Ethers.Contract.Test.HelloWorldWithDefaultAddressContract do
     default_address: "0x1000bf6a479f320ead074411a4b0e7944ea8c9c1"
 end
 
+defmodule EthersTest.ReceiptRPC do
+  @moduledoc false
+
+  def eth_get_transaction_receipt(_tx_hash, opts), do: {:ok, Keyword.fetch!(opts, :receipt)}
+end
+
 defmodule EthersTest do
   use ExUnit.Case
   doctest Ethers
@@ -23,6 +29,7 @@ defmodule EthersTest do
   alias Ethers.Contract.Test.HelloWorldContract
   alias Ethers.Contract.Test.HelloWorldWithDefaultAddressContract
   alias Ethers.ExecutionError
+  alias EthersTest.ReceiptRPC
 
   @from "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
   @to "0x9965507d1a55bcc2695c58ba16fb37d819b0a4dc"
@@ -358,6 +365,56 @@ defmodule EthersTest do
       assert {:error, :transaction_not_found} = Ethers.deployed_address(tx_hash)
     end
 
+    test "returns the deployed address checksummed" do
+      tx_hash = "0x5c504ed432cb51138bcf09aa5e8a410dd4a1e204ef84bfed1be16dfba1b22060"
+
+      for contract_address <- [
+            "0x1000bf6a479f320ead074411a4b0e7944ea8c9c1",
+            "0x1000BF6A479F320EAD074411A4B0E7944EA8C9C1"
+          ] do
+        assert {:ok, "0x1000BF6a479F320EAD074411A4B0e7944Ea8C9C1"} ==
+                 Ethers.deployed_address(tx_hash,
+                   rpc_client: ReceiptRPC,
+                   rpc_opts: [receipt: %{"contractAddress" => contract_address}]
+                 )
+      end
+    end
+
+    test "keeps a malformed deployed address as the node returned it" do
+      tx_hash = "0x5c504ed432cb51138bcf09aa5e8a410dd4a1e204ef84bfed1be16dfba1b22060"
+
+      assert {:ok, "0x1234"} ==
+               Ethers.deployed_address(tx_hash,
+                 rpc_client: ReceiptRPC,
+                 rpc_opts: [receipt: %{"contractAddress" => "0x1234"}]
+               )
+    end
+
+    test "deployed_address works in batch requests" do
+      {:ok, deploy_tx_hash} = Ethers.deploy(HelloWorldContract, from: @from)
+      wait_for_transaction!(deploy_tx_hash)
+      {:ok, contract_address} = Ethers.deployed_address(deploy_tx_hash)
+
+      {:ok, tx_hash} =
+        HelloWorldContract.set_hello("Batch")
+        |> Ethers.send_transaction(to: contract_address, from: @from)
+
+      wait_for_transaction!(tx_hash)
+
+      assert {:ok,
+              [
+                ok: ^contract_address,
+                error: :transaction_not_found,
+                error: :no_contract_address
+              ]} =
+               Ethers.batch([
+                 {:deployed_address, deploy_tx_hash},
+                 {:deployed_address,
+                  "0x5c504ed432cb51138bcf09aa5e8a410dd4a1e204ef84bfed1be16dfba1b22060"},
+                 {:deployed_address, tx_hash}
+               ])
+    end
+
     test "getting the deployed address of a non contract creation transaction" do
       contract_address = deploy(HelloWorldContract, from: @from)
 
@@ -403,6 +460,16 @@ defmodule EthersTest do
   end
 
   describe "default address" do
+    test "is checksummed although given in lowercase" do
+      assert HelloWorldWithDefaultAddressContract.__default_address__() ==
+               "0x1000BF6a479F320EAD074411A4B0e7944Ea8C9C1"
+
+      assert HelloWorldWithDefaultAddressContract.EventFilters.__default_address__() ==
+               "0x1000BF6a479F320EAD074411A4B0e7944Ea8C9C1"
+
+      assert HelloWorldContract.__default_address__() == nil
+    end
+
     test "is included in the function calls when has default address" do
       assert %Ethers.TxData{
                base_module: HelloWorldWithDefaultAddressContract,
@@ -418,12 +485,12 @@ defmodule EthersTest do
                  returns: [:string],
                  return_names: [""]
                },
-               default_address: "0x1000bf6a479f320ead074411a4b0e7944ea8c9c1"
+               default_address: "0x1000BF6a479F320EAD074411A4B0e7944Ea8C9C1"
              } == HelloWorldWithDefaultAddressContract.say_hello()
 
       assert %{
                data: Utils.hex_decode!("0xef5fb05b"),
-               to: "0x1000bf6a479f320ead074411a4b0e7944ea8c9c1"
+               to: "0x1000BF6a479F320EAD074411A4B0e7944Ea8C9C1"
              } ==
                HelloWorldWithDefaultAddressContract.say_hello()
                |> Ethers.TxData.to_map([])
@@ -466,12 +533,12 @@ defmodule EthersTest do
                  types: [:string],
                  returns: []
                },
-               default_address: "0x1000bf6a479f320ead074411a4b0e7944ea8c9c1"
+               default_address: "0x1000BF6a479F320EAD074411A4B0e7944Ea8C9C1"
              } == HelloWorldWithDefaultAddressContract.EventFilters.hello_set()
 
       assert %{
                topics: ["0xbe6cf5e99b344c66895d6304d442b2f51b6359ee51ac581db2255de9373e24b8"],
-               address: "0x1000bf6a479f320ead074411a4b0e7944ea8c9c1"
+               address: "0x1000BF6a479F320EAD074411A4B0e7944Ea8C9C1"
              } ==
                HelloWorldWithDefaultAddressContract.EventFilters.hello_set()
                |> Ethers.EventFilter.to_map([])
@@ -481,12 +548,12 @@ defmodule EthersTest do
       filter = HelloWorldWithDefaultAddressContract.EventFilters.__all__()
 
       assert %Ethers.CombinedEventFilter{
-               default_address: "0x1000bf6a479f320ead074411a4b0e7944ea8c9c1"
+               default_address: "0x1000BF6a479F320EAD074411A4B0e7944Ea8C9C1"
              } = filter
 
       assert %{
                topics: [["0xbe6cf5e99b344c66895d6304d442b2f51b6359ee51ac581db2255de9373e24b8"]],
-               address: "0x1000bf6a479f320ead074411a4b0e7944ea8c9c1"
+               address: "0x1000BF6a479F320EAD074411A4B0e7944Ea8C9C1"
              } == Ethers.EventFilter.to_map(filter, [])
     end
 
@@ -785,6 +852,50 @@ defmodule EthersTest do
       wait_for_transaction!(tx_hash)
 
       assert {:ok, "hi signed"} = Ethers.call(HelloWorldContract.say_hello(), to: address)
+    end
+
+    test "compares the signer_opts from address with the transaction from address in any casing" do
+      tx_params = [
+        gas: 10_000,
+        max_fee_per_gas: 123_123_123,
+        max_priority_fee_per_gas: 1_000,
+        chain_id: 31_337,
+        nonce: 100,
+        to: "0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc",
+        signer: Ethers.Signer.Local
+      ]
+
+      tx_data = HelloWorldContract.set_hello("hi signed")
+      checksummed_from = Utils.to_checksum_address(@from)
+      "0x" <> from_hex = @from
+
+      assert {:ok, signed} =
+               Ethers.sign_transaction(
+                 tx_data,
+                 [
+                   from: @from,
+                   signer_opts: [private_key: @from_private_key, from: checksummed_from]
+                 ] ++ tx_params
+               )
+
+      assert {:ok, ^signed} =
+               Ethers.sign_transaction(
+                 tx_data,
+                 [
+                   from: "0x" <> String.upcase(from_hex),
+                   signer_opts: [private_key: @from_private_key, from: @from]
+                 ] ++ tx_params
+               )
+
+      assert_raise ArgumentError,
+                   ":signer_opts has a different from address than transaction",
+                   fn ->
+                     Ethers.sign_transaction(
+                       tx_data,
+                       [from: @from, signer_opts: [private_key: @from_private_key, from: @to]] ++
+                         tx_params
+                     )
+                   end
     end
 
     test "requires from address" do

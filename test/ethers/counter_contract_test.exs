@@ -484,6 +484,104 @@ defmodule Ethers.CounterContractTest do
     end
   end
 
+  describe "returned addresses" do
+    setup :deploy_counter_contract
+
+    test "deployed_address and event addresses are checksummed and compare equal",
+         %{address: address} do
+      assert Utils.valid_checksum_address?(address)
+
+      %{block_range: block_range} = emit_set_and_reset(address)
+
+      assert [%Event{address: ^address}] =
+               Ethers.get_logs!(
+                 CounterContract.EventFilters.set_called(nil),
+                 [address: address] ++ block_range
+               )
+    end
+
+    test "address filters accept any casing", %{address: address} do
+      %{block_range: block_range} = emit_set_and_reset(address)
+      "0x" <> hex = address
+
+      for address_input <- [String.downcase(address), "0x" <> String.upcase(hex)] do
+        assert [%Event{address: ^address}, %Event{address: ^address}] =
+                 Ethers.get_logs!(
+                   CounterContract.EventFilters,
+                   [address: address_input] ++ block_range
+                 )
+
+        filter = %{CounterContract.EventFilters.set_called(nil) | default_address: address_input}
+
+        assert [%Event{address: ^address}] = Ethers.get_logs!(filter, block_range)
+      end
+    end
+
+    test "combining filters with the same default address in different casing",
+         %{address: address} do
+      %{block_range: block_range} = emit_set_and_reset(address)
+
+      filter =
+        Ethers.EventFilter.combine([
+          %{
+            CounterContract.EventFilters.set_called(nil)
+            | default_address: String.downcase(address)
+          },
+          %{CounterContract.EventFilters.reset_called() | default_address: address}
+        ])
+
+      assert [%Event{address: ^address}, %Event{address: ^address}] =
+               Ethers.get_logs!(filter, block_range)
+    end
+
+    test "batch requests return checksummed addresses" do
+      {:ok, tx_hash} =
+        Ethers.deploy(CounterContract,
+          encoded_constructor: CounterContract.constructor(100),
+          from: @from
+        )
+
+      wait_for_transaction!(tx_hash)
+
+      assert {:ok, [ok: address]} = Ethers.batch([{:deployed_address, tx_hash}])
+      assert Utils.valid_checksum_address?(address)
+      assert {:ok, address} == Ethers.deployed_address(tx_hash)
+
+      %{block_range: block_range} = emit_set_and_reset(address)
+
+      assert {:ok,
+              [
+                ok: [%Event{address: ^address}],
+                ok: [%Event{address: ^address}, %Event{address: ^address}]
+              ]} =
+               Ethers.batch([
+                 {:get_logs, CounterContract.EventFilters.set_called(nil),
+                  [address: String.downcase(address)] ++ block_range},
+                 {:get_logs, CounterContract.EventFilters,
+                  [address: String.downcase(address)] ++ block_range}
+               ])
+    end
+
+    test "CombinedEventFilter.decode_logs/2 checksums the emitter address" do
+      filter = Ethers.EventFilter.combine([CounterContract.EventFilters])
+
+      log = %{
+        "address" => "0xaa107ccfe230a29c345fd97bc6eb9bd2fccd0750",
+        "blockHash" => "0xe8885761ec559c5e267c48f44b4b12e4169f7d3a116f5e8f43314147722f0d83",
+        "blockNumber" => "0x1",
+        "data" => "0x",
+        "logIndex" => "0x0",
+        "removed" => false,
+        "topics" => CounterContract.EventFilters.reset_called().topics,
+        "transactionHash" => "0xf6e06e4f3fbd67088e8278843e55862957537760c63bae7b682a0e39da75b45d",
+        "transactionIndex" => "0x0"
+      }
+
+      assert [%Event{address: "0xAA107cCFe230a29C345Fd97bc6eb9Bd2fccD0750"}] =
+               Ethers.CombinedEventFilter.decode_logs([log], filter)
+    end
+  end
+
   describe "override block number" do
     setup :deploy_counter_contract
 

@@ -13,6 +13,7 @@
 - `Ethers.Transaction.Signed.from_address/1` now returns `{:ok, address}`
 - `Ethers.Transaction.decode/1` returns `{:error, reason}` instead of raising on malformed input
 - Unsigned EIP-155 legacy transactions decode as `%Legacy{}` instead of `%Signed{}`
+- All returned addresses are EIP-55 checksummed, including `Ethers.Event` `address` and `Ethers.deployed_address/2`
 
 ### Enhancements
 
@@ -30,6 +31,8 @@
 - Fix transaction docs (supported types and options of `Ethers.send_transaction/2`, EIP-4844 limitations)
 - Fix sender recovery for signatures with leading zero bytes in `r` or `s`
 - Fix `Ethers.Transaction.Signed.from_address/1` raising on out-of-range recovery ids
+- Fix `:deployed_address` in `Ethers.batch/2`
+- Compare the `:signer_opts` `from` address with the transaction `from` case-insensitively
 
 ## 0.8.0 (2026-07-29)
 

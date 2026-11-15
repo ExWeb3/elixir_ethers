@@ -96,6 +96,7 @@ defmodule Ethers do
     create_access_list: :eth_create_access_list,
     current_block_number: :eth_block_number,
     current_gas_price: :eth_gas_price,
+    deployed_address: :eth_get_transaction_receipt,
     estimate_gas: :eth_estimate_gas,
     fee_history: :eth_fee_history,
     gas_price: :eth_gas_price,
@@ -323,6 +324,10 @@ defmodule Ethers do
 
   @doc """
   Returns the address of the deployed contract if the deployment is finished and successful
+
+  The address is returned EIP-55 checksummed.
+
+  Also works with `Ethers.batch/2` as `{:deployed_address, tx_hash}`.
 
   ## Parameters
   - tx_hash: Hash of the Transaction which created a contract.
@@ -1450,7 +1455,7 @@ defmodule Ethers do
 
   defp post_process({:ok, %{"contractAddress" => contract_address}}, _tx_hash, :deployed_address)
        when not is_nil(contract_address),
-       do: {:ok, contract_address}
+       do: {:ok, Utils.maybe_checksum_address(contract_address)}
 
   defp post_process({:ok, nil}, _tx_hash, :deployed_address),
     do: {:error, :transaction_not_found}
@@ -1735,13 +1740,22 @@ defmodule Ethers do
     signer_from = Keyword.get(signer_opts, :from) || tx_from
 
     if tx_from do
-      if tx_from != signer_from do
+      unless same_address?(tx_from, signer_from) do
         raise ArgumentError, ":signer_opts has a different from address than transaction"
       end
 
       Keyword.put(signer_opts, :from, tx_from)
     else
       signer_opts
+    end
+  end
+
+  defp same_address?(address, address), do: true
+
+  defp same_address?(address_a, address_b) do
+    case {Utils.decode_address(address_a), Utils.decode_address(address_b)} do
+      {{:ok, address_bin}, {:ok, address_bin}} -> true
+      _not_same -> false
     end
   end
 

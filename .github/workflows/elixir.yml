@@ -41,7 +41,7 @@ jobs:
             report_coverage: false
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v7
 
       - name: Set up Elixir
         uses: erlef/setup-beam@v1
@@ -49,17 +49,24 @@ jobs:
           otp-version: ${{matrix.variation.otp}}
           elixir-version: ${{matrix.variation.elixir}}
 
+      # Official static build from binaries.soliditylang.org, pinned and checksum verified
+      # (sha256 from https://binaries.soliditylang.org/linux-amd64/list.json).
       - name: Install Solidity
+        env:
+          SOLC_VERSION: 0.8.30+commit.73712a01
+          SOLC_SHA256: f3e987dc6ecebd4bd350c48edcbc320b46cf9e3109bd3fc3d88f1acaf4c428f7
         run: |
-          sudo add-apt-repository ppa:ethereum/ethereum
-          sudo apt-get update
-          sudo apt-get install solc
+          curl -fsSL --retry 3 -o "$RUNNER_TEMP/solc" \
+            "https://binaries.soliditylang.org/linux-amd64/solc-linux-amd64-v${SOLC_VERSION}"
+          echo "${SOLC_SHA256}  $RUNNER_TEMP/solc" | sha256sum --check --strict
+          sudo install -m 0755 "$RUNNER_TEMP/solc" /usr/local/bin/solc
+          solc --version
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
 
       - name: Restore dependencies cache
-        uses: actions/cache@v3
+        uses: actions/cache@v6
         with:
           path: deps
           key: ${{ runner.os }}-mix-${{ hashFiles('**/mix.lock') }}

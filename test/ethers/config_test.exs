@@ -113,6 +113,7 @@ defmodule Ethers.ConfigTest do
 
   alias Ethers.ConfigTest.ConfigRPC
   alias Ethers.ConfigTest.Fixtures
+  alias Ethers.ForkConfig
 
   @hoodi_chain_id 560_048
 
@@ -139,7 +140,7 @@ defmodule Ethers.ConfigTest do
                         "BLS12_PAIRING_CHECK" => "0x000000000000000000000000000000000000000F"
                       })
 
-  @hoodi_cancun %{
+  @hoodi_cancun %ForkConfig{
     activation_time: 0,
     blob_schedule: %{base_fee_update_fraction: 3_338_477, max: 6, target: 3},
     chain_id: @hoodi_chain_id,
@@ -150,7 +151,7 @@ defmodule Ethers.ConfigTest do
     }
   }
 
-  @hoodi_prague %{
+  @hoodi_prague %ForkConfig{
     activation_time: 1_742_999_832,
     blob_schedule: %{base_fee_update_fraction: 5_007_716, max: 9, target: 6},
     chain_id: @hoodi_chain_id,
@@ -187,7 +188,7 @@ defmodule Ethers.ConfigTest do
       assert {:ok, %{next: next, last: @hoodi_prague}} =
                Ethers.config(rpc_client: ConfigRPC, rpc_opts: [response: {:ok, response}])
 
-      assert next == %{@hoodi_prague | activation_time: nil, system_contracts: nil}
+      assert next == %ForkConfig{@hoodi_prague | activation_time: nil, system_contracts: nil}
     end
 
     test "ignores members unknown to the spec" do
@@ -224,7 +225,8 @@ defmodule Ethers.ConfigTest do
     end
 
     test "works with the default RPC client" do
-      assert {:ok, %{current: current, next: next, last: last}} = Ethers.config()
+      assert {:ok, %{current: %ForkConfig{} = current, next: next, last: last}} =
+               Ethers.config()
 
       assert current.chain_id == Ethers.chain_id!()
       assert is_integer(current.activation_time)
@@ -237,8 +239,8 @@ defmodule Ethers.ConfigTest do
       assert current.system_contracts["BEACON_ROOTS_ADDRESS"] ==
                "0x000F3df6D732807Ef1319fB7B8bB8522d0Beac02"
 
-      assert is_nil(next) or is_map(next)
-      assert is_nil(last) or is_map(last)
+      assert is_nil(next) or is_struct(next, ForkConfig)
+      assert is_nil(last) or is_struct(last, ForkConfig)
     end
   end
 
@@ -267,7 +269,7 @@ defmodule Ethers.ConfigTest do
     end
 
     test "works with the default RPC client" do
-      assert {:ok, [{:ok, %{current: %{chain_id: chain_id}}}, {:ok, chain_id}]} =
+      assert {:ok, [{:ok, %{current: %ForkConfig{chain_id: chain_id}}}, {:ok, chain_id}]} =
                Ethers.batch([:config, :chain_id])
 
       assert is_integer(chain_id)

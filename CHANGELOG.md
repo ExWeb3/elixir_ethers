@@ -9,6 +9,10 @@
 - `Ethers.Transaction.to_rpc_map/1` emits EIP-7702 authorization `r` and `s` as quantities
 - `Ethers.Transaction.to_rpc_map/1` raises `ArgumentError` for unsupported values
 
+### Enhancements
+
+- Add `Ethers.config/1` (`eth_config`, [EIP-7910](https://eips.ethereum.org/EIPS/eip-7910)) returning `Ethers.ForkConfig` structs
+
 ### Bug Fixes
 
 - Fix re-encoding and hashing of fetched transactions with access lists

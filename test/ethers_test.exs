@@ -1429,8 +1429,9 @@ defmodule EthersTest do
       send_sponsored_authorization!(auth)
 
       assert {:ok, <<0xEF, 0x01, 0x00>> <> ^delegate_bin} = Ethers.get_code(authority)
-      assert {:ok, Utils.to_checksum_address(delegate)} == Ethers.get_delegation(authority)
-      assert Utils.to_checksum_address(delegate) == Ethers.get_delegation!(authority)
+      # Checksummed like the address returned by deployed_address/2
+      assert {:ok, delegate} == Ethers.get_delegation(authority)
+      assert delegate == Ethers.get_delegation!(authority)
 
       assert {:ok, nil} == Ethers.get_delegation(authority, block: block_before_delegation)
 

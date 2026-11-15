@@ -60,7 +60,8 @@ binaries.
 return an `Ethers.Transaction.Unknown` for a transaction type that is not registered, like OP-stack
 deposit transactions (type `0x7e`), instead of `{:error, :unsupported_type}`. It is read-only:
 `Ethers.Transaction.encode/1`, `transaction_hash/2` and `to_rpc_map/1` raise `ArgumentError` for
-it. A `type` that is not a hex quantity returns `{:error, :invalid_type}`.
+it. `{:error, :unsupported_type}` is no longer returned: a `type` that is not a hex quantity now
+returns `{:error, :invalid_type}`.
 
 ```elixir
 # Before (0.8.x)

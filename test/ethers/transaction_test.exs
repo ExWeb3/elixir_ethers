@@ -393,6 +393,10 @@ defmodule Ethers.TransactionTest do
     test "returns error for malformed blob versioned hashes" do
       {type, fields} = List.keyfind(@unsigned_transactions, <<3>>, 0)
 
+      # Decoding checks the shape only, unlike new/1 which requires at least one hash
+      assert {:ok, %Transaction.Eip4844{blob_versioned_hashes: []}} =
+               Transaction.decode(type <> ExRLP.encode(List.replace_at(fields, 10, [])))
+
       for hashes <- [[[<<1::256>>]], [<<1>>]] do
         malformed_fields = List.replace_at(fields, 10, hashes)
 

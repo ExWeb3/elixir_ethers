@@ -72,7 +72,8 @@ defmodule Ethers.FeeEstimationTest do
       {:ok, block_number} = Ethers.current_block_number()
 
       assert {:ok, %{oldest_block: oldest_block}} = Ethers.fee_history(2, block_number, [50])
-      assert oldest_block == block_number - 1
+      # A two block window starts one block before the newest, but not before genesis
+      assert oldest_block == max(block_number - 1, 0)
     end
 
     test "works in batch requests" do

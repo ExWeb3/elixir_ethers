@@ -41,7 +41,7 @@ jobs:
             report_coverage: false
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v7
 
       - name: Set up Elixir
         uses: erlef/setup-beam@v1
@@ -49,17 +49,27 @@ jobs:
           otp-version: ${{matrix.variation.otp}}
           elixir-version: ${{matrix.variation.elixir}}
 
+      # Official static build from binaries.soliditylang.org, pinned and checksum verified
+      # (sha256 from https://binaries.soliditylang.org/linux-amd64/list.json).
       - name: Install Solidity
+        env:
+          SOLC_VERSION: 0.8.38+commit.1835d247
+          SOLC_SHA256: 65c3180a336eabb6bdc4bbd49cc405aeb233976964ae6c11fba2a6c8be8f3243
         run: |
-          sudo add-apt-repository ppa:ethereum/ethereum
-          sudo apt-get update
-          sudo apt-get install solc
+          curl -fsSL --retry 3 -o "$RUNNER_TEMP/solc" \
+            "https://binaries.soliditylang.org/linux-amd64/solc-linux-amd64-v${SOLC_VERSION}"
+          echo "${SOLC_SHA256}  $RUNNER_TEMP/solc" | sha256sum --check --strict
+          sudo install -m 0755 "$RUNNER_TEMP/solc" /usr/local/bin/solc
+          solc --version
 
+      # Pinned to the latest stable Foundry release for reproducible anvil behavior.
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.9.0
 
       - name: Restore dependencies cache
-        uses: actions/cache@v3
+        uses: actions/cache@v6
         with:
           path: deps
           key: ${{ runner.os }}-mix-${{ hashFiles('**/mix.lock') }}

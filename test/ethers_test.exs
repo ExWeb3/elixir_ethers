@@ -887,15 +887,16 @@ defmodule EthersTest do
     test "returns the node error when the simulated transaction reverts" do
       address = deploy(HelloWorldContract, from: @from)
 
-      # Anvil rejects reverting calls at the RPC level. Geth instead reports the revert
-      # in the result's "error" field, which post processing preserves under :error.
-      assert {:error, %{"message" => message}} =
+      # The node reports the revert in the result's "error" field (anvil >= 1.8, like geth),
+      # which post processing preserves under :error next to the access list.
+      assert {:ok, %{access_list: access_list, error: error}} =
                Ethers.create_access_list(%{data: "0xffffffff", value: 1},
                  to: address,
                  from: @from
                )
 
-      assert message =~ "revert"
+      assert is_list(access_list)
+      assert error =~ "revert"
     end
 
     test "works in batch requests" do

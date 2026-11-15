@@ -14,6 +14,7 @@
 ### Enhancements
 
 - Add `Ethers.config/1` (`eth_config`, [EIP-7910](https://eips.ethereum.org/EIPS/eip-7910)) returning `Ethers.ForkConfig` structs
+- Update dependencies
 
 ### Bug Fixes
 

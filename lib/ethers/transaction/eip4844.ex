@@ -8,6 +8,14 @@ defmodule Ethers.Transaction.Eip4844 do
   - `to` is required — contract creation is not allowed in type-3 transactions.
   - `blob_versioned_hashes` must contain at least one 32-byte versioned hash.
 
+  > #### Transaction envelope only {: .warning}
+  >
+  > Only the transaction envelope, which references the blobs by their versioned hashes, is
+  > supported. Building or attaching the blob sidecar (the blobs with their KZG commitments and
+  > proofs) is not, and without a sidecar a type-3 transaction cannot be broadcast: nodes reject
+  > it (e.g. when sent with `Ethers.send_transaction/2`).
+  > See [#178](https://github.com/ExWeb3/elixir_ethers/issues/178).
+
   See: https://eips.ethereum.org/EIPS/eip-4844
   """
 
@@ -62,9 +70,10 @@ defmodule Ethers.Transaction.Eip4844 do
   - `to` - destination address for transaction. Required — type-3 transactions cannot create contracts
   - `value` - amount of ether (in wei) to transfer
   - `input` - data payload of the transaction
-  - `access_list` - list of addresses and storage keys to warm up (introduced in EIP-2930)
+  - `access_list` - list of addresses and storage keys to warm up (introduced in EIP-2930), as
+    `[address, storage_keys]` lists of binaries (see `t:Ethers.Types.t_access_list/0`)
   - `max_fee_per_blob_gas` - maximum fee per blob gas (in wei) willing to pay (introduced in EIP-4844)
-  - `blob_versioned_hashes` - list of versioned hashes of the blobs (introduced in EIP-4844)
+  - `blob_versioned_hashes` - list of versioned hashes (32-byte binaries) of the blobs (introduced in EIP-4844)
   """
   @type t :: %__MODULE__{
           chain_id: non_neg_integer(),
@@ -75,9 +84,9 @@ defmodule Ethers.Transaction.Eip4844 do
           to: Types.t_address() | nil,
           value: non_neg_integer(),
           input: binary(),
-          access_list: [{binary(), [binary()]}],
+          access_list: Types.t_access_list(),
           max_fee_per_blob_gas: non_neg_integer(),
-          blob_versioned_hashes: [{binary(), [binary()]}]
+          blob_versioned_hashes: [<<_::256>>]
         }
 
   @impl Ethers.Transaction

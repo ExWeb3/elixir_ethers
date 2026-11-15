@@ -41,7 +41,8 @@ defmodule Ethers.Transaction.Eip2930 do
   - `to` - destination address for transaction, nil for contract creation
   - `value` - amount of ether (in wei) to transfer
   - `input` - data payload of the transaction
-  - `access_list` - list of addresses and storage keys to warm up (introduced in EIP-2930)
+  - `access_list` - list of addresses and storage keys to warm up (introduced in EIP-2930), as
+    `[address, storage_keys]` lists of binaries (see `t:Ethers.Types.t_access_list/0`)
   """
   @type t :: %__MODULE__{
           chain_id: non_neg_integer(),
@@ -51,7 +52,7 @@ defmodule Ethers.Transaction.Eip2930 do
           to: Types.t_address() | nil,
           value: non_neg_integer(),
           input: binary(),
-          access_list: [{binary(), [binary()]}]
+          access_list: Types.t_access_list()
         }
 
   @impl Ethers.Transaction

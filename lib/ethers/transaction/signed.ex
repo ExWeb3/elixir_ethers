@@ -19,18 +19,22 @@ defmodule Ethers.Transaction.Signed do
   @typedoc """
   A transaction signature envelope that wraps transaction data with its signature components.
 
-  This type supports both Legacy (pre-EIP-155), EIP-155 Legacy, and EIP-1559 transaction formats.
+  This type supports Legacy (pre-EIP-155 and EIP-155) transactions as well as all typed
+  transactions (EIP-2930, EIP-1559, EIP-4844 and EIP-7702).
   The signature components consist of:
   - `signature_r`, `signature_s`: The ECDSA signature values as defined in Ethereum's Yellow Paper
   - `signature_y_parity_or_v`: The recovery value that varies by transaction type:
     - For pre-EIP-155 Legacy transactions: v = recovery_id + 27
     - For EIP-155 Legacy transactions: v = recovery_id + chain_id * 2 + 35
-    - For EIP-1559 transactions: Just the recovery_id (0 or 1) as specified in EIP-2930
+    - For typed transactions (EIP-2930, EIP-1559, EIP-4844, EIP-7702): the y-parity, which is
+      just the recovery_id (0 or 1), as introduced in EIP-2930
 
   Related EIPs:
   - [EIP-155](https://eips.ethereum.org/EIPS/eip-155): Simple replay attack protection
   - [EIP-1559](https://eips.ethereum.org/EIPS/eip-1559): Fee market change for ETH 1.0 chain
   - [EIP-2930](https://eips.ethereum.org/EIPS/eip-2930): Optional access lists
+  - [EIP-4844](https://eips.ethereum.org/EIPS/eip-4844): Shard blob transactions
+  - [EIP-7702](https://eips.ethereum.org/EIPS/eip-7702): Set code for EOAs
   """
   @type t :: %__MODULE__{
           payload: Transaction.t_payload(),
@@ -115,29 +119,29 @@ defmodule Ethers.Transaction.Signed do
   @doc """
   Calculates the y-parity or v value for transaction signatures.
 
-  Handles both legacy and EIP-1559 transaction types according to their specifications.
+  Handles legacy (pre-EIP-155 and EIP-155) and typed (EIP-2930, EIP-1559, EIP-4844 and
+  EIP-7702) transactions according to their specifications.
 
   ## Parameters
     - `tx` - Transaction struct
-    - `recovery_id` - Recovery ID from the signature
+    - `recovery_id` - Recovery ID from the signature (0 or 1)
 
   ## Returns
     - `integer` - Calculated y-parity or v value
   """
-  @spec calculate_y_parity_or_v(Transaction.t_payload(), binary() | non_neg_integer()) ::
-          non_neg_integer()
+  @spec calculate_y_parity_or_v(Transaction.t_payload(), non_neg_integer()) :: non_neg_integer()
   def calculate_y_parity_or_v(tx, recovery_id) do
     case tx do
       %Legacy{chain_id: nil} ->
-        # EIP-155
+        # Pre-EIP-155: v = recovery_id + 27
         recovery_id + @legacy_parity_magic_number
 
       %Legacy{chain_id: chain_id} ->
-        # EIP-155
+        # EIP-155: v = recovery_id + chain_id * 2 + 35
         recovery_id + chain_id * 2 + @legacy_parity_with_chain_magic_number
 
       _tx ->
-        # EIP-1559
+        # Typed transactions (EIP-2930, EIP-1559, EIP-4844, EIP-7702): y_parity = recovery_id
         recovery_id
     end
   end

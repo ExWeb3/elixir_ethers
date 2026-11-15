@@ -397,8 +397,8 @@ defmodule Ethers do
   end
 
   @doc """
-  Makes an eth_send rpc call to with the given data and overrides, Then returns the
-  transaction hash.
+  Makes an eth_sendTransaction rpc call (eth_sendRawTransaction when a signer is used) with the
+  given data and overrides, Then returns the transaction hash.
 
   ## Overrides and Options
 
@@ -409,22 +409,33 @@ defmodule Ethers do
   - `:from`: The address of the account to sign the transaction with.
 
   ### Optional Options
-  - `:access_list`: List of storage slots that this transaction accesses (optional)
+  - `:access_list`: (all types except legacy) Addresses and storage slots that this transaction
+    accesses, as `[address, storage_keys]` lists of binaries (see `t:Ethers.Types.t_access_list/0`
+    and `Ethers.create_access_list/2`). (optional)
+  - `:authorization_list`: (EIP-7702 only, required) List of `Ethers.Authorization.Signed`
+    authorizations (see `Ethers.sign_authorization/2`).
+  - `:blob_versioned_hashes`: (EIP-4844 only, required) List of versioned hashes (32-byte
+    binaries) of the blobs, at least one.
   - `:chain_id`: Chain id for the transaction (defaults to chain id from RPC server).
-  - `:gas_price`: (legacy only) max price willing to pay for each gas.
+  - `:gas_price`: (legacy and EIP-2930 only) max price willing to pay for each gas.
   - `:gas`: Gas limit for execution of this transaction.
-  - `:max_fee_per_gas`: (EIP-1559 only) max fee per gas (estimated with `Ethers.estimate_fees/1`
-    from recent blocks, falling back to 120% of the current gas price on RPC clients without
-    `eth_feeHistory` support).
-  - `:max_priority_fee_per_gas`: (EIP-1559 only) max priority fee per gas or validator tip.
-    (estimated with `Ethers.estimate_fees/1` from recent blocks, falling back to
+  - `:max_fee_per_blob_gas`: (EIP-4844 only) max fee per blob gas (defaults to 120% of the
+    current blob base fee, see `Ethers.blob_base_fee/1`).
+  - `:max_fee_per_gas`: (EIP-1559, EIP-4844 and EIP-7702) max fee per gas (estimated with
+    `Ethers.estimate_fees/1` from recent blocks, falling back to 120% of the current gas price
+    on RPC clients without `eth_feeHistory` support).
+  - `:max_priority_fee_per_gas`: (EIP-1559, EIP-4844 and EIP-7702) max priority fee per gas or
+    validator tip. (estimated with `Ethers.estimate_fees/1` from recent blocks, falling back to
     `eth_maxPriorityFeePerGas`)
   - `:nonce`: Nonce of the transaction. (defaults to number of transactions of from address)
   - `:rpc_client`: The RPC Client to use. It should implement ethereum jsonRPC API. default: Ethereumex.HttpClient
   - `:rpc_opts`: Extra options to pass to rpc_client. (Like timeout, Server URL, etc.)
   - `:signer`: The signer module to use for signing transaction. Default is nil and will rely on the RPC server for signing.
   - `:signer_opts`: Options for signer module. See your signer docs for more details.
-  - `:type`: Transaction type. Either `Ethers.Transaction.Eip1559` (default) or `Ethers.Transaction.Legacy`.
+  - `:type`: Transaction type. One of `Ethers.Transaction.Eip1559` (default),
+    `Ethers.Transaction.Legacy`, `Ethers.Transaction.Eip2930`, `Ethers.Transaction.Eip4844` or
+    `Ethers.Transaction.Eip7702`. EIP-4844 transactions cannot be broadcast since blob sidecars
+    are not supported (see `Ethers.Transaction.Eip4844`).
   - `:to`: Address of the contract or a receiver of this transaction. (required if TxData does not have default_address)
   - `:value`: Ether value to send with the transaction to the receiver (`from => to`).
 

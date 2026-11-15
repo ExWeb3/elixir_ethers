@@ -5,7 +5,22 @@ defmodule Ethers.Transaction do
   This module provides functionality to:
   - Create and manipulate transaction structs
   - Encode transactions for network transmission
-  - Handle different transaction types (legacy, EIP-1559, etc.)
+  - Handle different transaction types
+
+  Supported transaction types:
+  - `Ethers.Transaction.Legacy` - Legacy (type 0) transactions, with
+    [EIP-155](https://eips.ethereum.org/EIPS/eip-155) replay protection when `chain_id` is set
+  - `Ethers.Transaction.Eip2930` - [EIP-2930](https://eips.ethereum.org/EIPS/eip-2930) access
+    list (type 1) transactions
+  - `Ethers.Transaction.Eip1559` - [EIP-1559](https://eips.ethereum.org/EIPS/eip-1559) fee
+    market (type 2) transactions, the default when sending or signing transactions
+  - `Ethers.Transaction.Eip4844` - [EIP-4844](https://eips.ethereum.org/EIPS/eip-4844) blob
+    (type 3) transactions. Transaction envelope only: blob sidecars are not supported, so these
+    cannot be broadcast
+  - `Ethers.Transaction.Eip7702` - [EIP-7702](https://eips.ethereum.org/EIPS/eip-7702) set code
+    (type 4) transactions
+
+  Signed transactions of any type are wrapped in `Ethers.Transaction.Signed`.
   """
 
   alias Ethers.Authorization
@@ -80,12 +95,35 @@ defmodule Ethers.Transaction do
   @doc """
   Creates a new transaction struct with the given parameters.
 
-  Type of transaction is determined by the `type` field in the params map or defaults to EIP-1559.
+  Type of transaction is determined by the required `type` field in the params map. Returns
+  `{:error, :missing_type}` when it is missing, `{:error, :missing_<field>}` (e.g.
+  `{:error, :missing_chain_id}`) when a field required by the type is missing and
+  `{:error, reason}` when a field is invalid.
 
   ## Examples
 
-      iex> Ethers.Transaction.new(%{type: Ethers.Transaction.Eip1559, from: "0x123...", to: "0x456...", value: "0x0"})
-      {:ok, %Ethers.Transaction.Eip1559{from: "0x123...", to: "0x456...", value: "0x0"}}
+      iex> Ethers.Transaction.new(%{
+      ...>   type: Ethers.Transaction.Eip1559,
+      ...>   chain_id: 1,
+      ...>   nonce: 0,
+      ...>   gas: 21_000,
+      ...>   max_fee_per_gas: 30_000_000_000,
+      ...>   max_priority_fee_per_gas: 1_000_000_000,
+      ...>   to: "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1",
+      ...>   value: 1
+      ...> })
+      {:ok,
+       %Ethers.Transaction.Eip1559{
+         chain_id: 1,
+         nonce: 0,
+         max_priority_fee_per_gas: 1_000_000_000,
+         max_fee_per_gas: 30_000_000_000,
+         gas: 21_000,
+         to: "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1",
+         value: 1,
+         input: "",
+         access_list: []
+       }}
   """
   @spec new(map()) :: {:ok, t()} | {:error, reason :: term()}
   def new(params) do
@@ -119,6 +157,7 @@ defmodule Ethers.Transaction do
 
   @doc """
   Fills missing transaction fields with default values from the network based on transaction type.
+  When `params` has no `:type`, it is set to `Ethers.Transaction.Eip1559`.
 
   Missing `max_fee_per_gas` and `max_priority_fee_per_gas` values are estimated from recent
   blocks with `Ethers.estimate_fees/1` (`eth_feeHistory`). When the RPC client does not
@@ -130,7 +169,7 @@ defmodule Ethers.Transaction do
     - `opts` - Options to pass to the RPC client
 
   ## Returns
-    - `{:ok, params}` - Filled transaction struct
+    - `{:ok, params}` - Filled transaction params map
     - `{:error, reason}` - If fetching defaults fails
   """
   @spec add_auto_fetchable_fields(map(), keyword()) :: {:ok, map()} | {:error, term()}
@@ -179,9 +218,13 @@ defmodule Ethers.Transaction do
   end
 
   @doc """
-  Encodes a transaction for network transmission following EIP-155/EIP-1559.
+  Encodes a transaction for network transmission.
 
-  Handles both legacy and EIP-1559 transaction types, including signature data if present.
+  Handles all supported transaction types: Legacy (including EIP-155), EIP-2930, EIP-1559,
+  EIP-4844 and EIP-7702. An `Ethers.Transaction.Signed` transaction is encoded with its
+  signature. An unsigned transaction is encoded as its signing payload, whose keccak hash is
+  what gets signed (for EIP-155 legacy transactions it ends with `chain_id, 0, 0`). EIP-4844
+  transactions are encoded without a blob sidecar (see `Ethers.Transaction.Eip4844`).
 
   ## Parameters
     - `transaction` - Transaction struct to encode
@@ -203,7 +246,9 @@ defmodule Ethers.Transaction do
   Decodes a raw transaction from a binary or hex-encoded string.
 
   Transaction strings must be prefixed with "0x" for hex-encoded inputs.
-  Handles both legacy and typed transactions (EIP-1559, etc).
+  Handles legacy and all supported typed transactions (EIP-2930, EIP-1559, EIP-4844 and
+  EIP-7702). Signed transactions are returned wrapped in `Ethers.Transaction.Signed`. EIP-4844
+  transactions are decoded from the transaction envelope only (without a blob sidecar).
 
   ## Parameters
     - `raw_transaction` - Raw transaction data as a binary or hex string starting with "0x"
@@ -283,14 +328,15 @@ defmodule Ethers.Transaction do
   Handles different field naming conventions and transaction types.
 
   ## Parameters
-    - `tx` - Map containing transaction data. Keys can be snakeCase strings or atoms.
+    - `tx` - Map containing transaction data. Keys can be camelCase strings or atoms.
     (e.g `:chainId`, `"gasPrice"`)
 
   ## Returns
     - `{:ok, transaction}` - Converted transaction struct
     - `{:error, :unsupported_type}` - If transaction type is not supported
+    - `{:error, reason}` - If transaction fields are missing or invalid (see `new/1`)
   """
-  @spec from_rpc_map(map()) :: {:ok, t()} | {:error, :unsupported_type}
+  @spec from_rpc_map(map()) :: {:ok, t()} | {:error, :unsupported_type | term()}
   def from_rpc_map(tx) do
     with {:ok, type} <- decode_type(from_map_value(tx, :type)) do
       # Convert from RPC-style field names to EVM field names.

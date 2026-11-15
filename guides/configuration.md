@@ -94,7 +94,12 @@ config :ethers, default_gas_margin: 11000  # 110% gas margin
 
 #### Max Fee Per Gas Margin `:default_max_fee_per_gas_margin`
 
-Safety margin for max fee per gas in EIP-1559 transactions. Precision is 0.01%. Default is 12000 = 120%.
+Safety margin for auto-filled max fees. Precision is 0.01%. Default is 12000 = 120%.
+
+It is applied to values derived from the current network price: `max_fee_per_blob_gas` (EIP-4844,
+from `eth_blobBaseFee`) and the `max_fee_per_gas` fallback based on `eth_gasPrice`, which is used
+when `Ethers.estimate_fees/1` is not available (RPC client without `eth_feeHistory` support, or no
+usable fee history). Fees estimated with `Ethers.estimate_fees/1` do not use this margin.
 
 ```elixir
 config :ethers, default_max_fee_per_gas_margin: 12000  # 120% of current gas price.

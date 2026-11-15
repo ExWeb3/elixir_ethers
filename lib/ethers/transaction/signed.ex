@@ -105,10 +105,11 @@ defmodule Ethers.Transaction.Signed do
 
     {_chain_id, recovery_id} = extract_chain_id_and_recovery_id(transaction)
 
+    # r and s lose their leading zero bytes in RLP and JSON-RPC quantities
     case Ethers.secp256k1_module().recover(
            hash_bin,
-           transaction.signature_r,
-           transaction.signature_s,
+           pad32(transaction.signature_r),
+           pad32(transaction.signature_s),
            recovery_id
          ) do
       {:ok, pubkey} -> Ethers.Utils.public_key_to_address(pubkey)
@@ -162,6 +163,9 @@ defmodule Ethers.Transaction.Signed do
         {tx.chain_id, v}
     end
   end
+
+  defp pad32(bin) when byte_size(bin) >= 32, do: bin
+  defp pad32(bin), do: <<0::size((32 - byte_size(bin)) * 8), bin::binary>>
 
   defimpl Transaction.Protocol do
     import Ethers.Utils, only: [remove_leading_zeros: 1]

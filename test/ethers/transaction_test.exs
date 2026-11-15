@@ -236,6 +236,30 @@ defmodule Ethers.TransactionTest do
       assert {:error, :missing_to_address} = Transaction.decode(raw_tx)
     end
 
+    # Signed with Ethers.Signer.Local by 0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1, at nonces
+    # picked so that RLP decoding strips a leading zero byte from r or s
+    test "recovers the sender of a signature whose r has a leading zero byte" do
+      raw_tx =
+        "0x02f86c8205398201d7830f4240843b9aca008252089470997970c51812dc3a010c7d01b50e0d17dc79c80180c0809fd58955ef700fb477145298696493ccc1aaf44332dc51f190db9ac08356f0e4a04ef7d6df1440caf292931fa4de187bb5671fa46a8fab96b6e69b70faec6ab1e7"
+
+      assert {:ok, decoded_tx} = Transaction.decode(raw_tx)
+      assert byte_size(decoded_tx.signature_r) == 31
+
+      assert Transaction.Signed.from_address(decoded_tx) ==
+               "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1"
+    end
+
+    test "recovers the sender of a signature whose s has a leading zero byte" do
+      raw_tx =
+        "0x02f86a8205391e830f4240843b9aca008252089470997970c51812dc3a010c7d01b50e0d17dc79c80180c080a00497c4b0d78574ce220c14c10d917e18d90e4a4cb3ebe06f812014b3dcdd3ae09f5a890dd8cf4d102fcc55430cd5dfb0c5ff406eb04316b722d12e79ddb95627"
+
+      assert {:ok, decoded_tx} = Transaction.decode(raw_tx)
+      assert byte_size(decoded_tx.signature_s) == 31
+
+      assert Transaction.Signed.from_address(decoded_tx) ==
+               "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1"
+    end
+
     test "decodes raw EIP-1559 transaction and re-encodes it correctly" do
       raw_tx =
         "0x02f8af0177837a12008502c4bfbc3282f88c948881562783028f5c1bcb985d2283d5e170d8888880b844a9059cbb0000000000000000000000002ef7f5c7c727d8845e685f462a5b4f8ac4972a6700000000000000000000000000000000000000000000051ab2ea6fbbb7420000c001a007280557e86f690290f9ea9e26cc17e0cf09a17f6c2d041e95b33be4b81888d0a06c7a24e8fba5cceb455b19950849b9733f0deb92d7e8c2a919f4a82df9c6036a"

@@ -49,8 +49,8 @@ defmodule Ethers.Transaction.Unknown do
   A transaction of an unregistered type with the following fields:
   - `type_id` - the transaction type (e.g. `0x7E`)
   - `hash` - transaction hash, as reported by the node
-  - `from` - sender address (checksummed), as reported by the node
-  - `to` - destination address (checksummed), nil for contract creation
+  - `from` - sender address (EIP-55 checksummed), as reported by the node
+  - `to` - destination address (EIP-55 checksummed), nil for contract creation
   - `nonce` - sequence number for the transaction from this sender
   - `value` - amount of ether (in wei) to transfer
   - `gas` - maximum amount of gas allowed for transaction execution
@@ -131,8 +131,12 @@ defmodule Ethers.Transaction.Unknown do
 
   defp decode_data(_invalid), do: nil
 
-  defp decode_address(<<"0x", _hex::binary-40>> = address) do
-    if decode_data(address), do: Utils.to_checksum_address(address)
+  defp decode_address(<<prefix::binary-2, hex::binary-40>> = address)
+       when prefix in ["0x", "0X"] do
+    case Utils.hex_decode(hex) do
+      {:ok, _address_bin} -> Utils.to_checksum_address(address)
+      :error -> nil
+    end
   end
 
   defp decode_address(_invalid), do: nil

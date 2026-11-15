@@ -130,6 +130,20 @@ defmodule Ethers.TransactionUnknownTest do
              }
     end
 
+    test "returns from and to EIP-55 checksummed in any input casing" do
+      from = "0xDeaDDEaDDeAdDeAdDEAdDEaddeAddEAdDEAd0001"
+      to = "0x70997970C51812dc3A010C7d01b50e0d17dc79C8"
+
+      for address_case <- [&String.downcase/1, &String.upcase/1, & &1] do
+        rpc_map = %{"type" => "0x7e", "from" => address_case.(from), "to" => address_case.(to)}
+
+        assert {:ok, %Unknown{from: ^from, to: ^to}} = Transaction.from_rpc_map(rpc_map)
+      end
+
+      assert {:ok, %Unknown{from: ^from, to: nil}} =
+               Transaction.from_rpc_map(%{"type" => "0x7e", "from" => from, "to" => nil})
+    end
+
     test "reads input, or data when input is missing" do
       assert {:ok, %Unknown{input: <<0xAB, 0xCD>>}} =
                Transaction.from_rpc_map(%{"type" => "0x7e", "data" => "0xabcd"})

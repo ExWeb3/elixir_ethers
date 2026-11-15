@@ -14,6 +14,7 @@ defmodule Ethers.Transaction do
   alias Ethers.Transaction.Eip4844
   alias Ethers.Transaction.Eip7702
   alias Ethers.Transaction.Legacy
+  alias Ethers.Transaction.Metadata
   alias Ethers.Transaction.Protocol, as: TxProtocol
   alias Ethers.Transaction.Signed
   alias Ethers.Utils
@@ -294,10 +295,11 @@ defmodule Ethers.Transaction do
     with {:ok, type} <- decode_type(from_map_value(tx, :type)) do
       # Convert from RPC-style field names to EVM field names.
       new(%{
-        access_list: from_map_value(tx, :accessList),
+        access_list: tx |> from_map_value(:accessList) |> from_rpc_access_list(),
         authorization_list:
           tx |> from_map_value(:authorizationList) |> from_rpc_authorization_list(),
-        blob_versioned_hashes: from_map_value(tx, :blobVersionedHashes),
+        blob_versioned_hashes:
+          tx |> from_map_value(:blobVersionedHashes) |> from_rpc_blob_versioned_hashes(),
         block_hash: from_map_value(tx, :blockHash),
         block_number: from_map_value_int(tx, :blockNumber),
         chain_id: from_map_value_int(tx, :chainId),
@@ -324,52 +326,35 @@ defmodule Ethers.Transaction do
   @doc """
   Converts a Transaction struct into a map suitable for JSON-RPC.
 
+  A signed transaction is converted to the payload's map plus its signature (`r`, `s`,
+  `yParity` and `v`, or only `v` for legacy transactions) and any block metadata it carries
+  (`blockHash`, `blockNumber`, `transactionIndex`), so it reads back with `from_rpc_map/1`.
+
   ## Parameters
   - `transaction` - Transaction struct to convert
 
   ## Returns
   - map containing transaction parameters with RPC field names and "0x" prefixed hex values
+
+  Raises `ArgumentError` if a field holds a value that has no JSON-RPC representation.
   """
   @spec to_rpc_map(t()) :: map()
+  def to_rpc_map(%Signed{payload: payload} = signed_transaction) do
+    payload
+    |> to_rpc_map()
+    |> Map.merge(signature_rpc_fields(signed_transaction))
+    |> Map.merge(metadata_rpc_fields(signed_transaction.metadata))
+  end
+
   def to_rpc_map(transaction) do
     transaction
     |> then(fn
       %_{} = t -> Map.from_struct(t)
       t -> t
     end)
-    |> Enum.map(fn
-      {field, nil} ->
-        {field, nil}
-
-      {field, "0x" <> _ = value} when field in [:from, :to] ->
-        {field, value}
-
-      {field, input} when field in [:data, :input] ->
-        {field, Utils.hex_encode(input)}
-
-      {field, value} when is_integer(value) ->
-        {field, Utils.integer_to_hex(value)}
-
-      {:access_list, al} when is_list(al) ->
-        {:access_list, encode_access_list(al)}
-
-      {:authorization_list, authorization_list} when is_list(authorization_list) ->
-        {:authorization_list, encode_authorization_list(authorization_list)}
-
-      {:blob_versioned_hashes, hashes} when is_list(hashes) ->
-        {:blob_versioned_hashes, Enum.map(hashes, &Utils.hex_encode/1)}
-
-      {:type, type} when is_atom(type) ->
-        # Type will get replaced with hex value
-        {:type, type}
+    |> Map.new(fn {field, value} ->
+      {Map.get(@rpc_fields, field, field), to_rpc_value(field, value)}
     end)
-    |> Enum.map(fn {field, value} ->
-      case Map.fetch(@rpc_fields, field) do
-        {:ok, field} -> {field, value}
-        :error -> {field, value}
-      end
-    end)
-    |> Map.new()
     |> Map.put(
       :type,
       transaction
@@ -378,26 +363,97 @@ defmodule Ethers.Transaction do
     )
   end
 
-  defp encode_access_list(access_list) do
-    Enum.map(access_list, fn [address, storage_keys] ->
-      [
-        Utils.encode_address!(address),
-        Enum.map(storage_keys, &Utils.hex_encode/1)
-      ]
+  defp to_rpc_value(_field, nil), do: nil
+  defp to_rpc_value(field, "0x" <> _ = value) when field in [:from, :to, :block_hash], do: value
+
+  defp to_rpc_value(field, input) when field in [:data, :input] and is_binary(input),
+    do: Utils.hex_encode(input)
+
+  defp to_rpc_value(_field, value) when is_integer(value), do: Utils.integer_to_hex(value)
+
+  defp to_rpc_value(:access_list, access_list) when is_list(access_list),
+    do: Enum.map(access_list, &encode_access_list_entry/1)
+
+  defp to_rpc_value(:authorization_list, authorization_list) when is_list(authorization_list),
+    do: Enum.map(authorization_list, &encode_authorization/1)
+
+  defp to_rpc_value(:blob_versioned_hashes, hashes) when is_list(hashes) do
+    Enum.map(hashes, fn
+      <<_::binary-32>> = hash -> Utils.hex_encode(hash)
+      hash -> raise_unsupported_rpc_value(:blob_versioned_hashes, hash)
     end)
   end
 
-  defp encode_authorization_list(authorization_list) do
-    Enum.map(authorization_list, fn %Authorization.Signed{authorization: authorization} = signed ->
-      %{
-        chainId: Utils.integer_to_hex(authorization.chain_id),
-        address: authorization.address,
-        nonce: Utils.integer_to_hex(authorization.nonce),
-        yParity: Utils.integer_to_hex(signed.signature_y_parity),
-        r: Utils.hex_encode(signed.signature_r),
-        s: Utils.hex_encode(signed.signature_s)
-      }
-    end)
+  # Type will get replaced with hex value
+  defp to_rpc_value(:type, type) when is_atom(type), do: type
+
+  defp to_rpc_value(field, value), do: raise_unsupported_rpc_value(field, value)
+
+  defp encode_access_list_entry([<<_::binary-20>> = address, storage_keys] = entry)
+       when is_list(storage_keys) do
+    %{
+      address: Utils.encode_address!(address),
+      storageKeys:
+        Enum.map(storage_keys, fn
+          <<_::binary-32>> = storage_key -> Utils.hex_encode(storage_key)
+          _storage_key -> raise_unsupported_rpc_value(:access_list, entry)
+        end)
+    }
+  end
+
+  defp encode_access_list_entry(entry), do: raise_unsupported_rpc_value(:access_list, entry)
+
+  defp encode_authorization(%Authorization.Signed{authorization: authorization} = signed) do
+    %{
+      chainId: Utils.integer_to_hex(authorization.chain_id),
+      address: authorization.address,
+      nonce: Utils.integer_to_hex(authorization.nonce),
+      yParity: Utils.integer_to_hex(signed.signature_y_parity),
+      r: signature_to_rpc_quantity(:authorization_list, signed.signature_r),
+      s: signature_to_rpc_quantity(:authorization_list, signed.signature_s)
+    }
+  end
+
+  defp encode_authorization(authorization),
+    do: raise_unsupported_rpc_value(:authorization_list, authorization)
+
+  defp signature_rpc_fields(%Signed{payload: payload} = signed_transaction) do
+    y_parity_or_v =
+      to_rpc_value(:signature_y_parity_or_v, signed_transaction.signature_y_parity_or_v)
+
+    fields = %{
+      r: signature_to_rpc_quantity(:signature_r, signed_transaction.signature_r),
+      s: signature_to_rpc_quantity(:signature_s, signed_transaction.signature_s),
+      v: y_parity_or_v
+    }
+
+    case payload do
+      %Legacy{} -> fields
+      _typed -> Map.put(fields, :yParity, y_parity_or_v)
+    end
+  end
+
+  defp signature_to_rpc_quantity(_field, value) when is_binary(value),
+    do: value |> :binary.decode_unsigned() |> Utils.integer_to_hex()
+
+  defp signature_to_rpc_quantity(field, value), do: raise_unsupported_rpc_value(field, value)
+
+  defp metadata_rpc_fields(nil), do: %{}
+
+  defp metadata_rpc_fields(%Metadata{} = metadata) do
+    [
+      blockHash: to_rpc_value(:block_hash, metadata.block_hash),
+      blockNumber: to_rpc_value(:block_number, metadata.block_number),
+      transactionIndex: to_rpc_value(:transaction_index, metadata.transaction_index)
+    ]
+    |> Enum.reject(fn {_field, value} -> is_nil(value) end)
+    |> Map.new()
+  end
+
+  @spec raise_unsupported_rpc_value(atom(), term()) :: no_return()
+  defp raise_unsupported_rpc_value(field, value) do
+    raise ArgumentError,
+          "Unsupported value #{inspect(value)} for transaction field #{inspect(field)}"
   end
 
   @doc false
@@ -470,6 +526,24 @@ defmodule Ethers.Transaction do
   defp from_map_value(tx, key) do
     Map.get_lazy(tx, key, fn -> Map.get(tx, to_string(key)) end)
   end
+
+  defp from_rpc_access_list(nil), do: nil
+
+  defp from_rpc_access_list(access_list) when is_list(access_list) do
+    Enum.map(access_list, fn entry ->
+      storage_keys = from_map_value(entry, :storageKeys) || []
+
+      [
+        entry |> from_map_value(:address) |> Utils.decode_address!(),
+        Enum.map(storage_keys, &Utils.hex_decode!/1)
+      ]
+    end)
+  end
+
+  defp from_rpc_blob_versioned_hashes(nil), do: nil
+
+  defp from_rpc_blob_versioned_hashes(hashes) when is_list(hashes),
+    do: Enum.map(hashes, &Utils.hex_decode!/1)
 
   defp from_rpc_authorization_list(nil), do: nil
 

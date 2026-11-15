@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased
+
+### Breaking Changes
+
+- Fetched transactions hold `access_list` and `blob_versioned_hashes` as binaries instead of raw RPC values
+- `Ethers.Transaction.to_rpc_map/1` emits access lists as `{address, storageKeys}` objects
+- `Ethers.Transaction.to_rpc_map/1` emits EIP-7702 authorization `r` and `s` as quantities
+- `Ethers.Transaction.to_rpc_map/1` raises `ArgumentError` for unsupported values
+
+### Bug Fixes
+
+- Fix re-encoding and hashing of fetched transactions with access lists
+- Fix access lists in JSON-RPC params being rejected by geth
+- Support signed transactions in `Ethers.Transaction.to_rpc_map/1`
+
 ## 0.8.0 (2026-07-29)
 
 ### Enhancements

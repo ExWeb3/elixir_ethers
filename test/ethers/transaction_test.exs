@@ -1,6 +1,7 @@
 defmodule Ethers.TransactionTest do
   use ExUnit.Case
 
+  alias Ethers.Signer
   alias Ethers.Transaction
   alias Ethers.Utils
 
@@ -373,7 +374,350 @@ defmodule Ethers.TransactionTest do
     end
   end
 
+  # Mainnet transaction 0x224d121387e3bbabfc7bad271b22dddc0dc2743aaf49d850161f628ac9514179
+  @signed_eip1559_tx "0x02f8af0177837a12008502c4bfbc3282f88c948881562783028f5c1bcb985d2283d5e170d8888880b844a9059cbb0000000000000000000000002ef7f5c7c727d8845e685f462a5b4f8ac4972a6700000000000000000000000000000000000000000000051ab2ea6fbbb7420000c001a007280557e86f690290f9ea9e26cc17e0cf09a17f6c2d041e95b33be4b81888d0a06c7a24e8fba5cceb455b19950849b9733f0deb92d7e8c2a919f4a82df9c6036a"
+
+  # Mainnet transaction 0x5a456fc4bb92a075552d1b8b2ce0e61c75b87a237a8108819ea735d13b7d52aa
+  @signed_legacy_tx "0xf86c81c6850c92a69c0082520894e48c9a989438606a79a7560cfba3d34bafbac38e87596f744abf34368025a0ee0b54a64cf8130e36cd1d19395d6d434c285c832a7908873a24610ec32896dfa070b5e779cdcaf5c661c1df44e80895f6ab68463d3ede2cf4955855bc3c6edebb"
+
+  describe "to_rpc_map/1" do
+    test "encodes access list entries as address and storageKeys objects" do
+      to = "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1"
+
+      access_list = [
+        [Utils.hex_decode!(to), [<<1::256>>, <<2::256>>]],
+        [<<1::160>>, []]
+      ]
+
+      expected_access_list = [
+        %{
+          address: to,
+          storageKeys: [
+            "0x0000000000000000000000000000000000000000000000000000000000000001",
+            "0x0000000000000000000000000000000000000000000000000000000000000002"
+          ]
+        },
+        %{address: "0x0000000000000000000000000000000000000001", storageKeys: []}
+      ]
+
+      {:ok, transaction} =
+        Transaction.new(%{
+          type: Transaction.Eip2930,
+          chain_id: 1,
+          nonce: 0,
+          gas: 21_000,
+          gas_price: 1,
+          to: to,
+          access_list: access_list
+        })
+
+      assert Transaction.to_rpc_map(transaction).accessList == expected_access_list
+
+      # Plain params maps, as built for eth_call and eth_estimateGas
+      assert Transaction.to_rpc_map(%{to: to, access_list: access_list}) == %{
+               to: to,
+               accessList: expected_access_list,
+               type: "0x2"
+             }
+    end
+
+    test "encodes authorization r and s as quantities" do
+      address = "0x2222222222222222222222222222222222222222"
+
+      authorization = %Ethers.Authorization.Signed{
+        authorization: Ethers.Authorization.new!(chain_id: 1, address: address, nonce: 7),
+        signature_y_parity: 1,
+        # A 32-byte r with a leading zero byte and a 31-byte s with a leading zero nibble
+        signature_r: <<0>> <> :binary.copy(<<0xAB>>, 31),
+        signature_s: <<0x0C>> <> :binary.copy(<<0xCD>>, 30)
+      }
+
+      {:ok, transaction} =
+        Transaction.new(%{
+          type: Transaction.Eip7702,
+          chain_id: 1,
+          nonce: 0,
+          gas: 50_000,
+          max_fee_per_gas: 1,
+          max_priority_fee_per_gas: 1,
+          to: address,
+          authorization_list: [authorization]
+        })
+
+      assert Transaction.to_rpc_map(transaction).authorizationList == [
+               %{
+                 chainId: "0x1",
+                 address: address,
+                 nonce: "0x7",
+                 yParity: "0x1",
+                 r: "0x" <> String.duplicate("AB", 31),
+                 s: "0xC" <> String.duplicate("CD", 30)
+               }
+             ]
+    end
+
+    test "keeps the authority of a signed authorization through from_rpc_map/1" do
+      address = "0x2222222222222222222222222222222222222222"
+      authority = "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC"
+
+      # The signature is deterministic (RFC 6979); this nonce gives an r with a leading zero byte
+      {:ok, signed_authorization} =
+        Ethers.Authorization.new!(chain_id: 1, address: address, nonce: 214)
+        |> Signer.Local.sign_authorization(
+          private_key: "0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a"
+        )
+
+      assert <<0, _::binary-31>> = signed_authorization.signature_r
+
+      {:ok, transaction} =
+        Transaction.new(%{
+          type: Transaction.Eip7702,
+          chain_id: 1,
+          nonce: 0,
+          gas: 50_000,
+          max_fee_per_gas: 1,
+          max_priority_fee_per_gas: 1,
+          to: address,
+          authorization_list: [signed_authorization]
+        })
+
+      rpc_map = Transaction.to_rpc_map(transaction)
+
+      assert [%{r: "0x78F56157D499B516A55B71B212180CDF4B01C0297DA591B79FC37D32CD2143"}] =
+               rpc_map.authorizationList
+
+      assert {:ok, %Transaction.Eip7702{authorization_list: [decoded_authorization]} = decoded} =
+               Transaction.from_rpc_map(rpc_map)
+
+      assert {:ok, ^authority} =
+               Ethers.Authorization.Signed.recover_authority(signed_authorization)
+
+      assert {:ok, ^authority} =
+               Ethers.Authorization.Signed.recover_authority(decoded_authorization)
+
+      assert Transaction.encode(decoded) == Transaction.encode(transaction)
+    end
+
+    test "serialises a signed typed transaction with r, s, yParity and v" do
+      {:ok, signed} = Transaction.decode(@signed_eip1559_tx)
+
+      assert Transaction.to_rpc_map(signed) == %{
+               type: "0x2",
+               chainId: "0x1",
+               nonce: "0x77",
+               maxPriorityFeePerGas: "0x7A1200",
+               maxFeePerGas: "0x2C4BFBC32",
+               gas: "0xF88C",
+               to: "0x8881562783028F5c1BCB985d2283D5E170D88888",
+               value: "0x0",
+               input:
+                 "0xa9059cbb0000000000000000000000002ef7f5c7c727d8845e685f462a5b4f8ac4972a6700000000000000000000000000000000000000000000051ab2ea6fbbb7420000",
+               accessList: [],
+               # r starts with a zero nibble, which the quantity encoding drops
+               r: "0x7280557E86F690290F9EA9E26CC17E0CF09A17F6C2D041E95B33BE4B81888D0",
+               s: "0x6C7A24E8FBA5CCEB455B19950849B9733F0DEB92D7E8C2A919F4A82DF9C6036A",
+               yParity: "0x1",
+               v: "0x1"
+             }
+    end
+
+    test "serialises a signed legacy transaction with v only" do
+      {:ok, signed} = Transaction.decode(@signed_legacy_tx)
+
+      assert Transaction.to_rpc_map(signed) == %{
+               type: "0x0",
+               chainId: "0x1",
+               nonce: "0xC6",
+               gasPrice: "0xC92A69C00",
+               gas: "0x5208",
+               to: "0xe48C9A989438606a79a7560cfba3d34BAfBAC38E",
+               value: "0x596F744ABF3436",
+               input: "0x",
+               r: "0xEE0B54A64CF8130E36CD1D19395D6D434C285C832A7908873A24610EC32896DF",
+               s: "0x70B5E779CDCAF5C661C1DF44E80895F6AB68463D3EDE2CF4955855BC3C6EDEBB",
+               v: "0x25"
+             }
+    end
+
+    test "signed transactions read back with from_rpc_map/1" do
+      for raw_tx <- [@signed_legacy_tx, @signed_eip1559_tx] do
+        {:ok, signed} = Transaction.decode(raw_tx)
+
+        assert {:ok, %Transaction.Signed{} = decoded} =
+                 signed |> Transaction.to_rpc_map() |> Transaction.from_rpc_map()
+
+        # from_rpc_map/1 always attaches a metadata struct, empty here
+        assert %Transaction.Signed{decoded | metadata: nil} == signed
+        assert Transaction.encode(decoded) == Transaction.encode(signed)
+      end
+    end
+
+    test "includes block metadata when the transaction has it" do
+      {:ok, signed} = Transaction.decode(@signed_eip1559_tx)
+      refute Map.has_key?(Transaction.to_rpc_map(signed), :blockHash)
+
+      block_hash = "0x" <> String.duplicate("ab", 32)
+
+      rpc_map =
+        signed
+        |> Transaction.to_rpc_map()
+        |> Map.merge(%{blockHash: block_hash, blockNumber: "0x10", transactionIndex: "0x2"})
+
+      assert {:ok, fetched} = Transaction.from_rpc_map(rpc_map)
+
+      assert fetched.metadata == %Transaction.Metadata{
+               block_hash: block_hash,
+               block_number: 16,
+               transaction_index: 2
+             }
+
+      assert Transaction.to_rpc_map(fetched) == rpc_map
+    end
+
+    test "raises an ArgumentError naming the field for unsupported values" do
+      to = "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1"
+
+      assert_raise ArgumentError, ~s(Unsupported value "0x10" for transaction field :value), fn ->
+        Transaction.to_rpc_map(%{to: to, value: "0x10"})
+      end
+
+      # Access list addresses and storage keys are binaries, not hex strings
+      assert_raise ArgumentError, ~r/ for transaction field :access_list$/, fn ->
+        Transaction.to_rpc_map(%{to: to, access_list: [[to, []]]})
+      end
+
+      assert_raise ArgumentError, ~r/ for transaction field :access_list$/, fn ->
+        Transaction.to_rpc_map(%{to: to, access_list: [[Utils.hex_decode!(to), ["0x01"]]]})
+      end
+
+      assert_raise ArgumentError, ~r/ for transaction field :blob_versioned_hashes$/, fn ->
+        Transaction.to_rpc_map(%{to: to, blob_versioned_hashes: ["0x01"]})
+      end
+
+      {:ok, %Transaction.Signed{} = signed} = Transaction.decode(@signed_eip1559_tx)
+
+      assert_raise ArgumentError, "Unsupported value 1 for transaction field :signature_r", fn ->
+        Transaction.to_rpc_map(%Transaction.Signed{signed | signature_r: 1})
+      end
+    end
+  end
+
   describe "from_rpc_map/1" do
+    test "decodes access list and blob versioned hashes" do
+      # eth_getTransactionByHash response for mainnet transaction
+      # 0x2a7522ff8773f484123ff169d5a42b4d917d3da5af65baae71f32ab7aeb3dc29
+      tx_map = %{
+        "type" => "0x3",
+        "chainId" => "0x1",
+        "nonce" => "0xb3444",
+        "to" => "0x1c479675ad559dc151f6ec7ed3fbf8cee79582b6",
+        "value" => "0x0",
+        "gas" => "0x36fd5",
+        "maxFeePerGas" => "0x19a4418ab2",
+        "maxPriorityFeePerGas" => "0x7d2b7500",
+        "maxFeePerBlobGas" => "0xa",
+        "input" =>
+          "0x3e5aa08200000000000000000000000000000000000000000000000000000000000bfc5200000000000000000000000000000000000000000000000000000000001bd614000000000000000000000000e64a54e2533fd126c2e452c5fab544d80e2e4eb500000000000000000000000000000000000000000000000000000000101868220000000000000000000000000000000000000000000000000000000010186a47",
+        "accessList" => [
+          %{
+            "address" => "0x1c479675ad559dc151f6ec7ed3fbf8cee79582b6",
+            "storageKeys" => [
+              "0x0000000000000000000000000000000000000000000000000000000000000000",
+              "0x0000000000000000000000000000000000000000000000000000000000000001",
+              "0x000000000000000000000000000000000000000000000000000000000000000a",
+              "0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103",
+              "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc",
+              "0xa10aa54071443520884ed767b0684edf43acec528b7da83ab38ce60126562660"
+            ]
+          },
+          %{
+            "address" => "0x8315177ab297ba92a06054ce80a67ed4dbd7ed3a",
+            "storageKeys" => [
+              "0x0000000000000000000000000000000000000000000000000000000000000006",
+              "0x0000000000000000000000000000000000000000000000000000000000000007",
+              "0x0000000000000000000000000000000000000000000000000000000000000009",
+              "0x000000000000000000000000000000000000000000000000000000000000000a",
+              "0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103",
+              "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc",
+              "0xa66cc928b5edb82af9bd49922954155ab7b0942694bea4ce44661d9a8742c2d9",
+              "0xa66cc928b5edb82af9bd49922954155ab7b0942694bea4ce44661d9a8742c2da",
+              "0xf652222313e28459528d920b65115c16c04f3efc82aaedc97be59f3f3797e352"
+            ]
+          },
+          %{
+            "address" => "0xe64a54e2533fd126c2e452c5fab544d80e2e4eb5",
+            "storageKeys" => [
+              "0x0000000000000000000000000000000000000000000000000000000000000004",
+              "0x0000000000000000000000000000000000000000000000000000000000000005",
+              "0xe85fd79f89ff278fc57d40aecb7947873df9f0beac531c8f71a98f630e1eab62",
+              "0x7686888b19bb7b75e46bb1aa328b65150743f4899443d722f0adf8e252ccda41"
+            ]
+          }
+        ],
+        "blobVersionedHashes" => [
+          "0x01e74519daf1b03d40e76d557588db2e9b21396f7aeb6086bd794cc4357083ef",
+          "0x0169766b1aff3508331a39e7081e591a3ff3bacf957788571269797db7ff3ccc",
+          "0x017045639ffe91febe66cc4427fcf6331980dd9a0dab4af3e81c5514b918ed61"
+        ],
+        "yParity" => "0x0",
+        "v" => "0x0",
+        "r" => "0x36a73bf3fe4b9a375c2564b2b1a4a795c82b3923225af0a2ab5d7a561b0c4b92",
+        "s" => "0x366ac3b831ece20f95d1eac369b1c8d4c2c5ac730655d89c005fe310d1db2086"
+      }
+
+      assert {:ok, %Transaction.Signed{payload: %Transaction.Eip4844{} = payload} = transaction} =
+               Transaction.from_rpc_map(tx_map)
+
+      assert [
+               [
+                 <<0x1C479675AD559DC151F6EC7ED3FBF8CEE79582B6::160>>,
+                 [<<0::256>>, <<1::256>>, <<10::256>> | _]
+               ],
+               [<<0x8315177AB297BA92A06054CE80A67ED4DBD7ED3A::160>>, [_, _, _, _, _, _, _, _, _]],
+               [<<0xE64A54E2533FD126C2E452C5FAB544D80E2E4EB5::160>>, [_, _, _, _]]
+             ] = payload.access_list
+
+      assert payload.blob_versioned_hashes == [
+               <<0x01E74519DAF1B03D40E76D557588DB2E9B21396F7AEB6086BD794CC4357083EF::256>>,
+               <<0x0169766B1AFF3508331A39E7081E591A3FF3BACF957788571269797DB7FF3CCC::256>>,
+               <<0x017045639FFE91FEBE66CC4427FCF6331980DD9A0DAB4AF3E81C5514B918ED61::256>>
+             ]
+
+      assert Transaction.transaction_hash(transaction) ==
+               "0x2a7522ff8773f484123ff169d5a42b4d917d3da5af65baae71f32ab7aeb3dc29"
+
+      assert {:ok, ^transaction} =
+               transaction |> Transaction.to_rpc_map() |> Transaction.from_rpc_map()
+    end
+
+    test "decodes access list entries with atom keys" do
+      tx_map = %{
+        type: "0x1",
+        chainId: "0x1",
+        nonce: "0x0",
+        to: "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb5",
+        value: "0x0",
+        input: "0x",
+        gas: "0x5208",
+        gasPrice: "0x3b9aca00",
+        accessList: [
+          %{
+            address: "0x742d35cc6634c0532925a3b844bc9e7595f0beb5",
+            storageKeys: ["0x0000000000000000000000000000000000000000000000000000000000000001"]
+          },
+          %{address: "0x0000000000000000000000000000000000000001", storageKeys: []}
+        ]
+      }
+
+      assert {:ok, %Transaction.Eip2930{access_list: access_list}} =
+               Transaction.from_rpc_map(tx_map)
+
+      assert access_list == [
+               [<<0x742D35CC6634C0532925A3B844BC9E7595F0BEB5::160>>, [<<1::256>>]],
+               [<<1::160>>, []]
+             ]
+    end
+
     test "handles transaction with input field" do
       tx_map = %{
         "type" => "0x2",
@@ -562,8 +906,8 @@ defmodule Ethers.TransactionTest do
                  address: "0x69e6bd1C4082403Fc7917a61F6216552fC1a541D",
                  nonce: "0x2",
                  yParity: "0x0",
-                 r: "0x3c67c1f1203dd722e316796c37c4b828b98f5a27578627879f415763e2ac5afd",
-                 s: "0x4c77aba7874855a80c7357fb13ae953cf9d819a615c00baaa15a2e165a0f08f7"
+                 r: "0x3C67C1F1203DD722E316796C37C4B828B98F5A27578627879F415763E2AC5AFD",
+                 s: "0x4C77ABA7874855A80C7357FB13AE953CF9D819A615C00BAAA15A2E165A0F08F7"
                }
              ]
     end

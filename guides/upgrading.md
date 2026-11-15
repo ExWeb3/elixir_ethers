@@ -54,6 +54,23 @@ adapters and custom `Ethers.Signer` implementations built on `to_rpc_map/1` (lik
 values it cannot encode, including storage keys and blob versioned hashes that are not 32-byte
 binaries.
 
+#### Unregistered transaction types return `Ethers.Transaction.Unknown`
+
+`Ethers.get_transaction/2` (also in `Ethers.batch/2`) and `Ethers.Transaction.from_rpc_map/1`
+return an `Ethers.Transaction.Unknown` for a transaction type that is not registered, like OP-stack
+deposit transactions (type `0x7e`), instead of `{:error, :unsupported_type}`. It is read-only:
+`Ethers.Transaction.encode/1`, `transaction_hash/2` and `to_rpc_map/1` raise `ArgumentError` for
+it. A `type` that is not a hex quantity returns `{:error, :invalid_type}`.
+
+```elixir
+# Before (0.8.x)
+{:error, :unsupported_type} = Ethers.get_transaction(deposit_tx_hash)
+
+# After (1.0.0)
+{:ok, %Ethers.Transaction.Unknown{type_id: 0x7E, from: from, raw: raw}} =
+  Ethers.get_transaction(deposit_tx_hash)
+```
+
 ### Transaction Validation
 
 #### Missing required fields return an error

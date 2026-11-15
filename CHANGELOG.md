@@ -14,12 +14,14 @@
 - `Ethers.Transaction.decode/1` returns `{:error, reason}` instead of raising on malformed input
 - Unsigned EIP-155 legacy transactions decode as `%Legacy{}` instead of `%Signed{}`
 - All returned addresses are EIP-55 checksummed, including `Ethers.Event` `address` and `Ethers.deployed_address/2`
+- `Ethers.Transaction.from_rpc_map/1` and `Ethers.get_transaction/2` return `Ethers.Transaction.Unknown` for unregistered transaction types instead of `{:error, :unsupported_type}`
 
 ### Enhancements
 
 - Add `Ethers.config/1` (`eth_config`, [EIP-7910](https://eips.ethereum.org/EIPS/eip-7910)) returning `Ethers.ForkConfig` structs
 - Update dependencies
 - Allow `idna` 8.x
+- Add `Ethers.Transaction.Unknown`, a read-only struct for transaction types like OP-stack deposit transactions
 
 ### Bug Fixes
 

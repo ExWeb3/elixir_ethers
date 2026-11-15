@@ -53,8 +53,8 @@ jobs:
       # (sha256 from https://binaries.soliditylang.org/linux-amd64/list.json).
       - name: Install Solidity
         env:
-          SOLC_VERSION: 0.8.30+commit.73712a01
-          SOLC_SHA256: f3e987dc6ecebd4bd350c48edcbc320b46cf9e3109bd3fc3d88f1acaf4c428f7
+          SOLC_VERSION: 0.8.38+commit.1835d247
+          SOLC_SHA256: 65c3180a336eabb6bdc4bbd49cc405aeb233976964ae6c11fba2a6c8be8f3243
         run: |
           curl -fsSL --retry 3 -o "$RUNNER_TEMP/solc" \
             "https://binaries.soliditylang.org/linux-amd64/solc-linux-amd64-v${SOLC_VERSION}"

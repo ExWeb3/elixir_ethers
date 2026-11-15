@@ -1,0 +1,78 @@
+# Canary: runs the test suite against the latest stable solc and Foundry (anvil).
+#
+# The regular "Elixir CI" workflow pins its tool versions so PR checks stay stable.
+# This workflow surfaces behaviour changes in new solc/anvil releases early instead.
+# It runs only on a schedule or by hand, so a failure here does not block PRs.
+
+name: Latest tools canary
+
+on:
+  schedule:
+    - cron: "17 6 * * 1" # Mondays 06:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test with latest solc and Foundry
+
+    runs-on: ubuntu-latest
+
+    env:
+      MIX_ENV: test
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Elixir
+        uses: erlef/setup-beam@v1
+        with:
+          otp-version: "29.x"
+          elixir-version: "1.20"
+
+      # Latest stable static build from binaries.soliditylang.org, verified against
+      # the sha256 published in the same list.json.
+      - name: Install latest solc
+        run: |
+          set -euo pipefail
+          base_url=https://binaries.soliditylang.org/linux-amd64
+          curl -fsSL --retry 3 -o "$RUNNER_TEMP/solc-list.json" "$base_url/list.json"
+
+          version=$(jq -er '.latestRelease' "$RUNNER_TEMP/solc-list.json")
+          build_path=$(jq -er --arg v "$version" '.releases[$v]' "$RUNNER_TEMP/solc-list.json")
+          sha256=$(jq -er --arg p "$build_path" \
+            '[.builds[] | select(.path == $p)] | if length == 1 then .[0].sha256 | ltrimstr("0x") else error("expected one build for \($p)") end' \
+            "$RUNNER_TEMP/solc-list.json")
+          echo "Latest solc release: $version ($build_path, sha256 $sha256)"
+
+          curl -fsSL --retry 3 -o "$RUNNER_TEMP/solc" "$base_url/$build_path"
+          echo "$sha256  $RUNNER_TEMP/solc" | sha256sum --check --strict
+          sudo install -m 0755 "$RUNNER_TEMP/solc" /usr/local/bin/solc
+          solc --version
+
+      - name: Install latest Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+
+      - name: Show anvil version
+        run: anvil --version
+
+      - name: Restore dependencies cache
+        uses: actions/cache@v6
+        with:
+          path: deps
+          key: ${{ runner.os }}-mix-${{ hashFiles('**/mix.lock') }}
+          restore-keys: ${{ runner.os }}-mix-
+
+      - name: Install dependencies
+        run: mix deps.get
+
+      - name: Start Anvil (Background)
+        run: anvil &
+
+      - name: Prepare for tests
+        run: elixir test/test_prepare.exs
+
+      - name: Run tests
+        run: mix test

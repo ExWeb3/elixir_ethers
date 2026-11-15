@@ -325,6 +325,8 @@ defmodule Ethers do
   @doc """
   Returns the address of the deployed contract if the deployment is finished and successful
 
+  The address is returned EIP-55 checksummed.
+
   Also works with `Ethers.batch/2` as `{:deployed_address, tx_hash}`.
 
   ## Parameters
@@ -1453,7 +1455,7 @@ defmodule Ethers do
 
   defp post_process({:ok, %{"contractAddress" => contract_address}}, _tx_hash, :deployed_address)
        when not is_nil(contract_address),
-       do: {:ok, contract_address}
+       do: {:ok, Utils.maybe_checksum_address(contract_address)}
 
   defp post_process({:ok, nil}, _tx_hash, :deployed_address),
     do: {:error, :transaction_not_found}

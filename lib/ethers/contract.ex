@@ -34,7 +34,8 @@ defmodule Ethers.Contract do
   ## Valid `use` options
   - `abi`: Used to pass in the decoded (or even encoded json binary) ABI of contract.
   - `abi_file`: Used to pass in the file path to the json ABI of contract.
-  - `default_address`: Default contract deployed address to include in the parameters. (Optional)
+  - `default_address`: Default contract deployed address to include in the parameters. Accepted
+    in any casing and stored EIP-55 checksummed. (Optional)
   - `skip_docs`: Determines if Ethers should skip generating docs and typespecs. (Default: false)
     - `true`: Skip docs and typespecs for all functions.
     - `false`: Generate docs and typespecs for all functions.
@@ -79,7 +80,10 @@ defmodule Ethers.Contract do
 
     {abi, abi_file} = read_abi(opts)
     contract_binary = maybe_read_contract_binary(opts)
-    default_address = Keyword.get(opts, :default_address)
+
+    default_address =
+      opts |> Keyword.get(:default_address) |> Ethers.Utils.maybe_checksum_address()
+
     skip_docs = Keyword.get(opts, :skip_docs, false)
 
     function_selectors = ABI.parse_specification(abi, include_events?: true)
@@ -183,7 +187,7 @@ defmodule Ethers.Contract do
         def __contract_binary__, do: unquote(contract_binary)
 
         @doc """
-        Default address of the contract. Returns `nil` if not specified.
+        Default address of the contract (EIP-55 checksummed). Returns `nil` if not specified.
 
         To specify a default address see `Ethers.Contract`
         """

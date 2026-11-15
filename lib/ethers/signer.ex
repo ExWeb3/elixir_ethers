@@ -55,7 +55,7 @@ defmodule Ethers.Signer do
               {:ok, encoded_signed_transaction :: binary()} | {:error, reason :: term()}
 
   @doc """
-  Returns the available signer account addresses.
+  Returns the available signer account addresses, EIP-55 checksummed.
 
   This method might not be supported by all signers. If a signer does not support this function
   it should return `{:error, :not_supported}`.

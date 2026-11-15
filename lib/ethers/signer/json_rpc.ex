@@ -11,11 +11,14 @@ defmodule Ethers.Signer.JsonRPC do
 
   ** All other options will be passed to the RPC module `request/3` function in
   the third argument **
+
+  `accounts/1` returns the addresses reported by `eth_accounts`, EIP-55 checksummed.
   """
 
   @behaviour Ethers.Signer
 
   alias Ethers.Transaction
+  alias Ethers.Utils
 
   @impl true
   def sign_transaction(tx, opts) do
@@ -68,7 +71,13 @@ defmodule Ethers.Signer.JsonRPC do
   def accounts(opts) do
     {rpc_module, opts} = Keyword.pop(opts, :rpc_module, Ethereumex.HttpClient)
 
-    rpc_module.request("eth_accounts", [], opts)
+    case rpc_module.request("eth_accounts", [], opts) do
+      {:ok, accounts} when is_list(accounts) ->
+        {:ok, Enum.map(accounts, &Utils.maybe_checksum_address/1)}
+
+      other ->
+        other
+    end
   end
 
   # No standard JSON-RPC method exists for signing EIP-7702 authorizations.

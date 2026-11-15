@@ -157,12 +157,12 @@ defmodule Ethers.MulticallTest do
           {HelloWorldContract.say_hello(), to: "0x1337", allow_failure: false}
         )
 
-      {"0x1000bf6a479f320ead074411a4b0e7944ea8c9c1", false, <<239, 95, 176, 91>>} =
+      {"0x1000BF6a479F320EAD074411A4B0e7944Ea8C9C1", false, <<239, 95, 176, 91>>} =
         Multicall.aggregate3_encode_data(
           {HelloWorldWithDefaultAddressContract.say_hello(), allow_failure: false}
         )
 
-      {"0x1000bf6a479f320ead074411a4b0e7944ea8c9c1", true, <<239, 95, 176, 91>>} =
+      {"0x1000BF6a479F320EAD074411A4B0e7944Ea8C9C1", true, <<239, 95, 176, 91>>} =
         Multicall.aggregate3_encode_data(HelloWorldWithDefaultAddressContract.say_hello())
     end
   end

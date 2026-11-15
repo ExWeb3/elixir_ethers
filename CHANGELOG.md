@@ -13,6 +13,7 @@
 - `Ethers.Transaction.Signed.from_address/1` now returns `{:ok, address}`
 - `Ethers.Transaction.decode/1` returns `{:error, reason}` instead of raising on malformed input
 - Unsigned EIP-155 legacy transactions decode as `%Legacy{}` instead of `%Signed{}`
+- All returned addresses are EIP-55 checksummed, including `Ethers.Event` `address` and `Ethers.deployed_address/2`
 
 ### Enhancements
 

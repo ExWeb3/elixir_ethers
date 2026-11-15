@@ -3,6 +3,7 @@ defmodule Ethers.Utils do
   Utilities for interacting with ethereum blockchain
   """
 
+  alias Ethers.Transaction
   alias Ethers.Types
 
   @wei_multiplier trunc(:math.pow(10, 18))
@@ -164,8 +165,9 @@ defmodule Ethers.Utils do
   @doc """
   Adds gas limit estimation to the parameters if not already exists
 
-  If option `mult` is given, a gas limit multiplied by `mult` divided by 1000 will be used.
-  Default for `mult` is 100. (1%)
+  The `eth_estimateGas` result is increased by a 10% safety margin, then checked against the
+  `:max_transaction_gas` cap like gas auto-filled by
+  `Ethers.Transaction.add_auto_fetchable_fields/2`.
   """
   @deprecated "Use Ethers.estimate_gas/2 instead"
   def maybe_add_gas_limit(params, opts \\ [])
@@ -175,9 +177,10 @@ defmodule Ethers.Utils do
   end
 
   def maybe_add_gas_limit(params, opts) do
-    with {:ok, gas} <- Ethers.estimate_gas(params, opts) do
-      gas = div(@gas_safety_margin * gas, 100) |> integer_to_hex()
-      {:ok, Map.put(params, :gas, gas)}
+    with {:ok, estimate} <- Ethers.estimate_gas(params, opts),
+         gas_with_margin = div(@gas_safety_margin * estimate, 100),
+         {:ok, gas} <- Transaction.cap_gas_limit(gas_with_margin, estimate, opts) do
+      {:ok, Map.put(params, :gas, integer_to_hex(gas))}
     end
   end
 

@@ -77,7 +77,7 @@ defmodule Ethers do
 
   import Ethers.Types, only: [is_module: 1]
 
-  @option_keys [:rpc_client, :rpc_opts, :signer, :signer_opts]
+  @option_keys [:max_transaction_gas, :rpc_client, :rpc_opts, :signer, :signer_opts]
   @hex_decode_post_process [
     :chain_id,
     :current_block_number,
@@ -418,7 +418,8 @@ defmodule Ethers do
     binaries) of the blobs, at least one.
   - `:chain_id`: Chain id for the transaction (defaults to chain id from RPC server).
   - `:gas_price`: (legacy and EIP-2930 only) max price willing to pay for each gas.
-  - `:gas`: Gas limit for execution of this transaction.
+  - `:gas`: Gas limit for execution of this transaction. (with a signer, defaults to the
+    `eth_estimateGas` result plus the `:default_gas_margin`, otherwise the node fills it in)
   - `:max_fee_per_blob_gas`: (EIP-4844 only) max fee per blob gas (defaults to 120% of the
     current blob base fee, see `Ethers.blob_base_fee/1`).
   - `:max_fee_per_gas`: (EIP-1559, EIP-4844 and EIP-7702) max fee per gas (estimated with
@@ -427,6 +428,12 @@ defmodule Ethers do
   - `:max_priority_fee_per_gas`: (EIP-1559, EIP-4844 and EIP-7702) max priority fee per gas or
     validator tip. (estimated with `Ethers.estimate_fees/1` from recent blocks, falling back to
     `eth_maxPriorityFeePerGas`)
+  - `:max_transaction_gas`: Per-transaction gas limit cap of the chain, takes precedence over the
+    `:max_transaction_gas` application config. A positive integer makes a gas limit above it
+    return `{:error, :gas_limit_exceeds_cap}` (an auto-filled gas margin is clamped to it instead)
+    and `false` disables the check. When no cap is configured, a gas limit above the
+    [EIP-7825](https://eips.ethereum.org/EIPS/eip-7825) cap of 16,777,216 logs a warning. See
+    the [configuration guide](configuration.html).
   - `:nonce`: Nonce of the transaction. (defaults to number of transactions of from address)
   - `:rpc_client`: The RPC Client to use. It should implement ethereum jsonRPC API. default: Ethereumex.HttpClient
   - `:rpc_opts`: Extra options to pass to rpc_client. (Like timeout, Server URL, etc.)
@@ -1700,9 +1707,9 @@ defmodule Ethers do
         use_signer(tx_params, signer, opts)
 
       {:error, :no_signer} ->
-        tx_params = Transaction.to_rpc_map(tx_params)
-
-        {:ok, tx_params, :eth_send_transaction}
+        with :ok <- Transaction.check_gas_limit(Map.get(tx_params, :gas), opts) do
+          {:ok, Transaction.to_rpc_map(tx_params), :eth_send_transaction}
+        end
     end
   end
 

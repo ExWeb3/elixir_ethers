@@ -83,7 +83,16 @@ defmodule Ethers.Transaction.Legacy do
   @impl Ethers.Transaction
   def type_id, do: @type_id
 
+  # An unsigned EIP-155 transaction is encoded as `[..., chain_id, 0, 0]`. A valid signature
+  # never has r = s = 0, so two trailing empty items mark this payload rather than a signature.
   @impl Ethers.Transaction
+  def from_rlp_list([nonce, gas_price, gas, to, value, input, chain_id, "", ""])
+      when is_binary(chain_id) do
+    with {:ok, transaction, []} <- from_rlp_list([nonce, gas_price, gas, to, value, input]) do
+      {:ok, %{transaction | chain_id: :binary.decode_unsigned(chain_id)}, []}
+    end
+  end
+
   def from_rlp_list([nonce, gas_price, gas, to, value, input | rest])
       when is_binary(nonce) and is_binary(gas_price) and is_binary(gas) and is_binary(value) and
              is_binary(input) do

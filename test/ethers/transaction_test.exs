@@ -263,6 +263,23 @@ defmodule Ethers.TransactionTest do
       assert {:error, :missing_to_address} = Transaction.decode(raw_tx)
     end
 
+    test "decodes an unsigned EIP-155 legacy transaction" do
+      {:ok, transaction} =
+        Transaction.new(%{
+          type: Transaction.Legacy,
+          chain_id: 1,
+          nonce: 1,
+          gas_price: 10,
+          gas: 21_000,
+          to: "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1"
+        })
+
+      assert {:ok, ^transaction} = transaction |> Transaction.encode() |> Transaction.decode()
+
+      pre_eip155 = %{transaction | chain_id: nil}
+      assert {:ok, ^pre_eip155} = pre_eip155 |> Transaction.encode() |> Transaction.decode()
+    end
+
     # Signed with Ethers.Signer.Local by 0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1, at nonces
     # picked so that RLP decoding strips a leading zero byte from r or s
     test "recovers the sender of a signature whose r has a leading zero byte" do

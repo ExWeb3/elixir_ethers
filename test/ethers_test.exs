@@ -158,6 +158,39 @@ defmodule EthersTest do
       assert is_integer(block_number) and block_number >= 0
     end
 
+    test "returns transactions with an access list that hash back to their own hash" do
+      for type <- [Transaction.Eip2930, Transaction.Eip1559, Transaction.Eip7702] do
+        authorization_overrides =
+          if type == Transaction.Eip7702,
+            do: [authorization_list: [authorization_fixture()]],
+            else: []
+
+        {:ok, tx_hash} =
+          Ethers.send_transaction(
+            %{},
+            [
+              from: @from,
+              to: @to,
+              type: type,
+              access_list: access_list_fixture(),
+              signer: Ethers.Signer.Local,
+              signer_opts: [private_key: @from_private_key]
+            ] ++ authorization_overrides
+          )
+
+        wait_for_transaction!(tx_hash)
+
+        assert {:ok, %Transaction.Signed{payload: %^type{} = payload} = transaction} =
+                 Ethers.get_transaction(tx_hash)
+
+        assert payload.access_list == access_list_fixture()
+        assert Transaction.transaction_hash(transaction) == tx_hash
+
+        assert {:ok, ^transaction} =
+                 transaction |> Transaction.to_rpc_map() |> Transaction.from_rpc_map()
+      end
+    end
+
     test "bang version returns unwrapped value" do
       {:ok, tx_hash} =
         HelloWorldContract.set_hello("hello local signer")
@@ -882,6 +915,30 @@ defmodule EthersTest do
 
       assert {:ok, "with access list"} =
                HelloWorldContract.say_hello() |> Ethers.call(to: address)
+    end
+
+    test "result feeds back into node side requests as :access_list" do
+      address = deploy(HelloWorldContract, from: @from)
+      tx_data = HelloWorldContract.set_hello("node access list")
+
+      assert {:ok, %{access_list: [_ | _] = access_list}} =
+               Ethers.create_access_list(tx_data, to: address, from: @from)
+
+      overrides = [to: address, from: @from, access_list: access_list]
+
+      assert {:ok, gas} = Ethers.estimate_gas(tx_data, overrides)
+      assert is_integer(gas)
+      assert {:ok, nil} = Ethers.call(tx_data, overrides)
+
+      # Signed by the node (eth_sendTransaction)
+      assert {:ok, tx_hash} = Ethers.send_transaction(tx_data, overrides)
+      wait_for_transaction!(tx_hash)
+
+      assert {:ok, %Transaction.Signed{payload: %{access_list: ^access_list}} = transaction} =
+               Ethers.get_transaction(tx_hash)
+
+      assert Transaction.transaction_hash(transaction) == tx_hash
+      assert {:ok, "node access list"} = Ethers.call(HelloWorldContract.say_hello(), to: address)
     end
 
     test "returns the node error when the simulated transaction reverts" do

@@ -50,7 +50,8 @@ defmodule Ethers.Transaction.Eip7702 do
   - `to` - destination address for transaction. Required — type-4 transactions cannot create contracts
   - `value` - amount of ether (in wei) to transfer
   - `input` - data payload of the transaction
-  - `access_list` - list of addresses and storage keys to warm up (introduced in EIP-2930)
+  - `access_list` - list of addresses and storage keys to warm up (introduced in EIP-2930), as
+    `[address, storage_keys]` lists of binaries (see `t:Ethers.Types.t_access_list/0`)
   - `authorization_list` - list of signed authorizations setting code on their authorities (introduced in EIP-7702)
   """
   @type t :: %__MODULE__{
@@ -62,7 +63,7 @@ defmodule Ethers.Transaction.Eip7702 do
           to: Types.t_address(),
           value: non_neg_integer(),
           input: binary(),
-          access_list: [{binary(), [binary()]}],
+          access_list: Types.t_access_list(),
           authorization_list: [Authorization.Signed.t()]
         }
 

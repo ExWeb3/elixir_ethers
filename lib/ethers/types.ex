@@ -36,6 +36,21 @@ defmodule Ethers.Types do
   """
   @type t_hash :: <<_::528>>
 
+  @typedoc """
+  [EIP-2930](https://eips.ethereum.org/EIPS/eip-2930) access list: the addresses and storage
+  slots a transaction plans to access.
+
+  Each entry is a two-element **list** (not a tuple) `[address, storage_keys]`, where `address`
+  is a 20-byte binary and `storage_keys` is a list of 32-byte binaries. Transaction structs hold
+  access lists in this format, the `:access_list` option of `Ethers.send_transaction/2` accepts
+  it and `Ethers.create_access_list/2` returns it.
+
+  ## Examples
+  - `[]`
+  - `[[Ethers.Utils.decode_address!("0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1"), [<<1::256>>]]]`
+  """
+  @type t_access_list :: [list(<<_::160>> | [<<_::256>>])]
+
   @type t_bitsizes :: unquote(8..256//8 |> Enum.reduce(&{:|, [], [&1, &2]}))
   @type t_bytesizes :: unquote(1..32 |> Enum.reduce(&{:|, [], [&1, &2]}))
   @type t_evm_types ::

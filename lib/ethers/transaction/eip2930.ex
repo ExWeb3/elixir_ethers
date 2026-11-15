@@ -18,6 +18,8 @@ defmodule Ethers.Transaction.Eip2930 do
 
   @type_id 1
 
+  @required_fields [:chain_id, :nonce, :gas_price, :gas]
+
   @enforce_keys [:chain_id, :nonce, :gas_price, :gas]
   defstruct [
     :chain_id,
@@ -58,7 +60,8 @@ defmodule Ethers.Transaction.Eip2930 do
     input = params[:input] || params[:data] || ""
     value = params[:value] || 0
 
-    with :ok <- validate_common_fields(params),
+    with :ok <- validate_required(params, @required_fields),
+         :ok <- validate_common_fields(params),
          :ok <- validate_non_neg_integer(params.gas_price),
          :ok <- validate_non_neg_integer(value),
          :ok <- validate_binary(input) do

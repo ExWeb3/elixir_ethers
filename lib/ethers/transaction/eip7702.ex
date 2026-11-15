@@ -7,7 +7,9 @@ defmodule Ethers.Transaction.Eip7702 do
 
   Two constraints set this type apart from EIP-1559 transactions:
   - `to` is required — contract creation is not allowed in type-4 transactions.
-  - `authorization_list` must contain at least one `Ethers.Authorization.Signed`.
+  - `authorization_list` must contain at least one `Ethers.Authorization.Signed`, each with
+    an authorization accepted by `Ethers.Authorization.new/1` and a `signature_y_parity` of
+    `0` or `1`.
 
   See: https://eips.ethereum.org/EIPS/eip-7702
   """
@@ -21,6 +23,8 @@ defmodule Ethers.Transaction.Eip7702 do
   @behaviour Ethers.Transaction
 
   @type_id 4
+
+  @required_fields [:chain_id, :nonce, :max_priority_fee_per_gas, :max_fee_per_gas, :gas, :to]
 
   @enforce_keys [:chain_id, :nonce, :max_priority_fee_per_gas, :max_fee_per_gas, :gas, :to]
   defstruct [
@@ -67,8 +71,8 @@ defmodule Ethers.Transaction.Eip7702 do
     input = params[:input] || params[:data] || ""
     value = params[:value] || 0
 
-    with :ok <- validate_common_fields(params),
-         :ok <- validate_to_required(params[:to]),
+    with :ok <- validate_required(params, @required_fields),
+         :ok <- validate_common_fields(params),
          :ok <- validate_non_neg_integer(params.max_priority_fee_per_gas),
          :ok <- validate_non_neg_integer(params.max_fee_per_gas),
          :ok <- validate_non_neg_integer(value),
@@ -154,21 +158,31 @@ defmodule Ethers.Transaction.Eip7702 do
 
   defp decode_authorization_list(_authorization_list), do: {:error, :transaction_decode_failed}
 
-  defp validate_to_required(nil), do: {:error, :missing_to_address}
-  defp validate_to_required(_to), do: :ok
-
-  defp validate_authorization_list([%Authorization.Signed{} | _] = authorization_list) do
-    if Enum.all?(authorization_list, &match?(%Authorization.Signed{}, &1)) do
-      :ok
-    else
-      {:error, :invalid_authorization_list}
-    end
-  end
-
   defp validate_authorization_list(list) when list == [] or is_nil(list),
     do: {:error, :empty_authorization_list}
 
+  defp validate_authorization_list(authorization_list) when is_list(authorization_list) do
+    Enum.reduce_while(authorization_list, :ok, fn signed_authorization, :ok ->
+      case validate_signed_authorization(signed_authorization) do
+        :ok -> {:cont, :ok}
+        {:error, reason} -> {:halt, {:error, reason}}
+      end
+    end)
+  end
+
   defp validate_authorization_list(_invalid), do: {:error, :invalid_authorization_list}
+
+  defp validate_signed_authorization(
+         %Authorization.Signed{authorization: %Authorization{} = authorization} = signed
+       ) do
+    with :ok <- Authorization.validate(authorization),
+         :ok <- validate_y_parity(signed.signature_y_parity),
+         :ok <- validate_binary(signed.signature_r) do
+      validate_binary(signed.signature_s)
+    end
+  end
+
+  defp validate_signed_authorization(_invalid), do: {:error, :invalid_authorization_list}
 
   defimpl Ethers.Transaction.Protocol do
     def type_id(_transaction), do: @for.type_id()

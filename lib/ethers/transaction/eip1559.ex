@@ -15,6 +15,8 @@ defmodule Ethers.Transaction.Eip1559 do
 
   @type_id 2
 
+  @required_fields [:chain_id, :nonce, :max_priority_fee_per_gas, :max_fee_per_gas, :gas]
+
   @enforce_keys [:chain_id, :nonce, :max_priority_fee_per_gas, :max_fee_per_gas, :gas]
   defstruct [
     :chain_id,
@@ -58,11 +60,10 @@ defmodule Ethers.Transaction.Eip1559 do
     input = params[:input] || params[:data] || ""
     value = params[:value] || 0
 
-    with :ok <- validate_non_neg_integer(params.chain_id),
-         :ok <- validate_non_neg_integer(params.nonce),
+    with :ok <- validate_required(params, @required_fields),
+         :ok <- validate_common_fields(params),
          :ok <- validate_non_neg_integer(params.max_priority_fee_per_gas),
          :ok <- validate_non_neg_integer(params.max_fee_per_gas),
-         :ok <- validate_non_neg_integer(params.gas),
          :ok <- validate_non_neg_integer(value),
          :ok <- validate_binary(input) do
       {:ok,

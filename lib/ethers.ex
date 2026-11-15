@@ -1738,13 +1738,22 @@ defmodule Ethers do
     signer_from = Keyword.get(signer_opts, :from) || tx_from
 
     if tx_from do
-      if tx_from != signer_from do
+      unless same_address?(tx_from, signer_from) do
         raise ArgumentError, ":signer_opts has a different from address than transaction"
       end
 
       Keyword.put(signer_opts, :from, tx_from)
     else
       signer_opts
+    end
+  end
+
+  defp same_address?(address, address), do: true
+
+  defp same_address?(address_a, address_b) do
+    case {Utils.decode_address(address_a), Utils.decode_address(address_b)} do
+      {{:ok, address_bin}, {:ok, address_bin}} -> true
+      _not_same -> false
     end
   end
 

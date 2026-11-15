@@ -812,6 +812,50 @@ defmodule EthersTest do
       assert {:ok, "hi signed"} = Ethers.call(HelloWorldContract.say_hello(), to: address)
     end
 
+    test "compares the signer_opts from address with the transaction from address in any casing" do
+      tx_params = [
+        gas: 10_000,
+        max_fee_per_gas: 123_123_123,
+        max_priority_fee_per_gas: 1_000,
+        chain_id: 31_337,
+        nonce: 100,
+        to: "0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc",
+        signer: Ethers.Signer.Local
+      ]
+
+      tx_data = HelloWorldContract.set_hello("hi signed")
+      checksummed_from = Utils.to_checksum_address(@from)
+      "0x" <> from_hex = @from
+
+      assert {:ok, signed} =
+               Ethers.sign_transaction(
+                 tx_data,
+                 [
+                   from: @from,
+                   signer_opts: [private_key: @from_private_key, from: checksummed_from]
+                 ] ++ tx_params
+               )
+
+      assert {:ok, ^signed} =
+               Ethers.sign_transaction(
+                 tx_data,
+                 [
+                   from: "0x" <> String.upcase(from_hex),
+                   signer_opts: [private_key: @from_private_key, from: @from]
+                 ] ++ tx_params
+               )
+
+      assert_raise ArgumentError,
+                   ":signer_opts has a different from address than transaction",
+                   fn ->
+                     Ethers.sign_transaction(
+                       tx_data,
+                       [from: @from, signer_opts: [private_key: @from_private_key, from: @to]] ++
+                         tx_params
+                     )
+                   end
+    end
+
     test "requires from address" do
       assert {:error, :no_from_address} =
                HelloWorldContract.set_hello("hi signed")

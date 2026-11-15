@@ -250,9 +250,19 @@ defmodule Ethers.TransactionValidationTest do
                Eip4844.new(%{params | blob_versioned_hashes: []})
     end
 
-    test "requires a list of versioned hashes" do
-      assert {:error, :invalid_blob_versioned_hashes} =
-               Eip4844.new(%{valid_params(Eip4844) | blob_versioned_hashes: @blob_versioned_hash})
+    test "requires each versioned hash to be a 32-byte binary" do
+      params = valid_params(Eip4844)
+
+      for invalid <- [
+            [<<1::248>>],
+            [@blob_versioned_hash <> <<0>>],
+            [Utils.hex_encode(@blob_versioned_hash)],
+            [@blob_versioned_hash, 1],
+            @blob_versioned_hash
+          ] do
+        assert {:error, :invalid_blob_versioned_hashes} =
+                 Eip4844.new(%{params | blob_versioned_hashes: invalid})
+      end
     end
 
     test "accepts multiple versioned hashes" do
@@ -272,6 +282,41 @@ defmodule Ethers.TransactionValidationTest do
         assert {:ok, %{access_list: []}} = type.new(%{params | access_list: []})
         assert {:ok, %{access_list: []}} = type.new(%{params | access_list: nil})
         assert {:ok, %{access_list: []}} = type.new(Map.delete(params, :access_list))
+      end
+    end
+
+    test "rejects wrongly shaped access lists" do
+      address = <<0x07A6E955BA4345BAE83AC2A6FAA771FDDD8A2011::160>>
+      key = <<1::256>>
+
+      invalid_access_lists = [
+        # address as a 0x string
+        [[Utils.encode_address!(address), [key]]],
+        # address too short
+        [[<<1::152>>, [key]]],
+        # storage key not 32 bytes
+        [[address, [<<1::248>>]]],
+        # storage key as a 0x string
+        [[address, [Utils.hex_encode(key)]]],
+        # storage keys not a list
+        [[address, key]],
+        # wrong nesting
+        [address, [key]],
+        [[address, [key], []]],
+        # tuple entry
+        [{address, [key]}],
+        # RPC-style map entry
+        [
+          %{"address" => Utils.encode_address!(address), "storageKeys" => [Utils.hex_encode(key)]}
+        ],
+        # not a list
+        %{}
+      ]
+
+      for type <- @access_list_types, invalid <- invalid_access_lists do
+        assert {:error, :invalid_access_list} =
+                 type.new(%{valid_params(type) | access_list: invalid}),
+               "expected #{inspect(type)}.new/1 to reject access list #{inspect(invalid)}"
       end
     end
   end

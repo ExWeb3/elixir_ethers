@@ -64,14 +64,41 @@ defmodule Ethers.Transaction.Helpers do
   defp validate_chain_id(chain_id), do: validate_non_neg_integer(chain_id)
 
   @doc """
-  Validates EIP-4844 blob versioned hashes: a non-empty list.
+  Validates an EIP-2930 access list: `[[<<address::binary-20>>, [<<key::binary-32>>, ...]], ...]`.
+  """
+  @spec validate_access_list(term()) :: :ok | {:error, :invalid_access_list}
+  def validate_access_list(access_list) when is_list(access_list) do
+    if Enum.all?(access_list, &valid_access_list_entry?/1) do
+      :ok
+    else
+      {:error, :invalid_access_list}
+    end
+  end
+
+  def validate_access_list(_invalid), do: {:error, :invalid_access_list}
+
+  defp valid_access_list_entry?([<<_address::binary-20>>, storage_keys])
+       when is_list(storage_keys),
+       do: Enum.all?(storage_keys, &match?(<<_key::binary-32>>, &1))
+
+  defp valid_access_list_entry?(_entry), do: false
+
+  @doc """
+  Validates EIP-4844 blob versioned hashes: a non-empty list of 32-byte binaries.
   """
   @spec validate_blob_versioned_hashes(term()) ::
           :ok | {:error, :empty_blob_versioned_hashes | :invalid_blob_versioned_hashes}
   def validate_blob_versioned_hashes(hashes) when hashes == [] or is_nil(hashes),
     do: {:error, :empty_blob_versioned_hashes}
 
-  def validate_blob_versioned_hashes(hashes) when is_list(hashes), do: :ok
+  def validate_blob_versioned_hashes(hashes) when is_list(hashes) do
+    if Enum.all?(hashes, &match?(<<_hash::binary-32>>, &1)) do
+      :ok
+    else
+      {:error, :invalid_blob_versioned_hashes}
+    end
+  end
+
   def validate_blob_versioned_hashes(_invalid), do: {:error, :invalid_blob_versioned_hashes}
 
   @spec validate_y_parity(term()) :: :ok | {:error, :invalid_signature_y_parity}

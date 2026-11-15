@@ -59,12 +59,14 @@ defmodule Ethers.Transaction.Eip2930 do
     to = params[:to]
     input = params[:input] || params[:data] || ""
     value = params[:value] || 0
+    access_list = params[:access_list] || []
 
     with :ok <- validate_required(params, @required_fields),
          :ok <- validate_common_fields(params),
          :ok <- validate_non_neg_integer(params.gas_price),
          :ok <- validate_non_neg_integer(value),
-         :ok <- validate_binary(input) do
+         :ok <- validate_binary(input),
+         :ok <- validate_access_list(access_list) do
       {:ok,
        %__MODULE__{
          chain_id: params.chain_id,
@@ -74,7 +76,7 @@ defmodule Ethers.Transaction.Eip2930 do
          to: to && Utils.to_checksum_address(to),
          value: value,
          input: input,
-         access_list: params[:access_list] || []
+         access_list: access_list
        }}
     end
   end

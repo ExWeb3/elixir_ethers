@@ -6,7 +6,7 @@ defmodule Ethers.Transaction.Eip4844 do
 
   Two constraints set this type apart from EIP-1559 transactions:
   - `to` is required — contract creation is not allowed in type-3 transactions.
-  - `blob_versioned_hashes` must contain at least one versioned hash.
+  - `blob_versioned_hashes` must contain at least one 32-byte versioned hash.
 
   See: https://eips.ethereum.org/EIPS/eip-4844
   """
@@ -85,6 +85,7 @@ defmodule Ethers.Transaction.Eip4844 do
     to = params[:to]
     input = params[:input] || params[:data] || ""
     value = params[:value] || 0
+    access_list = params[:access_list] || []
 
     with :ok <- validate_required(params, @required_fields),
          :ok <- validate_common_fields(params),
@@ -93,6 +94,7 @@ defmodule Ethers.Transaction.Eip4844 do
          :ok <- validate_non_neg_integer(params.max_fee_per_blob_gas),
          :ok <- validate_non_neg_integer(value),
          :ok <- validate_binary(input),
+         :ok <- validate_access_list(access_list),
          :ok <- validate_blob_versioned_hashes(params[:blob_versioned_hashes]) do
       {:ok,
        %__MODULE__{
@@ -104,7 +106,7 @@ defmodule Ethers.Transaction.Eip4844 do
          to: Utils.to_checksum_address(to),
          value: value,
          input: input,
-         access_list: params[:access_list] || [],
+         access_list: access_list,
          max_fee_per_blob_gas: params.max_fee_per_blob_gas,
          blob_versioned_hashes: params.blob_versioned_hashes
        }}

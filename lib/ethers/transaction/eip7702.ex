@@ -70,6 +70,7 @@ defmodule Ethers.Transaction.Eip7702 do
   def new(params) do
     input = params[:input] || params[:data] || ""
     value = params[:value] || 0
+    access_list = params[:access_list] || []
 
     with :ok <- validate_required(params, @required_fields),
          :ok <- validate_common_fields(params),
@@ -77,6 +78,7 @@ defmodule Ethers.Transaction.Eip7702 do
          :ok <- validate_non_neg_integer(params.max_fee_per_gas),
          :ok <- validate_non_neg_integer(value),
          :ok <- validate_binary(input),
+         :ok <- validate_access_list(access_list),
          :ok <- validate_authorization_list(params[:authorization_list]) do
       {:ok,
        %__MODULE__{
@@ -88,7 +90,7 @@ defmodule Ethers.Transaction.Eip7702 do
          to: Utils.to_checksum_address(params.to),
          value: value,
          input: input,
-         access_list: params[:access_list] || [],
+         access_list: access_list,
          authorization_list: params.authorization_list
        }}
     end

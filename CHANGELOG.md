@@ -11,9 +11,9 @@
 
 ### Bug Fixes
 
-- Fix re-encoding and hashing of fetched transactions with access lists (#281)
-- Fix access lists in JSON-RPC params being rejected by geth (#282)
-- Support signed transactions in `Ethers.Transaction.to_rpc_map/1` (#287)
+- Fix re-encoding and hashing of fetched transactions with access lists
+- Fix access lists in JSON-RPC params being rejected by geth
+- Support signed transactions in `Ethers.Transaction.to_rpc_map/1`
 
 ## 0.8.0 (2026-07-29)
 

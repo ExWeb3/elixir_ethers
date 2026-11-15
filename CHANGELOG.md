@@ -35,6 +35,7 @@
 - Fix `Ethers.Transaction.Signed.from_address/1` raising on out-of-range recovery ids
 - Fix `:deployed_address` in `Ethers.batch/2`
 - Compare the `:signer_opts` `from` address with the transaction `from` case-insensitively
+- Fix `:get_balance` requests in `Ethers.batch/2`
 
 ## 0.8.0 (2026-07-29)
 

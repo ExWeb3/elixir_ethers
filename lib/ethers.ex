@@ -100,6 +100,7 @@ defmodule Ethers do
     estimate_gas: :eth_estimate_gas,
     fee_history: :eth_fee_history,
     gas_price: :eth_gas_price,
+    get_balance: :eth_get_balance,
     get_code: :eth_get_code,
     get_logs: :eth_get_logs,
     get_transaction_count: :eth_get_transaction_count,

@@ -108,6 +108,14 @@ defmodule EthersTest do
     test "returns error with invalid account" do
       assert {:error, :invalid_account} == Ethers.get_balance("invalid account")
     end
+
+    test "works in batch requests" do
+      assert {:ok, [{:ok, 10_000_000_000_000_000_000_000}, {:ok, 0}]} ==
+               Ethers.batch([
+                 {:get_balance, "0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc"},
+                 {:get_balance, "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045", block: "latest"}
+               ])
+    end
   end
 
   describe "get_code" do

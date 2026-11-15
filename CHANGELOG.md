@@ -11,6 +11,10 @@
 - Transaction `new/1` returns `{:error, :missing_<field>}` for missing required fields instead of raising
 - Stricter transaction `new/1` validation (`to`, access lists, blob versioned hashes, EIP-7702 authorizations)
 
+### Enhancements
+
+- Add `Ethers.config/1` (`eth_config`, [EIP-7910](https://eips.ethereum.org/EIPS/eip-7910)) returning `Ethers.ForkConfig` structs
+
 ### Bug Fixes
 
 - Fix re-encoding and hashing of fetched transactions with access lists

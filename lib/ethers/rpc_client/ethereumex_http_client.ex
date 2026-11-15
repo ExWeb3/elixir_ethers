@@ -10,6 +10,7 @@ defmodule Ethers.RpcClient.EthereumexHttpClient do
   @manual_implementations [
     batch_request: 2,
     eth_call: 4,
+    eth_config: 1,
     eth_create_access_list: 3,
     eth_estimate_gas: 4,
     eth_get_logs: 2
@@ -45,6 +46,11 @@ defmodule Ethers.RpcClient.EthereumexHttpClient do
   @impl true
   def eth_call(params, block, state_overrides, opts) do
     Ethereumex.HttpClient.request("eth_call", [params, block, state_overrides], opts)
+  end
+
+  @impl true
+  def eth_config(opts \\ []) do
+    Ethereumex.HttpClient.request("eth_config", [], opts)
   end
 
   @impl true

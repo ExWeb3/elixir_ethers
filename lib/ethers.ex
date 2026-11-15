@@ -68,6 +68,7 @@ defmodule Ethers do
   alias Ethers.Event
   alias Ethers.EventFilter
   alias Ethers.ExecutionError
+  alias Ethers.ForkConfig
   alias Ethers.StateOverride
   alias Ethers.Transaction
   alias Ethers.TxData
@@ -91,6 +92,7 @@ defmodule Ethers do
   @rpc_actions_map %{
     call: :eth_call,
     chain_id: :eth_chain_id,
+    config: :eth_config,
     create_access_list: :eth_create_access_list,
     current_block_number: :eth_block_number,
     current_gas_price: :eth_gas_price,
@@ -1051,6 +1053,90 @@ defmodule Ethers do
   end
 
   @doc """
+  Returns the fork configuration of the node from the RPC API (`eth_config`,
+  [EIP-7910](https://eips.ethereum.org/EIPS/eip-7910)).
+
+  Describes the fork currently in effect, the next scheduled fork and the last configured
+  fork: activation time, blob schedule, chain id, fork id, precompiles and system contracts.
+  Use it to detect which fork a chain is on, or to check that a node is configured for an
+  upcoming fork.
+
+  Also works with `Ethers.batch/2` as `:config`.
+
+  ## Options
+  - `:rpc_client`: The RPC Client to use. It should implement ethereum jsonRPC API. default: Ethereumex.HttpClient
+  - `:rpc_opts`: Extra options to pass to rpc_client. (Like timeout, Server URL, etc.)
+
+  ## Returns
+
+  `{:ok, config}` where config is a map with these keys, each holding an
+  `Ethers.ForkConfig` struct (see `t:Ethers.ForkConfig.t/0` for its fields and how they are
+  decoded):
+
+  - `:current`: Configuration of the fork currently in effect.
+  - `:next`: Configuration of the next scheduled fork. `nil` when no future fork is
+    scheduled.
+  - `:last`: Configuration of the last configured fork. The same as `:next` when the next
+    fork is also the last configured one, `nil` when no future fork is scheduled.
+
+  Returns `{:error, :not_supported}` if the configured RPC client does not implement the
+  optional `eth_config/1` callback. Nodes without `eth_config` support return an RPC error.
+
+  ## Examples
+
+  ```elixir
+  Ethers.config()
+  {:ok,
+   %{
+     current: %Ethers.ForkConfig{
+       activation_time: 1746612311,
+       blob_schedule: %{base_fee_update_fraction: 5007716, max: 9, target: 6},
+       chain_id: 1,
+       fork_id: "0x3ff0e375",
+       precompiles: %{
+         "BLAKE2F" => "0x0000000000000000000000000000000000000009",
+         "ECREC" => "0x0000000000000000000000000000000000000001",
+         ...
+       },
+       system_contracts: %{
+         "BEACON_ROOTS_ADDRESS" => "0x000F3df6D732807Ef1319fB7B8bB8522d0Beac02",
+         ...
+       }
+     },
+     next: nil,
+     last: nil
+   }}
+  ```
+  """
+  @spec config(Keyword.t()) ::
+          {:ok,
+           %{current: ForkConfig.t(), next: ForkConfig.t() | nil, last: ForkConfig.t() | nil}}
+          | {:error, term()}
+  def config(opts \\ []) do
+    {rpc_client, rpc_opts} = get_rpc_client(opts)
+
+    if rpc_callback_supported?(rpc_client, :eth_config, 1) do
+      rpc_client.eth_config(rpc_opts)
+    else
+      {:error, :not_supported}
+    end
+    |> post_process(nil, :config)
+  end
+
+  @doc """
+  Same as `Ethers.config/1` but raises on error.
+  """
+  @spec config!(Keyword.t()) ::
+          %{current: ForkConfig.t(), next: ForkConfig.t() | nil, last: ForkConfig.t() | nil}
+          | no_return()
+  def config!(opts \\ []) do
+    case config(opts) do
+      {:ok, config} -> config
+      {:error, reason} -> raise ExecutionError, reason
+    end
+  end
+
+  @doc """
   Fetches the event logs with the given filter.
 
   The filter can be one of:
@@ -1382,6 +1468,15 @@ defmodule Ethers do
        base_fee_per_blob_gas:
          resp |> Map.get("baseFeePerBlobGas") |> maybe_map(&Utils.hex_to_integer!/1),
        blob_gas_used_ratio: Map.get(resp, "blobGasUsedRatio")
+     }}
+  end
+
+  defp post_process({:ok, resp}, _data, :config) when is_map(resp) do
+    {:ok,
+     %{
+       current: resp |> Map.get("current") |> ForkConfig.from_rpc_map(),
+       next: resp |> Map.get("next") |> ForkConfig.from_rpc_map(),
+       last: resp |> Map.get("last") |> ForkConfig.from_rpc_map()
      }}
   end
 

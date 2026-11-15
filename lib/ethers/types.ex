@@ -42,8 +42,10 @@ defmodule Ethers.Types do
 
   Each entry is a two-element **list** (not a tuple) `[address, storage_keys]`, where `address`
   is a 20-byte binary and `storage_keys` is a list of 32-byte binaries. Transaction structs hold
-  access lists in this format, the `:access_list` option of `Ethers.send_transaction/2` accepts
-  it and `Ethers.create_access_list/2` returns it.
+  access lists in this format, including transactions decoded with `Ethers.Transaction.decode/1`
+  or fetched with `Ethers.get_transaction/2`. It is the format the `:access_list` option of
+  `Ethers.send_transaction/2` accepts and `Ethers.create_access_list/2` returns. Transaction
+  `new/1` returns `{:error, :invalid_access_list}` for any other shape.
 
   ## Examples
   - `[]`

@@ -414,8 +414,8 @@ defmodule Ethers do
     and `Ethers.create_access_list/2`). (optional)
   - `:authorization_list`: (EIP-7702 only, required) List of `Ethers.Authorization.Signed`
     authorizations (see `Ethers.sign_authorization/2`).
-  - `:blob_versioned_hashes`: (EIP-4844 only) List of versioned hashes (32-byte binaries) of the
-    blobs.
+  - `:blob_versioned_hashes`: (EIP-4844 only, required) List of versioned hashes (32-byte
+    binaries) of the blobs, at least one.
   - `:chain_id`: Chain id for the transaction (defaults to chain id from RPC server).
   - `:gas_price`: (legacy and EIP-2930 only) max price willing to pay for each gas.
   - `:gas`: Gas limit for execution of this transaction.

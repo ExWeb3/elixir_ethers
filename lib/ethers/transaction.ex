@@ -96,7 +96,9 @@ defmodule Ethers.Transaction do
   Creates a new transaction struct with the given parameters.
 
   Type of transaction is determined by the required `type` field in the params map. Returns
-  `{:error, :missing_type}` when it is missing.
+  `{:error, :missing_type}` when it is missing, `{:error, :missing_<field>}` (e.g.
+  `{:error, :missing_chain_id}`) when a field required by the type is missing and
+  `{:error, reason}` when a field is invalid.
 
   ## Examples
 
@@ -332,7 +334,7 @@ defmodule Ethers.Transaction do
   ## Returns
     - `{:ok, transaction}` - Converted transaction struct
     - `{:error, :unsupported_type}` - If transaction type is not supported
-    - `{:error, reason}` - If the transaction fields are invalid (see `new/1`)
+    - `{:error, reason}` - If transaction fields are missing or invalid (see `new/1`)
   """
   @spec from_rpc_map(map()) :: {:ok, t()} | {:error, :unsupported_type | term()}
   def from_rpc_map(tx) do

@@ -72,7 +72,8 @@ defmodule Ethers.FeeEstimationTest do
       {:ok, block_number} = Ethers.current_block_number()
 
       assert {:ok, %{oldest_block: oldest_block}} = Ethers.fee_history(2, block_number, [50])
-      assert oldest_block == block_number - 1
+      # Two blocks back from the newest one, clamped at genesis on a fresh chain
+      assert oldest_block == max(block_number - 1, 0)
     end
 
     test "works in batch requests" do

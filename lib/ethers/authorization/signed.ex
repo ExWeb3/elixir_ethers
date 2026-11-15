@@ -63,7 +63,9 @@ defmodule Ethers.Authorization.Signed do
 
   @doc false
   @spec from_rlp_list([binary()]) :: {:ok, t()} | {:error, :authorization_decode_failed}
-  def from_rlp_list([chain_id, address, nonce, y_parity, r, s]) do
+  def from_rlp_list([chain_id, <<_::binary-20>> = address, nonce, y_parity, r, s])
+      when is_binary(chain_id) and is_binary(nonce) and is_binary(y_parity) and is_binary(r) and
+             is_binary(s) do
     {:ok,
      %__MODULE__{
        authorization: %Authorization{

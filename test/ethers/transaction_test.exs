@@ -5,6 +5,33 @@ defmodule Ethers.TransactionTest do
   alias Ethers.Transaction
   alias Ethers.Utils
 
+  @address <<0x90F8BF6A479F320EAD074411A4B0E7944EA8C9C1::160>>
+  @access_list [[@address, [<<1::256>>]]]
+  @authorization [<<1>>, @address, "", "", <<1>>, <<1>>]
+
+  # Minimal unsigned transaction of each type as {type envelope, decoded RLP list}
+  @unsigned_transactions [
+    {"", ["", <<1>>, <<0x5208::16>>, @address, "", ""]},
+    {<<1>>, [<<1>>, "", <<1>>, <<0x5208::16>>, @address, "", "", @access_list]},
+    {<<2>>, [<<1>>, "", <<1>>, <<1>>, <<0x5208::16>>, @address, "", "", @access_list]},
+    {<<3>>,
+     [
+       <<1>>,
+       "",
+       <<1>>,
+       <<1>>,
+       <<0x5208::16>>,
+       @address,
+       "",
+       "",
+       @access_list,
+       <<1>>,
+       [<<1::256>>]
+     ]},
+    {<<4>>,
+     [<<1>>, "", <<1>>, <<1>>, <<0x5208::16>>, @address, "", "", @access_list, [@authorization]]}
+  ]
+
   describe "encode/1" do
     test "encodes transaction with address having leading zeros" do
       transaction = %Ethers.Transaction.Eip1559{
@@ -77,7 +104,7 @@ defmodule Ethers.TransactionTest do
       assert Transaction.transaction_hash(decoded_tx) == expected_hash
 
       # Verify recovered from address
-      recovered_from = Transaction.Signed.from_address(decoded_tx)
+      assert {:ok, recovered_from} = Transaction.Signed.from_address(decoded_tx)
       assert String.downcase(recovered_from) == String.downcase(expected_from)
 
       # Verify other transaction fields
@@ -167,7 +194,7 @@ defmodule Ethers.TransactionTest do
       assert Transaction.transaction_hash(decoded_tx) == expected_hash
 
       # Verify recovered from address
-      recovered_from = Transaction.Signed.from_address(decoded_tx)
+      assert {:ok, recovered_from} = Transaction.Signed.from_address(decoded_tx)
       assert String.downcase(recovered_from) == String.downcase(expected_from)
 
       # Verify other transaction fields
@@ -236,6 +263,183 @@ defmodule Ethers.TransactionTest do
       assert {:error, :missing_to_address} = Transaction.decode(raw_tx)
     end
 
+    test "decodes an unsigned EIP-155 legacy transaction" do
+      {:ok, transaction} =
+        Transaction.new(%{
+          type: Transaction.Legacy,
+          chain_id: 1,
+          nonce: 1,
+          gas_price: 10,
+          gas: 21_000,
+          to: "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1"
+        })
+
+      assert {:ok, ^transaction} = transaction |> Transaction.encode() |> Transaction.decode()
+
+      pre_eip155 = %{transaction | chain_id: nil}
+      assert {:ok, ^pre_eip155} = pre_eip155 |> Transaction.encode() |> Transaction.decode()
+    end
+
+    # Signed with Ethers.Signer.Local by 0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1, at nonces
+    # picked so that RLP decoding strips a leading zero byte from r or s
+    test "recovers the sender of a signature whose r has a leading zero byte" do
+      raw_tx =
+        "0x02f86c8205398201d7830f4240843b9aca008252089470997970c51812dc3a010c7d01b50e0d17dc79c80180c0809fd58955ef700fb477145298696493ccc1aaf44332dc51f190db9ac08356f0e4a04ef7d6df1440caf292931fa4de187bb5671fa46a8fab96b6e69b70faec6ab1e7"
+
+      assert {:ok, decoded_tx} = Transaction.decode(raw_tx)
+      assert byte_size(decoded_tx.signature_r) == 31
+
+      assert Transaction.Signed.from_address(decoded_tx) ==
+               {:ok, "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1"}
+    end
+
+    test "recovers the sender of a signature whose s has a leading zero byte" do
+      raw_tx =
+        "0x02f86a8205391e830f4240843b9aca008252089470997970c51812dc3a010c7d01b50e0d17dc79c80180c080a00497c4b0d78574ce220c14c10d917e18d90e4a4cb3ebe06f812014b3dcdd3ae09f5a890dd8cf4d102fcc55430cd5dfb0c5ff406eb04316b722d12e79ddb95627"
+
+      assert {:ok, decoded_tx} = Transaction.decode(raw_tx)
+      assert byte_size(decoded_tx.signature_s) == 31
+
+      assert Transaction.Signed.from_address(decoded_tx) ==
+               {:ok, "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1"}
+    end
+
+    test "returns error recovering the sender of a legacy signature with an out-of-range v" do
+      {"", fields} = List.keyfind(@unsigned_transactions, "", 0)
+      raw_tx = ExRLP.encode(fields ++ [<<1>>, <<1::256>>, <<1::256>>])
+
+      assert {:ok, %Transaction.Signed{signature_y_parity_or_v: 1} = decoded_tx} =
+               Transaction.decode(raw_tx)
+
+      assert {:error, :invalid_recovery_id} = Transaction.Signed.from_address(decoded_tx)
+    end
+
+    test "returns error recovering the sender of a typed signature with an out-of-range y_parity" do
+      {type, fields} = List.keyfind(@unsigned_transactions, <<2>>, 0)
+      raw_tx = type <> ExRLP.encode(fields ++ [<<27>>, <<1::256>>, <<1::256>>])
+
+      assert {:ok, %Transaction.Signed{signature_y_parity_or_v: 27} = decoded_tx} =
+               Transaction.decode(raw_tx)
+
+      assert {:error, :invalid_recovery_id} = Transaction.Signed.from_address(decoded_tx)
+    end
+
+    test "returns error for input that is not valid RLP" do
+      [{_legacy, legacy_fields} | _] = @unsigned_transactions
+      legacy_tx = ExRLP.encode(legacy_fields)
+
+      assert {:error, :invalid_rlp} = Transaction.decode("0x")
+      assert {:error, :invalid_rlp} = Transaction.decode("0x02")
+      assert {:error, :invalid_rlp} = Transaction.decode("0x02ffff")
+      assert {:error, :invalid_rlp} = Transaction.decode(binary_part(legacy_tx, 0, 10))
+      assert {:error, :invalid_rlp} = Transaction.decode(legacy_tx <> <<0>>)
+      assert {:error, :invalid_rlp} = Transaction.decode(<<2>> <> legacy_tx <> <<0xC0>>)
+    end
+
+    test "returns error for an unsupported transaction type" do
+      for {_type, fields} <- @unsigned_transactions, type <- [0x00, 0x05, 0x7E, 0x7F] do
+        assert {:error, :unsupported_transaction_type} =
+                 Transaction.decode(<<type>> <> ExRLP.encode(fields))
+      end
+    end
+
+    test "returns error for RLP that is not a list of transaction fields" do
+      assert {:error, :transaction_decode_failed} = Transaction.decode("0x80")
+      assert {:error, :transaction_decode_failed} = Transaction.decode("0x0280")
+
+      for {type, fields} <- @unsigned_transactions do
+        assert {:error, :transaction_decode_failed} =
+                 Transaction.decode(type <> ExRLP.encode(Enum.drop(fields, -1)))
+      end
+    end
+
+    test "returns error for transaction fields of the wrong kind" do
+      for {type, fields} <- @unsigned_transactions do
+        assert {:ok, _transaction} = Transaction.decode(type <> ExRLP.encode(fields))
+
+        for index <- 0..(length(fields) - 1) do
+          swapped_fields =
+            List.update_at(fields, index, fn
+              field when is_binary(field) -> [field]
+              _list -> <<1>>
+            end)
+
+          assert Transaction.decode(type <> ExRLP.encode(swapped_fields)) ==
+                   {:error, :transaction_decode_failed},
+                 "expected field #{index} of type #{inspect(type)} to be rejected"
+        end
+      end
+    end
+
+    test "returns error for malformed access list entries" do
+      for access_list <- [
+            [@address],
+            [[@address]],
+            [[[@address], [<<1::256>>]]],
+            [[@address, <<1::256>>]],
+            [[@address, [[<<1::256>>]]]],
+            [[<<1>>, [<<1::256>>]]],
+            [[@address, [<<1>>]]]
+          ],
+          {type, fields} <- tl(@unsigned_transactions) do
+        access_list_index = Enum.find_index(fields, &(&1 == @access_list))
+        malformed_fields = List.replace_at(fields, access_list_index, access_list)
+
+        assert {:error, :transaction_decode_failed} =
+                 Transaction.decode(type <> ExRLP.encode(malformed_fields))
+      end
+    end
+
+    test "returns error for malformed blob versioned hashes" do
+      {type, fields} = List.keyfind(@unsigned_transactions, <<3>>, 0)
+
+      # Decoding checks the shape only, unlike new/1 which requires at least one hash
+      assert {:ok, %Transaction.Eip4844{blob_versioned_hashes: []}} =
+               Transaction.decode(type <> ExRLP.encode(List.replace_at(fields, 10, [])))
+
+      for hashes <- [[[<<1::256>>]], [<<1>>]] do
+        malformed_fields = List.replace_at(fields, 10, hashes)
+
+        assert {:error, :transaction_decode_failed} =
+                 Transaction.decode(type <> ExRLP.encode(malformed_fields))
+      end
+    end
+
+    test "returns error for malformed authorizations" do
+      {type, fields} = List.keyfind(@unsigned_transactions, <<4>>, 0)
+
+      for authorization <- [
+            <<1>>,
+            Enum.drop(@authorization, -1),
+            List.replace_at(@authorization, 1, <<1>>),
+            List.replace_at(@authorization, 1, [@address]),
+            List.replace_at(@authorization, 4, [<<1>>])
+          ] do
+        malformed_fields = List.replace_at(fields, 9, [authorization])
+
+        assert {:error, :authorization_decode_failed} =
+                 Transaction.decode(type <> ExRLP.encode(malformed_fields))
+      end
+    end
+
+    test "returns error for a to address of the wrong size" do
+      for {type, fields} <- @unsigned_transactions do
+        to_index = Enum.find_index(fields, &(&1 == @address))
+        malformed_fields = List.replace_at(fields, to_index, <<1, 2, 3>>)
+
+        assert {:error, :invalid_address} =
+                 Transaction.decode(type <> ExRLP.encode(malformed_fields))
+      end
+    end
+
+    test "returns error for signature fields of the wrong kind" do
+      for {type, fields} <- @unsigned_transactions,
+          signature <- [[[], <<1>>, <<1>>], [<<1>>, [<<1>>], <<1>>], [<<1>>, <<1>>, [<<1>>]]] do
+        assert {:error, :signature_decode_failed} =
+                 Transaction.decode(type <> ExRLP.encode(fields ++ signature))
+      end
+    end
+
     test "decodes raw EIP-1559 transaction and re-encodes it correctly" do
       raw_tx =
         "0x02f8af0177837a12008502c4bfbc3282f88c948881562783028f5c1bcb985d2283d5e170d8888880b844a9059cbb0000000000000000000000002ef7f5c7c727d8845e685f462a5b4f8ac4972a6700000000000000000000000000000000000000000000051ab2ea6fbbb7420000c001a007280557e86f690290f9ea9e26cc17e0cf09a17f6c2d041e95b33be4b81888d0a06c7a24e8fba5cceb455b19950849b9733f0deb92d7e8c2a919f4a82df9c6036a"
@@ -250,7 +454,7 @@ defmodule Ethers.TransactionTest do
       assert Transaction.transaction_hash(decoded_tx) == expected_hash
 
       # Verify recovered from address
-      recovered_from = Transaction.Signed.from_address(decoded_tx)
+      assert {:ok, recovered_from} = Transaction.Signed.from_address(decoded_tx)
       assert String.downcase(recovered_from) == String.downcase(expected_from)
 
       # Verify other transaction fields
@@ -279,7 +483,7 @@ defmodule Ethers.TransactionTest do
       assert Transaction.transaction_hash(decoded_tx) == expected_hash
 
       # Verify recovered from address
-      recovered_from = Transaction.Signed.from_address(decoded_tx)
+      assert {:ok, recovered_from} = Transaction.Signed.from_address(decoded_tx)
       assert String.downcase(recovered_from) == String.downcase(expected_from)
 
       # Verify other transaction fields
@@ -308,7 +512,7 @@ defmodule Ethers.TransactionTest do
       assert Transaction.transaction_hash(decoded_tx) == expected_hash
 
       # Verify recovered from address
-      recovered_from = Transaction.Signed.from_address(decoded_tx)
+      assert {:ok, recovered_from} = Transaction.Signed.from_address(decoded_tx)
       assert String.downcase(recovered_from) == String.downcase(expected_from)
 
       # Verify other transaction fields

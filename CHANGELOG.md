@@ -10,6 +10,9 @@
 - `Ethers.Transaction.to_rpc_map/1` raises `ArgumentError` for unsupported values
 - Transaction `new/1` returns `{:error, :missing_<field>}` for missing required fields instead of raising
 - Stricter transaction `new/1` validation (`to`, access lists, blob versioned hashes, EIP-7702 authorizations)
+- `Ethers.Transaction.Signed.from_address/1` now returns `{:ok, address}`
+- `Ethers.Transaction.decode/1` returns `{:error, reason}` instead of raising on malformed input
+- Unsigned EIP-155 legacy transactions decode as `%Legacy{}` instead of `%Signed{}`
 
 ### Enhancements
 
@@ -23,6 +26,8 @@
 - Support pre-EIP-155 legacy transactions without `chain_id`
 - Fix `access_list` and `blob_versioned_hashes` typespecs of typed transactions
 - Fix transaction docs (supported types and options of `Ethers.send_transaction/2`, EIP-4844 limitations)
+- Fix sender recovery for signatures with leading zero bytes in `r` or `s`
+- Fix `Ethers.Transaction.Signed.from_address/1` raising on out-of-range recovery ids
 
 ## 0.8.0 (2026-07-29)
 

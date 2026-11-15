@@ -119,6 +119,81 @@ Ethers.Transaction.new(%{type: Ethers.Transaction.Eip2930, access_list: access_l
 | `:invalid_signature_y_parity` | `Eip7702` | `{:ok, transaction}` |
 | `:chain_id_out_of_range` | `Eip7702`, `Ethers.Authorization.new/1` | `{:ok, transaction}`, `{:ok, authorization}` |
 
+### Transaction Decoding and Sender Recovery
+
+#### `Signed.from_address/1` returns `{:ok, address}`
+
+`Ethers.Transaction.Signed.from_address/1` returns `{:ok, address}` on success instead of the
+bare address, matching its typespec and the rest of the API. Errors are still returned as
+`{:error, reason}`.
+
+```elixir
+# Before (0.8.x)
+address = Ethers.Transaction.Signed.from_address(signed_tx)
+
+# After (1.0.0)
+{:ok, address} = Ethers.Transaction.Signed.from_address(signed_tx)
+```
+
+#### `decode/1` returns errors instead of raising
+
+`Ethers.Transaction.decode/1` no longer raises on malformed input. It returns `{:error, reason}`
+with one of `:invalid_rlp`, `:unsupported_transaction_type`, `:transaction_decode_failed`,
+`:invalid_address`, `:signature_decode_failed` or `:authorization_decode_failed`, so code that
+rescued exceptions must match on the tuple instead.
+
+Decoding is also stricter: a first byte in `0x00..0x7f` that is not a registered transaction type
+is rejected instead of being decoded as a legacy transaction, and access list addresses (20 bytes),
+storage keys (32 bytes) and blob versioned hashes (32 bytes) of the wrong size are rejected.
+
+```elixir
+# Before (0.8.x)
+try do
+  {:ok, transaction} = Ethers.Transaction.decode(raw_tx)
+  transaction
+rescue
+  _error -> nil
+end
+
+# After (1.0.0)
+case Ethers.Transaction.decode(raw_tx) do
+  {:ok, transaction} -> transaction
+  {:error, _reason} -> nil
+end
+```
+
+#### Unsigned EIP-155 legacy transactions decode as unsigned
+
+An unsigned legacy transaction with a chain id (encoded as `rlp([..., chain_id, 0, 0])`, as
+`Ethers.Transaction.encode/1` produces) now decodes to the unsigned `Ethers.Transaction.Legacy`
+struct with `chain_id` set, instead of an `Ethers.Transaction.Signed` with an empty signature and
+`chain_id: nil`.
+
+```elixir
+# Before (0.8.x)
+{:ok, %Ethers.Transaction.Signed{payload: %Ethers.Transaction.Legacy{chain_id: nil}}} =
+  Ethers.Transaction.decode(unsigned_legacy_tx)
+
+# After (1.0.0)
+{:ok, %Ethers.Transaction.Legacy{chain_id: 1}} = Ethers.Transaction.decode(unsigned_legacy_tx)
+```
+
+#### Out-of-range recovery ids return an error
+
+`Ethers.Transaction.Signed.from_address/1` returns `{:error, :invalid_recovery_id}` when the
+signature's v / y-parity gives a recovery id other than 0 or 1. A negative one (a legacy `v` below
+27) used to raise.
+
+```elixir
+# Before (0.8.x)
+Ethers.Transaction.Signed.from_address(legacy_tx_with_v_1)
+#=> ** (ArgumentError) argument error
+
+# After (1.0.0)
+Ethers.Transaction.Signed.from_address(legacy_tx_with_v_1)
+#=> {:error, :invalid_recovery_id}
+```
+
 ## Upgrading to 0.6.x
 
 Version 0.6.x and onwards introduce several breaking changes to improve type safety and explicitness.

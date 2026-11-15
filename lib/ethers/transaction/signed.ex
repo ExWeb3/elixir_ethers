@@ -62,7 +62,9 @@ defmodule Ethers.Transaction.Signed do
   @doc false
   def from_rlp_list(rlp_list, payload) do
     case rlp_list do
-      [signature_y_parity_or_v, signature_r, signature_s] ->
+      [signature_y_parity_or_v, signature_r, signature_s]
+      when is_binary(signature_y_parity_or_v) and is_binary(signature_r) and
+             is_binary(signature_s) ->
         signed_tx =
           maybe_add_chain_id(%__MODULE__{
             payload: payload,
@@ -96,22 +98,34 @@ defmodule Ethers.Transaction.Signed do
   deriving the corresponding Ethereum address.
 
   ## Returns
-    - `{:ok, address}` - Successfully recovered from address
-    - `{:error, reason}` - Failed to recover address
+    - `{:ok, address}` - Successfully recovered from address (checksummed)
+    - `{:error, :invalid_recovery_id}` - The signature's v / y-parity does not give a recovery
+      id of 0 or 1
+    - `{:error, reason}` - Failed to recover address (e.g. `:invalid_r` or `:invalid_s`)
   """
   @spec from_address(t()) :: {:ok, Ethers.Types.t_address()} | {:error, atom()}
   def from_address(%__MODULE__{} = transaction) do
+    case extract_chain_id_and_recovery_id(transaction) do
+      # Ethereum only uses recovery ids 0 and 1, and secp256k1 raises on negative ones
+      {_chain_id, recovery_id} when recovery_id in [0, 1] ->
+        recover_from_address(transaction, recovery_id)
+
+      {_chain_id, _recovery_id} ->
+        {:error, :invalid_recovery_id}
+    end
+  end
+
+  defp recover_from_address(transaction, recovery_id) do
     hash_bin = Transaction.transaction_hash(transaction.payload, :bin)
 
-    {_chain_id, recovery_id} = extract_chain_id_and_recovery_id(transaction)
-
+    # r and s lose their leading zero bytes in RLP and JSON-RPC quantities
     case Ethers.secp256k1_module().recover(
            hash_bin,
-           transaction.signature_r,
-           transaction.signature_s,
+           pad32(transaction.signature_r),
+           pad32(transaction.signature_s),
            recovery_id
          ) do
-      {:ok, pubkey} -> Ethers.Utils.public_key_to_address(pubkey)
+      {:ok, pubkey} -> {:ok, Ethers.Utils.public_key_to_address(pubkey)}
       {:error, reason} -> {:error, reason}
     end
   end
@@ -162,6 +176,9 @@ defmodule Ethers.Transaction.Signed do
         {tx.chain_id, v}
     end
   end
+
+  defp pad32(bin) when byte_size(bin) >= 32, do: bin
+  defp pad32(bin), do: <<0::size((32 - byte_size(bin)) * 8), bin::binary>>
 
   defimpl Transaction.Protocol do
     import Ethers.Utils, only: [remove_leading_zeros: 1]

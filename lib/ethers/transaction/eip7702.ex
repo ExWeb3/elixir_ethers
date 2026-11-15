@@ -17,6 +17,7 @@ defmodule Ethers.Transaction.Eip7702 do
   import Ethers.Transaction.Helpers
 
   alias Ethers.Authorization
+  alias Ethers.Transaction.DecodeHelpers
   alias Ethers.Types
   alias Ethers.Utils
 
@@ -121,8 +122,12 @@ defmodule Ethers.Transaction.Eip7702 do
         access_list,
         authorization_list
         | rest
-      ]) do
+      ])
+      when is_binary(chain_id) and is_binary(nonce) and is_binary(max_priority_fee_per_gas) and
+             is_binary(max_fee_per_gas) and is_binary(gas) and is_binary(value) and
+             is_binary(input) do
     with {:ok, to} <- decode_to_address(to),
+         :ok <- DecodeHelpers.validate_access_list(access_list),
          {:ok, authorization_list} <- decode_authorization_list(authorization_list) do
       {:ok,
        %__MODULE__{
@@ -143,7 +148,7 @@ defmodule Ethers.Transaction.Eip7702 do
   def from_rlp_list(_rlp_list), do: {:error, :transaction_decode_failed}
 
   defp decode_to_address(""), do: {:error, :missing_to_address}
-  defp decode_to_address(to), do: Utils.encode_address(to)
+  defp decode_to_address(to), do: DecodeHelpers.decode_to_address(to)
 
   defp decode_authorization_list(authorization_list) when is_list(authorization_list) do
     authorization_list

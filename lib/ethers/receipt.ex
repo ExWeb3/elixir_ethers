@@ -32,7 +32,8 @@ defmodule Ethers.Receipt do
   A receipt holds the logs of every contract the transaction called, and decoding a log
   requires the ABI of its event. The logs are therefore kept as returned by the node (maps
   with string keys, the form `Ethers.Event.decode/2` and `Ethers.Event.find_and_decode/2`
-  accept).
+  accept). Use `decode_logs/2` to decode the logs matching an event filter, a combined event
+  filter or all events of a contract into `Ethers.Event` structs.
 
   ## Example
 
@@ -56,10 +57,19 @@ defmodule Ethers.Receipt do
         raw: %{"blockHash" => "0x5f3a...3b20", "status" => "0x1", ...},
         ...
       }
+
+      Ethers.Receipt.decode_logs(receipt, Ethers.Contracts.ERC20.EventFilters)
+      #=> [%Ethers.Event{topics: ["Transfer(address,address,uint256)", ...], ...}]
   """
 
+  alias Ethers.CombinedEventFilter
+  alias Ethers.ContractHelpers
+  alias Ethers.Event
+  alias Ethers.EventFilter
   alias Ethers.Types
   alias Ethers.Utils
+
+  import Ethers.Types, only: [is_module: 1]
 
   defstruct [
     :blob_gas_price,
@@ -107,9 +117,10 @@ defmodule Ethers.Receipt do
   - `effective_gas_price` - the actual price per gas paid by the sender in wei.
   - `blob_gas_used` - blob gas used by the transaction, only present for blob
     ([EIP-4844](https://eips.ethereum.org/EIPS/eip-4844)) transactions.
-  - `blob_gas_price` - the actual price per blob gas paid by the sender in wei, only present
-    for blob transactions.
-  - `logs` - the logs emitted by the transaction, as returned by the node.
+  - `blob_gas_price` - the actual price per blob gas paid by the sender in wei. Specified for
+    blob transactions only, but some nodes (e.g. anvil) return it for every transaction.
+  - `logs` - the logs emitted by the transaction, as returned by the node. See
+    `decode_logs/2`.
   - `logs_bloom` - the 256 byte bloom filter of the logs, as a binary.
   - `raw` - the receipt exactly as returned by the node, including chain specific members.
   """
@@ -170,6 +181,56 @@ defmodule Ethers.Receipt do
 
   def from_rpc_map(_receipt), do: {:error, :invalid_receipt}
 
+  @doc """
+  Decodes the logs of the receipt matching the given filter into `Ethers.Event` structs, in
+  the order they were emitted.
+
+  The filter can be one of:
+
+  - A single event filter. (e.g. `MyContract.EventFilters.transfer(nil, nil)`)
+  - A combined event filter matching multiple events, created with
+    `Ethers.EventFilter.combine/1`.
+  - An EventFilters module of a contract (e.g. `MyContract.EventFilters`) to match all
+    events of that contract.
+
+  A log matches an event of the filter when:
+
+  - its first topic is the event signature hash,
+  - its other topics match the indexed argument values of the filter (`nil` matches any
+    value) and their count matches the number of indexed arguments of the event,
+  - it was emitted by the default address of the filter (if it has one), and
+  - its data decodes as the non-indexed arguments of the event.
+
+  Apart from the exact topic count and the data check, these are the rules `Ethers.get_logs/2`
+  filters logs with. The two extra checks matter for receipts, which hold the logs of every
+  contract the transaction called: events with the same signature can differ in which
+  arguments are indexed (e.g. the ERC-20 and ERC-721 `Transfer` events), and any contract can
+  emit a log with an event's signature but malformed data. Such logs are skipped instead of
+  being decoded as the wrong event or raising, like all logs matching none of the events of
+  the filter.
+
+  ## Examples
+
+      {:ok, receipt} = Ethers.get_transaction_receipt(tx_hash)
+
+      # All events of a contract
+      Ethers.Receipt.decode_logs(receipt, Ethers.Contracts.ERC20.EventFilters)
+      #=> [%Ethers.Event{topics: ["Transfer(address,address,uint256)", from, to], ...}]
+
+      # Only transfers to `to`
+      Ethers.Receipt.decode_logs(receipt, Ethers.Contracts.ERC20.EventFilters.transfer(nil, to))
+      #=> [%Ethers.Event{data: [amount], ...}]
+  """
+  @spec decode_logs(t(), EventFilter.t() | CombinedEventFilter.t() | module()) :: [Event.t()]
+  def decode_logs(%__MODULE__{} = receipt, events_module) when is_module(events_module),
+    do: decode_logs(receipt, CombinedEventFilter.all!(events_module))
+
+  def decode_logs(%__MODULE__{logs: logs}, filter) do
+    {address, events} = log_matchers(filter)
+
+    Enum.flat_map(logs || [], &decode_log(&1, address, events))
+  end
+
   defp decode_member(nil, _kind), do: {:ok, nil}
 
   defp decode_member("0x" <> hex = hash, :hash) when byte_size(hex) == 64 do
@@ -213,4 +274,64 @@ defmodule Ethers.Receipt do
   end
 
   defp decode_member(_value, _kind), do: :error
+
+  # Returns the default address of the filter and its events as a map of lowercase topic_0
+  # to the event selector and the filter of each indexed argument (nil matches any value)
+  defp log_matchers(%EventFilter{topics: [topic_0 | sub_topics], selector: selector} = filter),
+    do: {filter.default_address, %{String.downcase(topic_0) => {selector, sub_topics}}}
+
+  defp log_matchers(%CombinedEventFilter{selectors: selectors} = filter) do
+    events =
+      Map.new(selectors, fn {topic_0, selector} ->
+        wildcards = selector |> ContractHelpers.event_indexed_types() |> Enum.map(fn _ -> nil end)
+
+        {topic_0, {selector, wildcards}}
+      end)
+
+    {filter.default_address, events}
+  end
+
+  defp decode_log(%{"topics" => [topic_0 | sub_topics]} = log, address, events)
+       when is_binary(topic_0) do
+    with true <- address_matches?(log, address),
+         {:ok, {selector, sub_topic_filters}} <- Map.fetch(events, String.downcase(topic_0)),
+         true <- sub_topics_match?(sub_topics, sub_topic_filters),
+         {:ok, event} <- decode_event(log, selector) do
+      [event]
+    else
+      _no_match -> []
+    end
+  end
+
+  defp decode_log(_log, _address, _events), do: []
+
+  defp address_matches?(_log, nil), do: true
+
+  defp address_matches?(%{"address" => log_address}, address) when is_binary(log_address),
+    do: String.downcase(log_address) == String.downcase(address)
+
+  defp address_matches?(_log, _address), do: false
+
+  # Unlike eth_getLogs, the topic count must be exact: events with the same signature but
+  # different indexed arguments (e.g. ERC-20 and ERC-721 Transfer) differ in their topic count
+  defp sub_topics_match?(sub_topics, filters) when length(sub_topics) == length(filters) do
+    sub_topics
+    |> Enum.zip(filters)
+    |> Enum.all?(fn
+      {_topic, nil} -> true
+      {topic, filter} when is_binary(topic) -> String.downcase(topic) == String.downcase(filter)
+      _mismatch -> false
+    end)
+  end
+
+  defp sub_topics_match?(_sub_topics, _filters), do: false
+
+  # Any contract can emit a log with the signature and topic count of an event but data that
+  # does not ABI decode as its arguments, on which the decoder raises (MatchError on short
+  # data, ArgumentError on invalid hex). Such a log is not an instance of the event.
+  defp decode_event(log, selector) do
+    {:ok, Event.decode(log, selector)}
+  rescue
+    _error in [ArgumentError, MatchError] -> :error
+  end
 end

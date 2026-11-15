@@ -1,6 +1,16 @@
+defmodule Ethers.Contract.Test.ReceiptCounterContract do
+  @moduledoc false
+  use Ethers.Contract, abi_file: "tmp/counter_abi.json"
+end
+
 defmodule Ethers.Contract.Test.ReceiptHelloWorldContract do
   @moduledoc false
   use Ethers.Contract, abi_file: "tmp/hello_world_abi.json"
+end
+
+defmodule Ethers.Contract.Test.ReceiptUsdcContract do
+  @moduledoc false
+  use Ethers.Contract, abi: :erc20, default_address: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
 end
 
 defmodule Ethers.ReceiptTest.Fixtures do
@@ -223,8 +233,14 @@ defmodule Ethers.ReceiptTest do
 
   import Ethers.TestHelpers
 
+  alias Ethers.Contract.Test.ReceiptCounterContract
   alias Ethers.Contract.Test.ReceiptHelloWorldContract
+  alias Ethers.Contract.Test.ReceiptUsdcContract
   alias Ethers.Contract.Test.RevertContract
+  alias Ethers.Contracts.ERC20
+  alias Ethers.Contracts.ERC721
+  alias Ethers.Event
+  alias Ethers.EventFilter
   alias Ethers.ExecutionError
   alias Ethers.Receipt
   alias Ethers.ReceiptTest.Fixtures
@@ -420,6 +436,114 @@ defmodule Ethers.ReceiptTest do
     end
   end
 
+  describe "decode_logs/2" do
+    setup do
+      [receipt: receipt!(Fixtures.token_transfers())]
+    end
+
+    test "decodes all events of an EventFilters module", %{receipt: receipt} do
+      assert [
+               %Event{
+                 address: "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+                 topics: ["Approval(address,address,uint256)", @vitalik, @receiver],
+                 data: [1_000_000],
+                 log_index: 16
+               },
+               %Event{
+                 address: "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+                 topics: ["Transfer(address,address,uint256)", @vitalik, @receiver],
+                 data: [1_000_000],
+                 log_index: 17,
+                 block_hash: block_hash,
+                 block_number: 21_563_820,
+                 transaction_hash: transaction_hash,
+                 transaction_index: 94,
+                 removed: false
+               },
+               %Event{
+                 address: "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
+                 topics: ["Transfer(address,address,uint256)", @receiver, @vitalik],
+                 data: [2_000],
+                 log_index: 20
+               }
+             ] = Receipt.decode_logs(receipt, ERC20.EventFilters)
+
+      assert block_hash == receipt.block_hash
+      assert transaction_hash == receipt.transaction_hash
+    end
+
+    test "skips events with the same signature but other indexed arguments", %{receipt: receipt} do
+      assert [
+               %Event{
+                 address: "0xbc4ca0eda7647a8ab7c2061c2e118a18a936f13d",
+                 topics: ["Transfer(address,address,uint256)", @vitalik, @receiver, 7382],
+                 data: [],
+                 log_index: 18
+               }
+             ] = Receipt.decode_logs(receipt, ERC721.EventFilters)
+    end
+
+    test "decodes logs matching a single event filter", %{receipt: receipt} do
+      assert [%Event{log_index: 17}, %Event{log_index: 20}] =
+               Receipt.decode_logs(receipt, ERC20.EventFilters.transfer(nil, nil))
+
+      assert [%Event{log_index: 17}] =
+               Receipt.decode_logs(receipt, ERC20.EventFilters.transfer(@vitalik, nil))
+
+      assert [%Event{log_index: 20}] =
+               Receipt.decode_logs(receipt, ERC20.EventFilters.transfer(nil, @vitalik))
+
+      assert [] = Receipt.decode_logs(receipt, ERC20.EventFilters.transfer(@usdc, nil))
+    end
+
+    test "skips logs with the signature of an event but malformed data", %{receipt: receipt} do
+      # Logs 20 and 21 have the same topics, the data of log 21 is not a uint256
+      assert [%Event{log_index: 20}] =
+               Receipt.decode_logs(receipt, ERC20.EventFilters.transfer(@receiver, @vitalik))
+
+      [approval_log | _] = receipt.logs
+      receipt = %{receipt | logs: [%{approval_log | "data" => "0xzz"}]}
+
+      assert [] = Receipt.decode_logs(receipt, ERC20.EventFilters)
+    end
+
+    test "decodes logs matching a combined event filter", %{receipt: receipt} do
+      filter =
+        EventFilter.combine([
+          ERC20.EventFilters.transfer(nil, nil),
+          ERC20.EventFilters.approval(nil, nil)
+        ])
+
+      assert [%Event{log_index: 16}, %Event{log_index: 17}, %Event{log_index: 20}] =
+               Receipt.decode_logs(receipt, filter)
+    end
+
+    test "only decodes logs of the default address of the filter", %{receipt: receipt} do
+      assert [%Event{log_index: 16}, %Event{log_index: 17}] =
+               Receipt.decode_logs(receipt, ReceiptUsdcContract.EventFilters)
+
+      assert [%Event{log_index: 17}] =
+               Receipt.decode_logs(receipt, ReceiptUsdcContract.EventFilters.transfer(nil, nil))
+
+      filter = %{ERC20.EventFilters.transfer(nil, nil) | default_address: String.downcase(@usdc)}
+      assert [%Event{log_index: 17}] = Receipt.decode_logs(receipt, filter)
+
+      filter = %{ERC20.EventFilters.transfer(nil, nil) | default_address: @vitalik}
+      assert [] = Receipt.decode_logs(receipt, filter)
+    end
+
+    test "returns an empty list without logs" do
+      assert [] = Receipt.decode_logs(receipt!(Fixtures.eip1559_transfer()), ERC20.EventFilters)
+      assert [] = Receipt.decode_logs(%Receipt{}, ERC20.EventFilters)
+    end
+
+    test "raises for a module which is not an EventFilters module", %{receipt: receipt} do
+      assert_raise ArgumentError, ~r/is not an EventFilters module/, fn ->
+        Receipt.decode_logs(receipt, ERC20)
+      end
+    end
+  end
+
   describe "get_transaction_receipt/2 with a node" do
     test "returns the receipt of a transfer" do
       tx_hash =
@@ -484,6 +608,62 @@ defmodule Ethers.ReceiptTest do
 
       assert %Receipt{status: :failure, to: to} = Ethers.get_transaction_receipt!(tx_hash)
       assert to == Utils.to_checksum_address(address)
+    end
+
+    test "decode_logs/2 decodes the events emitted by a contract call" do
+      address =
+        deploy(ReceiptCounterContract,
+          encoded_constructor: ReceiptCounterContract.constructor(100),
+          from: @from
+        )
+
+      tx_hash =
+        ReceiptCounterContract.set(101)
+        |> Ethers.send_transaction!(from: @from, to: address)
+
+      wait_for_transaction!(tx_hash)
+
+      receipt = Ethers.get_transaction_receipt!(tx_hash)
+      block_number = receipt.block_number
+
+      assert [
+               %Event{
+                 address: ^address,
+                 topics: ["SetCalled(uint256,uint256)", 100],
+                 data: [101],
+                 transaction_hash: ^tx_hash,
+                 block_number: ^block_number
+               }
+             ] = events = Receipt.decode_logs(receipt, ReceiptCounterContract.EventFilters)
+
+      assert events ==
+               Ethers.get_logs!(ReceiptCounterContract.EventFilters.set_called(nil),
+                 address: address,
+                 from_block: block_number,
+                 to_block: block_number
+               )
+
+      assert ^events =
+               Receipt.decode_logs(receipt, ReceiptCounterContract.EventFilters.set_called(100))
+
+      assert [] =
+               Receipt.decode_logs(receipt, ReceiptCounterContract.EventFilters.set_called(105))
+
+      assert [] = Receipt.decode_logs(receipt, ReceiptHelloWorldContract.EventFilters)
+
+      checksummed_default_address = %{
+        ReceiptCounterContract.EventFilters.set_called(nil)
+        | default_address: Utils.to_checksum_address(address)
+      }
+
+      assert ^events = Receipt.decode_logs(receipt, checksummed_default_address)
+
+      other_default_address = %{
+        ReceiptCounterContract.EventFilters.set_called(nil)
+        | default_address: @value_receiver
+      }
+
+      assert [] = Receipt.decode_logs(receipt, other_default_address)
     end
 
     test "batch returns receipts" do

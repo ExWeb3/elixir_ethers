@@ -111,7 +111,7 @@ A function with several return values gives `{:ok, [value1, value2]}`.
 
 In IEx, the struct prints as a readable description of the call:
 
-```text
+```elixir
 iex> MyToken.balance_of(holder)
 #Ethers.TxData<
   function balanceOf(

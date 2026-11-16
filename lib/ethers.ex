@@ -223,7 +223,7 @@ defmodule Ethers do
 
   The transaction is decoded with `Ethers.Transaction.from_rpc_map/1`: a transaction of a type
   that is not registered (for example an OP-stack deposit transaction, type `0x7e`) is returned as
-  a read-only `Ethers.Transaction.Unknown`.
+  an `Ethers.Transaction.Unknown` holding the RPC map in `rpc_map`.
 
   ## Parameters
   - tx_hash: Transaction hash which the transaction is queried for.

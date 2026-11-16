@@ -14,8 +14,7 @@ defmodule Ethers.TransactionUnknownTest.Fixtures do
       "gas" => "0xf4240",
       "gasPrice" => "0x0",
       "hash" => "0x47b7a389d253158f3f2cb367dfd23eba2f95f641a3b671651515a673628d7c50",
-      "input" =>
-        "0x3db6be2b0000146b000f79c50000000000000004000000006afa1e4b0000000001932ec2000000000000000000000000000000000000000000000000000000000ae177c70000000000000000000000000000000000000000000000000000000000970e30bdc4f20ce549b2f6595461719afda17cdc4346bf97556858c6a32e62ef015a5c0000000000000000000000006887246668a3b87f54deb3b94ba47a6f63f329850000000000000000000000000190",
+      "input" => deposit_input(),
       "mint" => "0x0",
       "nonce" => "0x33d601b",
       "r" => "0x0",
@@ -28,6 +27,17 @@ defmodule Ethers.TransactionUnknownTest.Fixtures do
       "value" => "0x0",
       "yParity" => "0x0"
     }
+  end
+
+  # The same transaction encoded as the spec defines it: 0x7e || rlp([sourceHash, from, to, mint,
+  # value, gas, isSystemTx, data]). Its keccak hash is the transaction hash above.
+  def raw_deposit_transaction do
+    "0x7ef90106a0817dce692d94a9f2a738f9856f0faf3a942260a5d51684a5ac3823f5f1542f4494deaddeaddeaddeaddeaddeaddeaddeaddead00019442000000000000000000000000000000000000158080830f424080b8b2" <>
+      String.trim_leading(deposit_input(), "0x")
+  end
+
+  def deposit_input do
+    "0x3db6be2b0000146b000f79c50000000000000004000000006afa1e4b0000000001932ec2000000000000000000000000000000000000000000000000000000000ae177c70000000000000000000000000000000000000000000000000000000000970e30bdc4f20ce549b2f6595461719afda17cdc4346bf97556858c6a32e62ef015a5c0000000000000000000000006887246668a3b87f54deb3b94ba47a6f63f329850000000000000000000000000190"
   end
 
   def deposit_transaction_hash, do: deposit_transaction()["hash"]
@@ -66,6 +76,7 @@ end
 defmodule Ethers.TransactionUnknownTest do
   use ExUnit.Case, async: true
 
+  alias Ethers.Signer
   alias Ethers.Transaction
   alias Ethers.Transaction.Metadata
   alias Ethers.Transaction.Unknown
@@ -74,36 +85,29 @@ defmodule Ethers.TransactionUnknownTest do
   alias Ethers.Utils
 
   @deposit_tx_hash "0x47b7a389d253158f3f2cb367dfd23eba2f95f641a3b671651515a673628d7c50"
+  @private_key "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
 
   describe "from_rpc_map/1 with an unregistered type" do
     test "returns an OP-stack deposit transaction as Unknown" do
       rpc_map = Fixtures.deposit_transaction()
 
-      assert {:ok, %Unknown{} = transaction} = Transaction.from_rpc_map(rpc_map)
+      assert {:ok, transaction} = Transaction.from_rpc_map(rpc_map)
 
       assert transaction == %Unknown{
                type_id: 0x7E,
-               hash: @deposit_tx_hash,
-               from: "0xDeaDDEaDDeAdDeAdDEAdDEaddeAddEAdDEAd0001",
-               to: "0x4200000000000000000000000000000000000015",
-               nonce: 54_353_947,
-               value: 0,
-               gas: 1_000_000,
-               input: Utils.hex_decode!(rpc_map["input"]),
-               chain_id: nil,
+               rpc_map: rpc_map,
+               raw_payload: nil,
                metadata: %Metadata{
                  block_hash: "0x79bc44f1be182bd534510b742f0faa2536a54c1027644d4b437dd736d3b3045f",
                  block_number: 159_588_978,
                  transaction_index: 0
-               },
-               raw: rpc_map
+               }
              }
 
-      assert transaction.raw["sourceHash"] ==
-               "0x817dce692d94a9f2a738f9856f0faf3a942260a5d51684a5ac3823f5f1542f44"
+      assert transaction.rpc_map["hash"] == @deposit_tx_hash
     end
 
-    test "decodes atom keys and keeps the original map" do
+    test "keeps a map with atom keys" do
       rpc_map =
         Map.new(Fixtures.deposit_transaction(), fn {key, value} ->
           {String.to_atom(key), value}
@@ -113,64 +117,23 @@ defmodule Ethers.TransactionUnknownTest do
         Transaction.from_rpc_map(Fixtures.deposit_transaction())
 
       assert {:ok, %Unknown{} = transaction} = Transaction.from_rpc_map(rpc_map)
-      assert transaction.raw == rpc_map
-      assert transaction.raw.mint == "0x0"
-      assert %Unknown{transaction | raw: nil} == %Unknown{from_string_keys | raw: nil}
+      assert transaction.rpc_map == rpc_map
+      assert transaction.metadata == from_string_keys.metadata
     end
 
-    test "leaves missing fields nil" do
-      rpc_map = %{"type" => "0x7e", "to" => nil}
-
-      assert {:ok, transaction} = Transaction.from_rpc_map(rpc_map)
-
-      assert transaction == %Unknown{
-               type_id: 0x7E,
-               metadata: %Metadata{},
-               raw: rpc_map
-             }
-    end
-
-    test "returns from and to EIP-55 checksummed in any input casing" do
-      from = "0xDeaDDEaDDeAdDeAdDEAdDEaddeAddEAdDEAd0001"
-      to = "0x70997970C51812dc3A010C7d01b50e0d17dc79C8"
-
-      for address_case <- [&String.downcase/1, &String.upcase/1, & &1] do
-        rpc_map = %{"type" => "0x7e", "from" => address_case.(from), "to" => address_case.(to)}
-
-        assert {:ok, %Unknown{from: ^from, to: ^to}} = Transaction.from_rpc_map(rpc_map)
+    test "leaves missing or invalid metadata nil" do
+      for rpc_map <- [
+            %{"type" => "0x7e"},
+            %{
+              "type" => "0x7e",
+              "blockHash" => "0x79bc44f1",
+              "blockNumber" => "latest",
+              "transactionIndex" => "0x-1"
+            }
+          ] do
+        assert {:ok, transaction} = Transaction.from_rpc_map(rpc_map)
+        assert transaction == %Unknown{type_id: 0x7E, rpc_map: rpc_map, metadata: %Metadata{}}
       end
-
-      assert {:ok, %Unknown{from: ^from, to: nil}} =
-               Transaction.from_rpc_map(%{"type" => "0x7e", "from" => from, "to" => nil})
-    end
-
-    test "reads input, or data when input is missing" do
-      assert {:ok, %Unknown{input: <<0xAB, 0xCD>>}} =
-               Transaction.from_rpc_map(%{"type" => "0x7e", "data" => "0xabcd"})
-
-      assert {:ok, %Unknown{input: ""}} =
-               Transaction.from_rpc_map(%{"type" => "0x7e", "input" => "0x", "data" => "0xabcd"})
-    end
-
-    test "leaves fields with invalid values nil and keeps them in raw" do
-      rpc_map = %{
-        "type" => "0x7e",
-        "hash" => "0x47b7a389",
-        "from" => "0xdeaddeaddeaddeaddeaddeaddeaddeaddead000g",
-        "to" => "4200000000000000000000000000000000000015",
-        "nonce" => "12",
-        "value" => "0xzz",
-        "gas" => 21_000,
-        "input" => "0xzz12",
-        "chainId" => "0x",
-        "blockHash" => 1,
-        "blockNumber" => "latest",
-        "transactionIndex" => "0x-1"
-      }
-
-      assert {:ok, transaction} = Transaction.from_rpc_map(rpc_map)
-
-      assert transaction == %Unknown{type_id: 0x7E, metadata: %Metadata{}, raw: rpc_map}
     end
 
     test "decodes any type id" do
@@ -225,23 +188,69 @@ defmodule Ethers.TransactionUnknownTest do
     end
   end
 
-  describe "read-only" do
-    setup do
-      {:ok, transaction} = Transaction.from_rpc_map(Fixtures.deposit_transaction())
-      %{transaction: transaction}
+  describe "decode/1 with an unregistered type" do
+    test "returns an OP-stack deposit transaction as Unknown" do
+      <<0x7E, raw_payload::binary>> = raw = Utils.hex_decode!(Fixtures.raw_deposit_transaction())
+
+      assert {:ok, transaction} = Transaction.decode(raw)
+      assert transaction == %Unknown{type_id: 0x7E, raw_payload: raw_payload}
+      assert {:ok, ^transaction} = Transaction.decode(Fixtures.raw_deposit_transaction())
+
+      rpc_map = Fixtures.deposit_transaction()
+
+      assert ExRLP.decode(raw_payload) == [
+               Utils.hex_decode!(rpc_map["sourceHash"]),
+               Utils.hex_decode!(rpc_map["from"]),
+               Utils.hex_decode!(rpc_map["to"]),
+               "",
+               "",
+               <<1_000_000::24>>,
+               "",
+               Utils.hex_decode!(rpc_map["input"])
+             ]
     end
 
-    test "encode/1 raises an ArgumentError", %{transaction: transaction} do
+    test "encodes back to the same bytes and hashes them" do
+      raw = Utils.hex_decode!(Fixtures.raw_deposit_transaction())
+      {:ok, transaction} = Transaction.decode(raw)
+
+      assert Transaction.encode(transaction) == raw
+      assert Transaction.transaction_hash(transaction) == @deposit_tx_hash
+
+      assert Transaction.transaction_hash(transaction, :bin) ==
+               Utils.hex_decode!(@deposit_tx_hash)
+    end
+
+    test "does not validate the payload" do
+      for raw <- [<<0x7E>>, <<0x71, 0xFF>>, <<0x7F, 0xC0, 0x00>>] do
+        <<type_id, raw_payload::binary>> = raw
+
+        assert {:ok, %Unknown{type_id: ^type_id, raw_payload: ^raw_payload} = transaction} =
+                 Transaction.decode(raw)
+
+        assert Transaction.encode(transaction) == raw
+      end
+    end
+  end
+
+  describe "unsupported operations" do
+    setup do
+      {:ok, from_rpc_map} = Transaction.from_rpc_map(Fixtures.deposit_transaction())
+      {:ok, decoded} = Transaction.decode(Fixtures.raw_deposit_transaction())
+      %{from_rpc_map: from_rpc_map, decoded: decoded}
+    end
+
+    test "encode/1 raises without raw_payload", %{from_rpc_map: transaction} do
       assert_raise ArgumentError,
-                   "Unsupported transaction type 0x7E: Ethers.Transaction.Unknown is read-only " <>
-                     "and cannot be encoded",
+                   "Unsupported transaction type 0x7E: Ethers.Transaction.Unknown without " <>
+                     "raw_payload cannot be encoded",
                    fn -> Transaction.encode(transaction) end
     end
 
-    test "transaction_hash/2 raises an ArgumentError", %{transaction: transaction} do
+    test "transaction_hash/2 raises without raw_payload", %{from_rpc_map: transaction} do
       message =
-        "Unsupported transaction type 0x7E: Ethers.Transaction.Unknown is read-only " <>
-          "and cannot be hashed"
+        "Unsupported transaction type 0x7E: Ethers.Transaction.Unknown without raw_payload " <>
+          ~s(cannot be hashed, the hash reported by the node is in rpc_map["hash"])
 
       for format <- [:hex, :bin] do
         assert_raise ArgumentError, message, fn ->
@@ -252,49 +261,66 @@ defmodule Ethers.TransactionUnknownTest do
       assert_raise ArgumentError, message, fn -> Transaction.transaction_hash(transaction) end
     end
 
-    test "to_rpc_map/1 raises an ArgumentError", %{transaction: transaction} do
-      assert_raise ArgumentError,
-                   "Unsupported transaction type 0x7E: Ethers.Transaction.Unknown is read-only " <>
-                     "and cannot be converted to an RPC map",
-                   fn -> Transaction.to_rpc_map(transaction) end
-    end
-
-    test "the protocol returns the type id and raises for the type envelope", %{
-      transaction: transaction
-    } do
-      assert Transaction.Protocol.type_id(transaction) == 0x7E
-
-      assert_raise ArgumentError, ~r/^Unsupported transaction type 0x7E: /, fn ->
-        Transaction.Protocol.type_envelope(transaction)
+    test "to_rpc_map/1 raises", %{from_rpc_map: from_rpc_map, decoded: decoded} do
+      for transaction <- [from_rpc_map, decoded] do
+        assert_raise ArgumentError,
+                     "Unsupported transaction type 0x7E: Ethers.Transaction.Unknown cannot be " <>
+                       "converted to an RPC map",
+                     fn -> Transaction.to_rpc_map(transaction) end
       end
     end
-  end
 
-  test "decode/1 still rejects raw transactions of an unregistered type" do
-    assert {:error, :unsupported_transaction_type} = Transaction.decode(<<0x7E, 0xC0>>)
+    test "signing raises", %{from_rpc_map: from_rpc_map, decoded: decoded} do
+      assert_raise ArgumentError,
+                   "Unsupported transaction type 0x7E: Ethers.Transaction.Unknown cannot be " <>
+                     "signed or converted to an RLP list",
+                   fn ->
+                     Signer.Local.sign_transaction(decoded, private_key: @private_key)
+                   end
+
+      assert_raise ArgumentError, ~r/^Unsupported transaction type 0x7E: /, fn ->
+        Signer.Local.sign_transaction(from_rpc_map, private_key: @private_key)
+      end
+
+      for transaction <- [from_rpc_map, decoded] do
+        assert_raise ArgumentError, ~r/cannot be converted to an RPC map$/, fn ->
+          Signer.JsonRPC.sign_transaction(transaction, [])
+        end
+      end
+    end
+
+    test "the protocol returns the type id and envelope", %{decoded: transaction} do
+      assert Transaction.Protocol.type_id(transaction) == 0x7E
+      assert Transaction.Protocol.type_envelope(transaction) == <<0x7E>>
+
+      assert_raise ArgumentError,
+                   "Unsupported transaction type 0x100: not an EIP-2718 transaction type",
+                   fn -> Transaction.Protocol.type_envelope(%Unknown{type_id: 0x100}) end
+    end
   end
 
   describe "Ethers.get_transaction/2" do
     test "returns an Unknown for an unregistered type" do
-      assert {:ok, %Unknown{type_id: 0x7E, hash: @deposit_tx_hash} = transaction} =
+      assert {:ok, %Unknown{type_id: 0x7E} = transaction} =
                Ethers.get_transaction(@deposit_tx_hash,
                  rpc_client: DepositRPC,
                  rpc_opts: [send_params_to_pid: self()]
                )
 
       assert_received {:eth_get_transaction_by_hash, @deposit_tx_hash}
-      assert transaction.raw == Fixtures.deposit_transaction()
+      assert transaction.rpc_map == Fixtures.deposit_transaction()
 
       assert Ethers.get_transaction!(@deposit_tx_hash, rpc_client: DepositRPC) == transaction
     end
 
     test "returns an Unknown in batch requests" do
-      assert {:ok, [ok: %Unknown{type_id: 0x7E, hash: @deposit_tx_hash}]} =
+      assert {:ok, [ok: %Unknown{type_id: 0x7E, rpc_map: rpc_map}]} =
                Ethers.batch([{:get_transaction, @deposit_tx_hash}],
                  rpc_client: DepositRPC,
                  rpc_opts: [send_params_to_pid: self()]
                )
 
+      assert rpc_map == Fixtures.deposit_transaction()
       assert_received {:batch_request, [{:eth_get_transaction_by_hash, [@deposit_tx_hash]}]}
     end
   end

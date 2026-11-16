@@ -1,116 +1,86 @@
 defmodule Ethers.Transaction.Unknown do
   @moduledoc """
-  Read-only transaction of a type that is not registered, as read from a JSON-RPC response.
+  Transaction of a type that is not registered, kept undecoded.
 
-  `Ethers.Transaction.from_rpc_map/1`, and so `Ethers.get_transaction/2`, return this struct for
-  a transaction type without a registered module, like the chain specific types of L2s (for
-  example OP-stack deposit transactions, type `0x7e`). The fields every transaction has are
-  decoded where present and `raw` keeps the original map for the type specific fields.
+  Without the type's layout only the type id is known, so this struct keeps the transaction as it
+  was read for the type specific code to use. It is returned for a transaction type without a
+  registered module, like the chain specific types of L2s (for example OP-stack deposit
+  transactions, type `0x7e`):
+
+  - `Ethers.Transaction.from_rpc_map/1`, and so `Ethers.get_transaction/2`, keep the JSON-RPC
+    transaction object in `rpc_map` and its block metadata in `metadata`.
+  - `Ethers.Transaction.decode/1` keeps the
+    [EIP-2718](https://eips.ethereum.org/EIPS/eip-2718) `TransactionPayload` (the bytes after the
+    type byte) in `raw_payload`.
 
   ```elixir
-  {:ok, %Ethers.Transaction.Unknown{type_id: 0x7E} = transaction} =
+  {:ok, %Ethers.Transaction.Unknown{type_id: 0x7E, rpc_map: rpc_map}} =
     Ethers.get_transaction(tx_hash)
 
-  transaction.from
-  #=> "0xDeaDDEaDDeAdDeAdDEAdDEaddeAddEAdDEAd0001"
+  rpc_map["from"]
+  #=> "0xdeaddeaddeaddeaddeaddeaddeaddeaddead0001"
 
-  transaction.raw["sourceHash"]
+  rpc_map["sourceHash"]
   #=> "0x817dce692d94a9f2a738f9856f0faf3a942260a5d51684a5ac3823f5f1542f44"
   ```
 
-  Without the type's layout the transaction cannot be encoded, so `Ethers.Transaction.encode/1`,
-  `Ethers.Transaction.transaction_hash/2` and `Ethers.Transaction.to_rpc_map/1` raise
-  `ArgumentError` for it. Its `hash` and `from` are the ones reported by the node.
+  A transaction decoded from bytes encodes back to the same bytes with
+  `Ethers.Transaction.encode/1`, and `Ethers.Transaction.transaction_hash/2` returns the keccak
+  hash of them. One read from an RPC map cannot be encoded or hashed (the hash reported by the
+  node is in `rpc_map["hash"]`), and neither can be signed or converted with
+  `Ethers.Transaction.to_rpc_map/1`: these raise `ArgumentError`.
 
   Types listed in the compile-time `:transaction_types` config of `:ethers` are decoded by their
   module instead.
   """
 
   alias Ethers.Transaction.Metadata
-  alias Ethers.Types
   alias Ethers.Utils
 
-  @enforce_keys [:type_id, :raw]
-  defstruct [
-    :type_id,
-    :hash,
-    :from,
-    :to,
-    :nonce,
-    :value,
-    :gas,
-    :input,
-    :chain_id,
-    :metadata,
-    :raw
-  ]
+  @enforce_keys [:type_id]
+  defstruct [:type_id, :rpc_map, :raw_payload, :metadata]
 
   @typedoc """
   A transaction of an unregistered type with the following fields:
   - `type_id` - the transaction type (e.g. `0x7E`)
-  - `hash` - transaction hash, as reported by the node
-  - `from` - sender address (EIP-55 checksummed), as reported by the node
-  - `to` - destination address (EIP-55 checksummed), nil for contract creation
-  - `nonce` - sequence number for the transaction from this sender
-  - `value` - amount of ether (in wei) to transfer
-  - `gas` - maximum amount of gas allowed for transaction execution
-  - `input` - data payload of the transaction
-  - `chain_id` - chain ID of network where the transaction is executed
-  - `metadata` - block metadata (block hash, block number and transaction index), like
-    `Ethers.Transaction.Signed` carries for registered types
-  - `raw` - the original JSON-RPC map, unchanged
-
-  A field is nil when the map does not have it or its value is not valid for the field (the value
-  is still in `raw`). The signature (`r`, `s`, `v` and `yParity`) is only kept in `raw`: it may be
-  missing or a placeholder (OP-stack deposit transactions report zeros) and cannot be verified
-  without the type's signing payload.
+  - `rpc_map` - the JSON-RPC transaction object, unchanged (addresses keep the node's casing),
+    when read with `Ethers.Transaction.from_rpc_map/1`
+  - `raw_payload` - the EIP-2718 `TransactionPayload`, undecoded, when read with
+    `Ethers.Transaction.decode/1`
+  - `metadata` - block metadata (block hash, block number and transaction index) from the RPC
+    map, like `Ethers.Transaction.Signed` carries for registered types. A value that is missing or
+    not valid for its field is nil (it is still in `rpc_map`)
   """
   @type t :: %__MODULE__{
           type_id: non_neg_integer(),
-          hash: Types.t_hash() | nil,
-          from: Types.t_address() | nil,
-          to: Types.t_address() | nil,
-          nonce: non_neg_integer() | nil,
-          value: non_neg_integer() | nil,
-          gas: non_neg_integer() | nil,
-          input: binary() | nil,
-          chain_id: non_neg_integer() | nil,
-          metadata: Metadata.t() | nil,
-          raw: map()
+          rpc_map: map() | nil,
+          raw_payload: binary() | nil,
+          metadata: Metadata.t() | nil
         }
 
   @doc false
   @spec from_rpc_map(map(), non_neg_integer()) :: t()
-  def from_rpc_map(tx, type_id) do
+  def from_rpc_map(rpc_map, type_id) do
     %__MODULE__{
       type_id: type_id,
-      hash: tx |> from_map_value(:hash) |> decode_hash(),
-      from: tx |> from_map_value(:from) |> decode_address(),
-      to: tx |> from_map_value(:to) |> decode_address(),
-      nonce: tx |> from_map_value(:nonce) |> decode_quantity(),
-      value: tx |> from_map_value(:value) |> decode_quantity(),
-      gas: tx |> from_map_value(:gas) |> decode_quantity(),
-      input: decode_data(from_map_value(tx, :input)) || decode_data(from_map_value(tx, :data)),
-      chain_id: tx |> from_map_value(:chainId) |> decode_quantity(),
+      rpc_map: rpc_map,
       metadata: %Metadata{
-        block_hash: tx |> from_map_value(:blockHash) |> decode_hash(),
-        block_number: tx |> from_map_value(:blockNumber) |> decode_quantity(),
-        transaction_index: tx |> from_map_value(:transactionIndex) |> decode_quantity()
-      },
-      raw: tx
+        block_hash: rpc_map |> from_map_value(:blockHash) |> decode_hash(),
+        block_number: rpc_map |> from_map_value(:blockNumber) |> decode_quantity(),
+        transaction_index: rpc_map |> from_map_value(:transactionIndex) |> decode_quantity()
+      }
     }
   end
 
   @doc false
-  @spec raise_read_only(t(), String.t()) :: no_return()
-  def raise_read_only(%__MODULE__{type_id: type_id}, operation) do
+  @spec raise_unsupported(t(), String.t()) :: no_return()
+  def raise_unsupported(%__MODULE__{type_id: type_id}, reason) do
     raise ArgumentError,
-          "Unsupported transaction type #{Utils.integer_to_hex(type_id)}: " <>
-            "#{inspect(__MODULE__)} is read-only and cannot be #{operation}"
+          "Unsupported transaction type #{Utils.integer_to_hex(type_id)}: #{reason}"
   end
 
-  defp from_map_value(tx, key) do
-    Map.get_lazy(tx, key, fn -> Map.get(tx, to_string(key)) end)
+  defp from_map_value(rpc_map, key) do
+    Map.get_lazy(rpc_map, key, fn -> Map.get(rpc_map, to_string(key)) end)
   end
 
   defp decode_quantity("0x" <> _ = quantity) do
@@ -122,27 +92,11 @@ defmodule Ethers.Transaction.Unknown do
 
   defp decode_quantity(_invalid), do: nil
 
-  defp decode_data("0x" <> _ = data) do
-    case Utils.hex_decode(data) do
-      {:ok, binary} -> binary
-      :error -> nil
-    end
-  end
-
-  defp decode_data(_invalid), do: nil
-
-  defp decode_address(<<prefix::binary-2, hex::binary-40>> = address)
-       when prefix in ["0x", "0X"] do
+  defp decode_hash(<<"0x", hex::binary-64>> = hash) do
     case Utils.hex_decode(hex) do
-      {:ok, _address_bin} -> Utils.to_checksum_address(address)
+      {:ok, _hash_bin} -> hash
       :error -> nil
     end
-  end
-
-  defp decode_address(_invalid), do: nil
-
-  defp decode_hash(<<"0x", _hex::binary-64>> = hash) do
-    if decode_data(hash), do: hash
   end
 
   defp decode_hash(_invalid), do: nil
@@ -150,10 +104,17 @@ defmodule Ethers.Transaction.Unknown do
   defimpl Ethers.Transaction.Protocol do
     def type_id(transaction), do: transaction.type_id
 
-    @dialyzer {:no_return, {:type_envelope, 1}}
-    def type_envelope(transaction), do: @for.raise_read_only(transaction, "encoded")
+    def type_envelope(%{type_id: type_id}) when type_id in 0..0x7F, do: <<type_id>>
+
+    def type_envelope(transaction),
+      do: @for.raise_unsupported(transaction, "not an EIP-2718 transaction type")
 
     @dialyzer {:no_return, {:to_rlp_list, 2}}
-    def to_rlp_list(transaction, _mode), do: @for.raise_read_only(transaction, "encoded")
+    def to_rlp_list(transaction, _mode) do
+      @for.raise_unsupported(
+        transaction,
+        "#{inspect(@for)} cannot be signed or converted to an RLP list"
+      )
+    end
   end
 end

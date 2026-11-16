@@ -49,6 +49,17 @@ defmodule Ethers.ContractHelpersTest do
     end
   end
 
+  describe "document_eth_transfer_logs/1" do
+    test "warns on Transfer(address,address,uint256) event filters only" do
+      assert event_filter_doc(Ethers.Contracts.ERC20.EventFilters, :transfer, 2) =~ "EIP-7708"
+      assert event_filter_doc(Ethers.Contracts.ERC777.EventFilters, :transfer, 2) =~ "EIP-7708"
+      assert event_filter_doc(Ethers.Contracts.ERC721.EventFilters, :transfer, 3) =~ "EIP-7708"
+
+      refute event_filter_doc(Ethers.Contracts.ERC20.EventFilters, :approval, 2) =~ "EIP-7708"
+      refute event_filter_doc(Ethers.Contracts.ERC777.EventFilters, :sent, 3) =~ "EIP-7708"
+    end
+  end
+
   describe "generate_arguments" do
     test "works with correct names" do
       assert [{:amount, [], _}, {:sender, [], _}] =
@@ -115,5 +126,14 @@ defmodule Ethers.ContractHelpersTest do
                  types: [{:uint, 256}, :address]
                })
     end
+  end
+
+  defp event_filter_doc(module, function, arity) do
+    {:docs_v1, _, _, _, _, _, docs} = Code.fetch_docs(module)
+
+    Enum.find_value(docs, fn
+      {{:function, ^function, ^arity}, _, _, %{"en" => doc}, _} -> doc
+      _ -> nil
+    end)
   end
 end

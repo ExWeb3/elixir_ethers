@@ -26,6 +26,8 @@
 - Warn about gas limits above the [EIP-7825](https://eips.ethereum.org/EIPS/eip-7825) cap, enforce a cap with `:max_transaction_gas`
 - Add `Ethers.Receipt` struct with decoded transaction receipt fields
 - Add `Ethers.Receipt.decode_logs/2` to decode receipt logs with event filters
+- Add `Ethers.Event.eth_transfer_log?/1` and `Ethers.Event.system_address/0` to identify [EIP-7708](https://eips.ethereum.org/EIPS/eip-7708) ETH transfer logs
+- Document that `Transfer` event filters also match EIP-7708 ETH transfer logs
 
 ### Bug Fixes
 

@@ -17,10 +17,12 @@ Thank you for your interest in contributing to Elixir Ethers! We welcome contrib
 
 1. Ensure you have Elixir installed
 2. Clone the repository
-3. Install and Run `anvil` (From https://getfoundry.sh/)
-4. Install dependencies with `mix deps.get`
-5. Prepare the tests (only needs to be ran once) with `mix run test/test_prepare.exs`
-6. Run tests with `mix test`
+3. Install [`solc`](https://docs.soliditylang.org/en/latest/installing-solidity.html) and
+   [`jq`](https://jqlang.org/). They compile the test contracts.
+4. Install [Foundry](https://getfoundry.sh/) and run `anvil` in a separate terminal
+5. Install dependencies with `mix deps.get`
+6. Run tests with `mix test`. This compiles the test contracts first
+   (`mix run test/test_prepare.exs`), so there is no separate preparation step.
 
 ## Pull Request Guidelines
 

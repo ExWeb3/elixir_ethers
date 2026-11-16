@@ -109,9 +109,16 @@ defmodule Ethers.MixProject do
         ]
       ],
       logo: "assets/exdoc_logo.png",
+      before_closing_head_tag: &before_closing_head_tag/1,
       markdown_processor: {ExDoc.Markdown.Earmark, footnotes: true}
     ]
   end
+
+  # Points agents at the generated llms.txt index (see https://llmstxt.org).
+  defp before_closing_head_tag(:html),
+    do: ~s(<link rel="describedby" type="text/plain" href="llms.txt">)
+
+  defp before_closing_head_tag(_), do: ""
 
   def dialyzer do
     [flags: [:error_handling, :extra_return, :underspecs, :unknown, :unmatched_returns]]

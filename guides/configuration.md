@@ -70,6 +70,10 @@ Module for Keccak-256 hashing operations. Uses `ExKeccak` by default.
 config :ethers, keccak_module: ExKeccak
 ```
 
+`ExKeccak` is a Rustler NIF. If your target cannot build or load it, set `:keccak_module` to a
+module of your own that exports `hash_256/1`, and set the environment variable
+`SKIP_EX_KECCAK=true` when fetching and compiling dependencies.
+
 ### JSON Module `json_module`
 
 Handles JSON encoding/decoding. Uses `Jason` by default.

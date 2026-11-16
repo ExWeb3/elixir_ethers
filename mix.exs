@@ -1,28 +1,3 @@
-defmodule Ethers.DocsMarkdown do
-  @moduledoc false
-  # ExDoc markdown processor which renders GitHub alerts (`> [!NOTE]`) as ExDoc admonitions,
-  # so the same README callouts are styled on GitHub, Hex.pm and HexDocs.
-
-  @alerts %{
-    "NOTE" => {"Note", "info"},
-    "TIP" => {"Tip", "tip"},
-    "IMPORTANT" => {"Important", "info"},
-    "WARNING" => {"Warning", "warning"},
-    "CAUTION" => {"Caution", "error"}
-  }
-
-  def available?, do: ExDoc.Markdown.Earmark.available?()
-
-  def to_ast(text, opts) do
-    ~r/^([ \t]*)> \[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\][ \t]*$/m
-    |> Regex.replace(text, fn _, indent, kind ->
-      {title, class} = Map.fetch!(@alerts, kind)
-      "#{indent}> #### #{title} {: .#{class}}\n#{indent}>"
-    end)
-    |> ExDoc.Markdown.Earmark.to_ast(opts)
-  end
-end
-
 defmodule Ethers.MixProject do
   use Mix.Project
 
@@ -76,7 +51,7 @@ defmodule Ethers.MixProject do
         "Changelog" => Path.join(@source_url, "/blob/main/CHANGELOG.md")
       },
       maintainers: ["Alisina Bahadori"],
-      files: ["lib", "priv", "mix.exs", "README*", "LICENSE*", "CHANGELOG*"]
+      files: ~w(lib priv guides mix.exs README* LICENSE* CHANGELOG* usage-rules.md usage-rules)
     ]
   end
 
@@ -89,15 +64,28 @@ defmodule Ethers.MixProject do
       end
 
     [
-      main: "readme",
-      extras: [
-        "README.md": [title: "Introduction"],
-        "CHANGELOG.md": [title: "Changelog"],
-        "guides/typed-arguments.md": [title: "Typed Arguments"],
-        "guides/eip-712.md": [title: "EIP-712 Typed Data"],
-        "guides/siwe.md": [title: "Sign-In with Ethereum"],
-        "guides/configuration.md": [title: "Configuration"],
-        "guides/upgrading.md": [title: "Upgrading"]
+      main: "getting-started",
+      extras:
+        [
+          "guides/getting-started.md": [title: "Getting Started"],
+          "guides/tour.livemd": [title: "Interactive Tour"],
+          "guides/cheatsheet.cheatmd": [title: "Cheatsheet"],
+          "guides/contracts.md": [title: "Contracts"],
+          "guides/transactions.md": [title: "Transactions"],
+          "guides/events.md": [title: "Events"],
+          "guides/signing.md": [title: "Signing and Verification"],
+          "guides/eip-712.md": [title: "EIP-712 Typed Data"],
+          "guides/siwe.md": [title: "Sign-In with Ethereum"],
+          "guides/typed-arguments.md": [title: "Typed Arguments"],
+          "guides/configuration.md": [title: "Configuration"],
+          "guides/upgrading.md": [title: "Upgrading"],
+          "CHANGELOG.md": [title: "Changelog"]
+        ] ++ extra_docs(),
+      groups_for_extras: [
+        Introduction: ~w(guides/getting-started.md guides/tour.livemd guides/cheatsheet.cheatmd),
+        Guides: ~w(guides/contracts.md guides/transactions.md guides/events.md guides/signing.md
+             guides/eip-712.md guides/siwe.md guides/typed-arguments.md guides/configuration.md),
+        About: ~w(guides/upgrading.md CHANGELOG.md)
       ],
       source_url: @source_url,
       source_ref: source_ref,
@@ -135,8 +123,19 @@ defmodule Ethers.MixProject do
       ],
       logo: "assets/exdoc_logo.png",
       before_closing_head_tag: &before_closing_head_tag/1,
-      markdown_processor: {Ethers.DocsMarkdown, footnotes: true}
+      markdown_processor: {ExDoc.Markdown.Earmark, footnotes: true}
     ]
+  end
+
+  # Extra pages to run through the docs build, as a comma separated list of globs. Used to
+  # check that the functions mentioned in the usage rules exist:
+  #
+  #     EXTRA_DOCS="usage-rules.md,usage-rules/*.md" mix docs
+  defp extra_docs do
+    "EXTRA_DOCS"
+    |> System.get_env("")
+    |> String.split(",", trim: true)
+    |> Enum.flat_map(&Path.wildcard/1)
   end
 
   # Points agents at the generated llms.txt index (see https://llmstxt.org).

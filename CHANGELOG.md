@@ -26,6 +26,8 @@
 - Warn about gas limits above the [EIP-7825](https://eips.ethereum.org/EIPS/eip-7825) cap, enforce a cap with `:max_transaction_gas`
 - Add `Ethers.Receipt` struct with decoded transaction receipt fields
 - Add `Ethers.Receipt.decode_logs/2` to decode receipt logs with event filters
+- Restructure the documentation into a shorter README, topic guides, a cheatsheet and a Livebook tour
+- Add `usage-rules.md` for coding agents and ship the guides in the package
 
 ### Bug Fixes
 

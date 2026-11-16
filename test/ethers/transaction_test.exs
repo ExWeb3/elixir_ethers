@@ -336,10 +336,19 @@ defmodule Ethers.TransactionTest do
       assert {:error, :invalid_rlp} = Transaction.decode(<<2>> <> legacy_tx <> <<0xC0>>)
     end
 
-    test "returns error for an unsupported transaction type" do
-      for {_type, fields} <- @unsigned_transactions, type <- [0x00, 0x05, 0x7E, 0x7F] do
+    test "returns an Unknown for an unregistered transaction type" do
+      for {_type, fields} <- @unsigned_transactions, type <- [0x05, 0x7E, 0x7F] do
+        payload = ExRLP.encode(fields)
+
+        assert {:ok, %Transaction.Unknown{type_id: ^type, raw_payload: ^payload}} =
+                 Transaction.decode(<<type>> <> payload)
+      end
+    end
+
+    test "returns error for a 0x00 type byte" do
+      for {_type, fields} <- @unsigned_transactions do
         assert {:error, :unsupported_transaction_type} =
-                 Transaction.decode(<<type>> <> ExRLP.encode(fields))
+                 Transaction.decode(<<0x00>> <> ExRLP.encode(fields))
       end
     end
 

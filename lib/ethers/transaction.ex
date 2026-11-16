@@ -21,6 +21,9 @@ defmodule Ethers.Transaction do
     (type 4) transactions
 
   Signed transactions of any type are wrapped in `Ethers.Transaction.Signed`.
+
+  Transactions of any other type (for example OP-stack deposit transactions, type `0x7e`) read
+  with `from_rpc_map/1` or `decode/1` are returned undecoded as `Ethers.Transaction.Unknown`.
   """
 
   alias Ethers.Authorization
@@ -32,6 +35,7 @@ defmodule Ethers.Transaction do
   alias Ethers.Transaction.Metadata
   alias Ethers.Transaction.Protocol, as: TxProtocol
   alias Ethers.Transaction.Signed
+  alias Ethers.Transaction.Unknown
   alias Ethers.Utils
 
   require Logger
@@ -69,7 +73,7 @@ defmodule Ethers.Transaction do
   @typedoc """
   EVM Transaction type
   """
-  @type t :: t_payload() | Signed.t()
+  @type t :: t_payload() | Signed.t() | Unknown.t()
 
   @typedoc """
   EVM Transaction payload type
@@ -243,6 +247,10 @@ defmodule Ethers.Transaction do
   `decode/1` reads back as the unsigned transaction). EIP-4844 transactions are encoded without
   a blob sidecar (see `Ethers.Transaction.Eip4844`).
 
+  An `Ethers.Transaction.Unknown` transaction is encoded as its type byte followed by its
+  `raw_payload`, the bytes it was decoded from. One without `raw_payload` (read with
+  `from_rpc_map/1`) raises `ArgumentError`.
+
   ## Parameters
     - `transaction` - Transaction struct to encode
 
@@ -250,6 +258,16 @@ defmodule Ethers.Transaction do
     - `binary` - RLP encoded transaction with appropriate type envelope
   """
   @spec encode(t()) :: binary()
+  def encode(%Unknown{raw_payload: raw_payload} = transaction) when is_binary(raw_payload),
+    do: TxProtocol.type_envelope(transaction) <> raw_payload
+
+  def encode(%Unknown{} = transaction) do
+    Unknown.raise_unsupported(
+      transaction,
+      "#{inspect(Unknown)} without raw_payload cannot be encoded"
+    )
+  end
+
   def encode(%mod{} = transaction) do
     mode = if mod == Signed, do: :payload, else: :hash
 
@@ -269,6 +287,10 @@ defmodule Ethers.Transaction do
   struct. EIP-4844 transactions are decoded from the transaction envelope only (without a blob
   sidecar). Malformed input returns an error instead of raising.
 
+  A first byte in `0x01..0x7f` that is not a registered transaction type (for example an
+  OP-stack deposit transaction, type `0x7e`) returns an `Ethers.Transaction.Unknown` with the
+  rest of the bytes, undecoded and unvalidated, in `raw_payload`.
+
   ## Parameters
     - `raw_transaction` - Raw transaction data as a binary or hex string starting with "0x"
 
@@ -277,8 +299,8 @@ defmodule Ethers.Transaction do
     - `{:error, reason}` - The input is not a valid transaction, with `reason` one of:
       - `:invalid_hex` - invalid hex string
       - `:invalid_rlp` - invalid RLP, or trailing bytes after the transaction
-      - `:unsupported_transaction_type` - a first byte in `0x00..0x7f` that is not a
-        registered transaction type
+      - `:unsupported_transaction_type` - a first byte of `0x00` (legacy transactions have no
+        type byte)
       - `:transaction_decode_failed` - fields of the wrong shape, kind or size
       - `:invalid_address` - a `to` address that is not 20 bytes
       - `:missing_to_address` - an EIP-7702 transaction without `to`
@@ -294,10 +316,18 @@ defmodule Ethers.Transaction do
   end
 
   def decode(raw_transaction_bin) when is_binary(raw_transaction_bin) do
-    with {:ok, module, rlp_binary} <- split_type_envelope(raw_transaction_bin),
-         {:ok, rlp_list} <- decode_rlp_list(rlp_binary),
-         {:ok, transaction, signature} <- module.from_rlp_list(rlp_list) do
-      maybe_decode_signature(transaction, signature)
+    case split_type_envelope(raw_transaction_bin) do
+      {:ok, Unknown, type_id, raw_payload} ->
+        {:ok, %Unknown{type_id: type_id, raw_payload: raw_payload}}
+
+      {:ok, module, rlp_binary} ->
+        with {:ok, rlp_list} <- decode_rlp_list(rlp_binary),
+             {:ok, transaction, signature} <- module.from_rlp_list(rlp_list) do
+          maybe_decode_signature(transaction, signature)
+        end
+
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 
@@ -310,9 +340,12 @@ defmodule Ethers.Transaction do
       do: {:ok, unquote(module), rest}
   end)
 
-  # EIP-2718: a first byte in 0x00..0x7f is a transaction type, a legacy transaction is an RLP list
-  defp split_type_envelope(<<type, _rest::binary>>) when type <= 0x7F,
-    do: {:error, :unsupported_transaction_type}
+  # EIP-2718: a first byte in 0x00..0x7f is a transaction type, a legacy transaction is an RLP list.
+  # Type 0 is legacy, which has no type byte.
+  defp split_type_envelope(<<0, _rest::binary>>), do: {:error, :unsupported_transaction_type}
+
+  defp split_type_envelope(<<type, raw_payload::binary>>) when type <= 0x7F,
+    do: {:ok, Unknown, type, raw_payload}
 
   defp split_type_envelope(legacy_transaction), do: {:ok, Legacy, legacy_transaction}
 
@@ -360,9 +393,23 @@ defmodule Ethers.Transaction do
   ## Returns Either
   - `binary` - Transaction hash in binary format (when `format` is `:bin`)
   - `String.t()` - Transaction hash in hex format prefixed with "0x" (when `format` is `:hex`)
+
+  The hash of an `Ethers.Transaction.Unknown` transaction is the keccak hash of its encoding
+  (see `encode/1`). One without `raw_payload` (read with `from_rpc_map/1`) raises
+  `ArgumentError`, the hash reported by the node is in its `rpc_map`.
   """
   @spec transaction_hash(t(), :bin | :hex) :: binary() | String.t()
-  def transaction_hash(transaction, format \\ :hex) do
+  def transaction_hash(transaction, format \\ :hex)
+
+  def transaction_hash(%Unknown{raw_payload: nil} = transaction, _format) do
+    Unknown.raise_unsupported(
+      transaction,
+      ~s(#{inspect(Unknown)} without raw_payload cannot be hashed, ) <>
+        ~s(the hash reported by the node is in rpc_map["hash"])
+    )
+  end
+
+  def transaction_hash(transaction, format) do
     hash_bin =
       transaction
       |> encode()
@@ -379,46 +426,56 @@ defmodule Ethers.Transaction do
 
   Handles different field naming conventions and transaction types.
 
+  A transaction of a type that is not registered (for example an OP-stack deposit transaction,
+  type `0x7e`) is returned as an `Ethers.Transaction.Unknown` holding the map, unchanged, in
+  `rpc_map` and its block metadata in `metadata`.
+
   ## Parameters
     - `tx` - Map containing transaction data. Keys can be camelCase strings or atoms.
     (e.g `:chainId`, `"gasPrice"`)
 
   ## Returns
     - `{:ok, transaction}` - Converted transaction struct
-    - `{:error, :unsupported_type}` - If transaction type is not supported
+    - `{:error, :invalid_type}` - If the transaction type is not a hex quantity
     - `{:error, reason}` - If transaction fields are missing or invalid (see `new/1`)
   """
-  @spec from_rpc_map(map()) :: {:ok, t()} | {:error, :unsupported_type | term()}
+  @spec from_rpc_map(map()) :: {:ok, t()} | {:error, term()}
   def from_rpc_map(tx) do
-    with {:ok, type} <- decode_type(from_map_value(tx, :type)) do
-      # Convert from RPC-style field names to EVM field names.
-      new(%{
-        access_list: tx |> from_map_value(:accessList) |> from_rpc_access_list(),
-        authorization_list:
-          tx |> from_map_value(:authorizationList) |> from_rpc_authorization_list(),
-        blob_versioned_hashes:
-          tx |> from_map_value(:blobVersionedHashes) |> from_rpc_blob_versioned_hashes(),
-        block_hash: from_map_value(tx, :blockHash),
-        block_number: from_map_value_int(tx, :blockNumber),
-        chain_id: from_map_value_int(tx, :chainId),
-        input: from_map_value_bin(tx, :input) || from_map_value_bin(tx, :data) || "",
-        from: from_map_value(tx, :from),
-        gas: from_map_value_int(tx, :gas),
-        gas_price: from_map_value_int(tx, :gasPrice),
-        hash: from_map_value(tx, :hash),
-        max_fee_per_blob_gas: from_map_value_int(tx, :maxFeePerBlobGas),
-        max_fee_per_gas: from_map_value_int(tx, :maxFeePerGas),
-        max_priority_fee_per_gas: from_map_value_int(tx, :maxPriorityFeePerGas),
-        nonce: from_map_value_int(tx, :nonce),
-        signature_r: from_map_value_bin(tx, :r),
-        signature_s: from_map_value_bin(tx, :s),
-        signature_y_parity_or_v: from_map_value_int(tx, :yParity) || from_map_value_int(tx, :v),
-        to: from_map_value(tx, :to),
-        transaction_index: from_map_value_int(tx, :transactionIndex),
-        value: from_map_value_int(tx, :value),
-        type: type
-      })
+    case decode_type(from_map_value(tx, :type)) do
+      {:ok, Unknown, type_id} -> {:ok, Unknown.from_rpc_map(tx, type_id)}
+      {:ok, type} -> new(rpc_map_to_params(tx, type))
+      {:error, reason} -> {:error, reason}
     end
+  end
+
+  # Converts from RPC-style field names to EVM field names
+  defp rpc_map_to_params(tx, type) do
+    %{
+      access_list: tx |> from_map_value(:accessList) |> from_rpc_access_list(),
+      authorization_list:
+        tx |> from_map_value(:authorizationList) |> from_rpc_authorization_list(),
+      blob_versioned_hashes:
+        tx |> from_map_value(:blobVersionedHashes) |> from_rpc_blob_versioned_hashes(),
+      block_hash: from_map_value(tx, :blockHash),
+      block_number: from_map_value_int(tx, :blockNumber),
+      chain_id: from_map_value_int(tx, :chainId),
+      input: from_map_value_bin(tx, :input) || from_map_value_bin(tx, :data) || "",
+      from: from_map_value(tx, :from),
+      gas: from_map_value_int(tx, :gas),
+      gas_price: from_map_value_int(tx, :gasPrice),
+      hash: from_map_value(tx, :hash),
+      max_fee_per_blob_gas: from_map_value_int(tx, :maxFeePerBlobGas),
+      max_fee_per_gas: from_map_value_int(tx, :maxFeePerGas),
+      max_priority_fee_per_gas: from_map_value_int(tx, :maxPriorityFeePerGas),
+      nonce: from_map_value_int(tx, :nonce),
+      signature_r: from_map_value_bin(tx, :r),
+      signature_s: from_map_value_bin(tx, :s),
+      signature_y_parity_or_v: from_map_value_int(tx, :yParity) || from_map_value_int(tx, :v),
+      to: from_map_value(tx, :to),
+      transaction_index: from_map_value_int(tx, :transactionIndex),
+      value: from_map_value_int(tx, :value),
+      type: type
+    }
   end
 
   @doc """
@@ -434,9 +491,18 @@ defmodule Ethers.Transaction do
   ## Returns
   - map containing transaction parameters with RPC field names and "0x" prefixed hex values
 
-  Raises `ArgumentError` if a field holds a value that has no JSON-RPC representation.
+  Raises `ArgumentError` if a field holds a value that has no JSON-RPC representation, and for an
+  `Ethers.Transaction.Unknown` transaction (one read with `from_rpc_map/1` keeps the map in
+  `rpc_map`).
   """
   @spec to_rpc_map(t()) :: map()
+  def to_rpc_map(%Unknown{} = transaction) do
+    Unknown.raise_unsupported(
+      transaction,
+      "#{inspect(Unknown)} cannot be converted to an RPC map"
+    )
+  end
+
   def to_rpc_map(%Signed{payload: payload} = signed_transaction) do
     payload
     |> to_rpc_map()
@@ -598,16 +664,23 @@ defmodule Ethers.Transaction do
 
   defp do_post_process(_key, {:error, reason}, _opts), do: {:error, reason}
 
-  defp decode_type("0x" <> _ = type), do: decode_type(Utils.hex_decode!(type))
+  defp decode_type(nil), do: {:ok, Legacy}
+
+  defp decode_type("0x" <> _ = type) do
+    case Utils.hex_to_integer(type) do
+      {:ok, type_id} -> type_module(type_id)
+      {:error, :invalid_hex} -> {:error, :invalid_type}
+    end
+  end
+
+  defp decode_type(_type), do: {:error, :invalid_type}
 
   Enum.each(@transaction_types, fn module ->
-    type_envelope = module.type_envelope()
-    defp decode_type(unquote(type_envelope)), do: {:ok, unquote(module)}
+    type_id = module.type_id()
+    defp type_module(unquote(type_id)), do: {:ok, unquote(module)}
   end)
 
-  defp decode_type(<<0>>), do: {:ok, Legacy}
-  defp decode_type(nil), do: {:ok, Legacy}
-  defp decode_type(_type), do: {:error, :unsupported_type}
+  defp type_module(type_id), do: {:ok, Unknown, type_id}
 
   defp from_map_value_bin(tx, key) do
     case from_map_value(tx, key) do

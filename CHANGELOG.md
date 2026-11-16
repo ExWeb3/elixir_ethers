@@ -15,6 +15,8 @@
 - Unsigned EIP-155 legacy transactions decode as `%Legacy{}` instead of `%Signed{}`
 - All returned addresses are EIP-55 checksummed, including `Ethers.Event` `address` and `Ethers.deployed_address/2`
 - `Ethers.get_transaction_receipt/2` returns an `Ethers.Receipt` struct instead of the raw RPC map
+- `Ethers.Transaction.from_rpc_map/1` and `Ethers.get_transaction/2` return `Ethers.Transaction.Unknown` for unregistered transaction types instead of `{:error, :unsupported_type}`
+- `Ethers.Transaction.decode/1` returns `Ethers.Transaction.Unknown` for unregistered transaction types instead of `{:error, :unsupported_transaction_type}`
 
 ### Enhancements
 
@@ -28,6 +30,7 @@
 - Add `Ethers.Receipt.decode_logs/2` to decode receipt logs with event filters
 - Add `Ethers.Event.eth_transfer_log?/1` and `Ethers.Event.system_address/0` to identify [EIP-7708](https://eips.ethereum.org/EIPS/eip-7708) ETH transfer logs
 - Document that `Transfer` event filters also match EIP-7708 ETH transfer logs
+- Add `Ethers.Transaction.Unknown` for unregistered transaction types like OP-stack deposit transactions
 
 ### Bug Fixes
 

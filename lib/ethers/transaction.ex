@@ -38,6 +38,8 @@ defmodule Ethers.Transaction do
   alias Ethers.Transaction.Unknown
   alias Ethers.Utils
 
+  require Logger
+
   @default_transaction_types [Eip1559, Eip2930, Eip4844, Eip7702, Legacy]
 
   @transaction_types Application.compile_env(
@@ -61,6 +63,9 @@ defmodule Ethers.Transaction do
 
   # Margin precision is 0.01% (12345 = 123.45%)
   @margin_precision 10_000
+
+  # Per-transaction gas limit cap of EIP-7825 (Fusaka), only warned about unless configured
+  @eip7825_max_transaction_gas 16_777_216
 
   # Fields auto-filled through Ethers.estimate_fees/1 when the RPC client supports it
   @fee_estimation_fields [:max_fee_per_gas, :max_priority_fee_per_gas]
@@ -168,12 +173,24 @@ defmodule Ethers.Transaction do
   support `eth_feeHistory` (or the node returns no usable data), they fall back to the
   legacy estimation based on `eth_gasPrice` and `eth_maxPriorityFeePerGas`.
 
+  A missing `gas` is filled with the `eth_estimateGas` result plus the `:default_gas_margin`.
+  The gas limit, whether filled or given, is checked against the per-transaction gas limit cap
+  of [EIP-7825](https://eips.ethereum.org/EIPS/eip-7825) as set with the `:max_transaction_gas`
+  option or application config (see the [configuration guide](configuration.html)):
+
+    - Not configured: a gas limit above 16,777,216 (the EIP-7825 cap) logs a warning.
+    - A positive integer: a gas limit above it returns `{:error, :gas_limit_exceeds_cap}`. The
+      margin never pushes an estimate at or below the cap above it, the filled gas is clamped to
+      the cap instead.
+    - `false`: no check and no warning.
+
   ## Parameters
     - `params` - Updated Transaction params
-    - `opts` - Options to pass to the RPC client
+    - `opts` - Options to pass to the RPC client, and `:max_transaction_gas`
 
   ## Returns
     - `{:ok, params}` - Filled transaction params map
+    - `{:error, :gas_limit_exceeds_cap}` - If the gas limit exceeds a configured cap
     - `{:error, reason}` - If fetching defaults fails
   """
   @spec add_auto_fetchable_fields(map(), keyword()) :: {:ok, map()} | {:error, term()}
@@ -182,22 +199,21 @@ defmodule Ethers.Transaction do
 
     missing_keys = Enum.reject(params.type.auto_fetchable_fields(), &Map.get(params, &1))
 
-    {params, missing_keys} = maybe_estimate_fees(params, missing_keys, opts)
+    # A given gas limit is checked here, a missing one once it is estimated
+    with :ok <- check_gas_limit(Map.get(params, :gas), opts) do
+      {params, missing_keys} = maybe_estimate_fees(params, missing_keys, opts)
+      fetch_missing_fields(params, missing_keys, opts)
+    end
+  end
 
-    {keys, actions} =
-      missing_keys
-      |> Enum.map(&{&1, fill_action(&1, params)})
-      |> Enum.unzip()
+  defp fetch_missing_fields(params, [], _opts), do: {:ok, params}
 
-    case actions do
-      [] ->
-        {:ok, params}
+  defp fetch_missing_fields(params, missing_keys, opts) do
+    actions = Enum.map(missing_keys, &fill_action(&1, params))
 
-      _ ->
-        with {:ok, results} <- Ethers.batch(actions, opts),
-             {:ok, results} <- post_process(keys, results, []) do
-          {:ok, Map.merge(params, results)}
-        end
+    with {:ok, results} <- Ethers.batch(actions, opts),
+         {:ok, results} <- post_process(missing_keys, results, [], opts) do
+      {:ok, Map.merge(params, results)}
     end
   end
 
@@ -620,15 +636,15 @@ defmodule Ethers.Transaction do
   defp fill_action(:gas_price, _tx), do: :gas_price
   defp fill_action(:gas, tx), do: {:estimate_gas, tx}
 
-  defp post_process([], [], acc), do: {:ok, Map.new(acc)}
+  defp post_process([], [], acc, _opts), do: {:ok, Map.new(acc)}
 
-  defp post_process([k | tk], [v | tv], acc) do
-    with {:ok, item} <- do_post_process(k, v) do
-      post_process(tk, tv, [item | acc])
+  defp post_process([k | tk], [v | tv], acc, opts) do
+    with {:ok, item} <- do_post_process(k, v, opts) do
+      post_process(tk, tv, [item | acc], opts)
     end
   end
 
-  defp do_post_process(field, {:ok, value})
+  defp do_post_process(field, {:ok, value}, _opts)
        when field in [:max_fee_per_gas, :max_fee_per_blob_gas] do
     # Setting a higher value for max_fee_per and max_fee_per_blob_gas gas since the actual base
     # fee is determined by the last block. This way we minimize the chance to get stuck in
@@ -636,15 +652,17 @@ defmodule Ethers.Transaction do
     {:ok, {field, max_fee_per_gas_with_margin(value)}}
   end
 
-  defp do_post_process(:gas, {:ok, gas}) do
-    {:ok, {:gas, gas_with_margin(gas)}}
+  defp do_post_process(:gas, {:ok, estimate}, opts) do
+    with {:ok, gas} <- cap_gas_limit(gas_with_margin(estimate), estimate, opts) do
+      {:ok, {:gas, gas}}
+    end
   end
 
-  defp do_post_process(key, {:ok, v_int}) when is_integer(v_int) do
+  defp do_post_process(key, {:ok, v_int}, _opts) when is_integer(v_int) do
     {:ok, {key, v_int}}
   end
 
-  defp do_post_process(_key, {:error, reason}), do: {:error, reason}
+  defp do_post_process(_key, {:error, reason}, _opts), do: {:error, reason}
 
   defp decode_type(nil), do: {:ok, Legacy}
 
@@ -733,4 +751,70 @@ defmodule Ethers.Transaction do
   defp with_margin(value, margin) do
     div(value * margin, @margin_precision)
   end
+
+  @doc false
+  # Checks the gas limit of a transaction being prepared against the `:max_transaction_gas` cap
+  @spec check_gas_limit(term(), Keyword.t()) :: :ok | {:error, :gas_limit_exceeds_cap}
+  def check_gas_limit(gas, opts) when is_integer(gas) do
+    case max_transaction_gas(opts) do
+      nil -> maybe_warn_gas_limit(gas)
+      false -> :ok
+      cap when gas <= cap -> :ok
+      _cap -> {:error, :gas_limit_exceeds_cap}
+    end
+  end
+
+  # Missing (filled by the node) or invalid (rejected later on) gas limits
+  def check_gas_limit(_gas, _opts), do: :ok
+
+  @doc false
+  # Returns the gas limit to auto-fill for an `eth_estimateGas` result with the margin applied.
+  # A configured cap clamps the margin, so only an estimate above the cap fails.
+  @spec cap_gas_limit(non_neg_integer(), non_neg_integer(), Keyword.t()) ::
+          {:ok, non_neg_integer()} | {:error, :gas_limit_exceeds_cap}
+  def cap_gas_limit(gas_with_margin, estimate, opts) do
+    case max_transaction_gas(opts) do
+      nil ->
+        maybe_warn_gas_limit(gas_with_margin)
+        {:ok, gas_with_margin}
+
+      false ->
+        {:ok, gas_with_margin}
+
+      cap when estimate <= cap ->
+        {:ok, min(gas_with_margin, cap)}
+
+      _cap ->
+        {:error, :gas_limit_exceeds_cap}
+    end
+  end
+
+  # nil (not configured), false (disabled) or the cap. The per-call option takes precedence.
+  defp max_transaction_gas(opts) do
+    value =
+      case Keyword.get(opts, :max_transaction_gas) do
+        nil -> Application.get_env(:ethers, :max_transaction_gas)
+        value -> value
+      end
+
+    if is_nil(value) or value == false or (is_integer(value) and value > 0) do
+      value
+    else
+      raise ArgumentError,
+            "Invalid :max_transaction_gas #{inspect(value)}, " <>
+              "expected a positive integer, false or nil"
+    end
+  end
+
+  defp maybe_warn_gas_limit(gas) when gas > @eip7825_max_transaction_gas do
+    Logger.warning(
+      "Transaction gas limit #{gas} exceeds the EIP-7825 per-transaction gas limit cap of " <>
+        "#{@eip7825_max_transaction_gas} and will be rejected by chains enforcing it. " <>
+        "Set `config :ethers, max_transaction_gas: <cap>` (or the :max_transaction_gas option) " <>
+        "to enforce the cap of your chain, or to `false` to disable this warning on chains " <>
+        "without a per-transaction gas limit."
+    )
+  end
+
+  defp maybe_warn_gas_limit(_gas), do: :ok
 end

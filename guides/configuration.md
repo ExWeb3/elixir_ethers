@@ -133,6 +133,32 @@ usable fee history). Fees estimated with `Ethers.estimate_fees/1` do not use thi
 config :ethers, default_max_fee_per_gas_margin: 12000  # 120% of current gas price.
 ```
 
+### Max Transaction Gas `:max_transaction_gas`
+
+Per-transaction gas limit cap of the chain. [EIP-7825](https://eips.ethereum.org/EIPS/eip-7825)
+(Fusaka) caps the gas limit of a single transaction on Ethereum at 16,777,216 (2^24). L2s and
+other EVM chains may use a different cap or none at all, so it is only enforced when configured:
+
+- Not configured (unset or `nil`, the default): a gas limit above 16,777,216 logs a warning.
+  Nothing else changes.
+- A positive integer: a gas limit above it returns `{:error, :gas_limit_exceeds_cap}`. An
+  auto-filled gas limit is clamped to the cap when the gas margin would push it above, so only
+  an `eth_estimateGas` result above the cap fails.
+- `false`: no check and no warning, for chains without a per-transaction gas limit.
+
+The gas limit is checked, whether auto-filled or given with `:gas`, for transactions sent or
+signed with `Ethers.send_transaction/2`, `Ethers.sign_transaction/2`, `Ethers.deploy/2` and
+`:send_transaction` requests in `Ethers.batch/2`. Their `:max_transaction_gas` option takes
+precedence over this config (useful in multi-chain apps). `Ethers.call/2`,
+`Ethers.estimate_gas/2` and `Ethers.create_access_list/2` are not affected.
+
+#### Example
+
+```elixir
+config :ethers, max_transaction_gas: 16_777_216  # Enforce the EIP-7825 cap (Ethereum)
+config :ethers, max_transaction_gas: false  # Chain without a per-transaction gas limit
+```
+
 ## Best Practices
 
 1. **Security**:
@@ -145,6 +171,7 @@ config :ethers, default_max_fee_per_gas_margin: 12000  # 120% of current gas pri
 
    - Adjust gas margins based on network conditions
    - Use higher margins on networks with more volatility
+   - Set `:max_transaction_gas` to the per-transaction gas limit of your chain (or `false`)
 
 3. **RPC Endpoints**:
 

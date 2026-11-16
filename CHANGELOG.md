@@ -22,6 +22,7 @@
 - Allow `idna` 8.x
 - Add `Ethers.get_code/2` (`eth_getCode`)
 - Add `Ethers.get_delegation/2` and `Ethers.Authorization.parse_delegation/1` to inspect EIP-7702 delegations
+- Warn about gas limits above the [EIP-7825](https://eips.ethereum.org/EIPS/eip-7825) cap, enforce a cap with `:max_transaction_gas`
 
 ### Bug Fixes
 

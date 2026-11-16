@@ -19,6 +19,34 @@ config :ethereumex, url: "https://..."
 Note: If your app requires multiple RPC endpoints (e.g. multi-chain) then you need to pass in the
 URL for each operation via `:rpc_opts` key. (e.g. `Ethers.call(my_fn, rpc_opts: [url: "https://..."])`
 
+### HTTP options
+
+Ethereumex sends requests with [Finch](https://hexdocs.pm/finch). Its `:http_options` are passed to
+`Finch.request/3`, so they take Finch option names, such as `:receive_timeout` (how long to wait for
+the response, 15 seconds by default) and `:pool_timeout` (how long to wait for a free connection,
+5 seconds by default).
+
+```elixir
+config :ethereumex,
+  url: "https://...",
+  http_options: [receive_timeout: 60_000]
+```
+
+HTTPoison/hackney option names such as `:recv_timeout` do not work: Finch versions before 0.22
+ignore them, and Finch 0.22 and later raise an `ArgumentError` on every request.
+
+### Per-request options
+
+`:rpc_opts` is passed to the RPC client as is. With Ethereumex it accepts `:url`, `:http_headers`
+and, from Ethereumex 0.15, `:http_options`, which are merged over the configured ones:
+
+```elixir
+Ethers.call(my_fn, rpc_opts: [url: "https://...", http_options: [receive_timeout: 60_000]])
+```
+
+Ethereumex versions before 0.15 ignore `:http_options` in `:rpc_opts` and always use the configured
+ones.
+
 ## Configuration Options
 
 ### RPC Client `:rpc_client`
@@ -105,6 +133,32 @@ usable fee history). Fees estimated with `Ethers.estimate_fees/1` do not use thi
 config :ethers, default_max_fee_per_gas_margin: 12000  # 120% of current gas price.
 ```
 
+### Max Transaction Gas `:max_transaction_gas`
+
+Per-transaction gas limit cap of the chain. [EIP-7825](https://eips.ethereum.org/EIPS/eip-7825)
+(Fusaka) caps the gas limit of a single transaction on Ethereum at 16,777,216 (2^24). L2s and
+other EVM chains may use a different cap or none at all, so it is only enforced when configured:
+
+- Not configured (unset or `nil`, the default): a gas limit above 16,777,216 logs a warning.
+  Nothing else changes.
+- A positive integer: a gas limit above it returns `{:error, :gas_limit_exceeds_cap}`. An
+  auto-filled gas limit is clamped to the cap when the gas margin would push it above, so only
+  an `eth_estimateGas` result above the cap fails.
+- `false`: no check and no warning, for chains without a per-transaction gas limit.
+
+The gas limit is checked, whether auto-filled or given with `:gas`, for transactions sent or
+signed with `Ethers.send_transaction/2`, `Ethers.sign_transaction/2`, `Ethers.deploy/2` and
+`:send_transaction` requests in `Ethers.batch/2`. Their `:max_transaction_gas` option takes
+precedence over this config (useful in multi-chain apps). `Ethers.call/2`,
+`Ethers.estimate_gas/2` and `Ethers.create_access_list/2` are not affected.
+
+#### Example
+
+```elixir
+config :ethers, max_transaction_gas: 16_777_216  # Enforce the EIP-7825 cap (Ethereum)
+config :ethers, max_transaction_gas: false  # Chain without a per-transaction gas limit
+```
+
 ## Best Practices
 
 1. **Security**:
@@ -117,6 +171,7 @@ config :ethers, default_max_fee_per_gas_margin: 12000  # 120% of current gas pri
 
    - Adjust gas margins based on network conditions
    - Use higher margins on networks with more volatility
+   - Set `:max_transaction_gas` to the per-transaction gas limit of your chain (or `false`)
 
 3. **RPC Endpoints**:
 
@@ -138,8 +193,10 @@ config :ethers, default_max_fee_per_gas_margin: 12000  # 120% of current gas pri
 # Verify your RPC connection
 config :ethereumex,
   url: "https://your-ethereum-node.com",
-  http_options: [recv_timeout: 60_000]  # Increase timeout if needed
+  http_options: [receive_timeout: 60_000]  # Wait longer for slow responses (default 15_000)
 ```
+
+See [HTTP options](#http-options) for the accepted options.
 
 - **Gas Estimation Failures**:
   Increase gas margin for complex contracts

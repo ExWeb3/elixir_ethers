@@ -21,6 +21,9 @@
 - Add `Ethers.config/1` (`eth_config`, [EIP-7910](https://eips.ethereum.org/EIPS/eip-7910)) returning `Ethers.ForkConfig` structs
 - Update dependencies
 - Allow `idna` 8.x
+- Add `Ethers.get_code/2` (`eth_getCode`)
+- Add `Ethers.get_delegation/2` and `Ethers.Authorization.parse_delegation/1` to inspect EIP-7702 delegations
+- Warn about gas limits above the [EIP-7825](https://eips.ethereum.org/EIPS/eip-7825) cap, enforce a cap with `:max_transaction_gas`
 - Add `Ethers.Receipt` struct with decoded transaction receipt fields
 - Add `Ethers.Receipt.decode_logs/2` to decode receipt logs with event filters
 
@@ -36,6 +39,8 @@
 - Fix `Ethers.Transaction.Signed.from_address/1` raising on out-of-range recovery ids
 - Fix `:deployed_address` in `Ethers.batch/2`
 - Compare the `:signer_opts` `from` address with the transaction `from` case-insensitively
+- Fix the `http_options` timeout example in the configuration guide
+- Fix `:get_balance` requests in `Ethers.batch/2`
 - Fix the `:get_transaction_receipt` action of `Ethers.batch/2`
 
 ## 0.8.0 (2026-07-29)

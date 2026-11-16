@@ -11,3 +11,6 @@ Read the documentation before writing code that uses Ethers, and do not guess fu
   with `getting-started.md` and `cheatsheet.cheatmd`.
 - https://ethers.hexdocs.pm/llms.txt indexes the guides and the API reference of the latest
   release. Every page it lists is also available as Markdown.
+- For the documentation of a specific version, put the version in the path:
+  `https://ethers.hexdocs.pm/<version>/llms.txt`, for example
+  https://ethers.hexdocs.pm/1.0.0/llms.txt. The installed version is in `mix.lock`.

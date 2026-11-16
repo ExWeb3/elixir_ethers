@@ -1,6 +1,8 @@
 defmodule Ethers.ContractHelpers do
   @moduledoc false
 
+  @transfer_signature "Transfer(address,address,uint256)"
+
   @spec read_abi(Keyword.t()) :: {abi :: [...], file_path :: String.t() | nil}
   def read_abi(opts) do
     case Keyword.take(opts, [:abi, :abi_file]) do
@@ -161,6 +163,21 @@ defmodule Ethers.ContractHelpers do
     ## Return Types (when called with `Ethers.call/2`)
     #{return_type_docs}
     """
+  end
+
+  def document_eth_transfer_logs(selectors) do
+    if Enum.any?(selectors, &(ABI.FunctionSelector.encode(&1) == @transfer_signature)) do
+      """
+      > #### ETH transfer logs (EIP-7708) {: .warning}
+      >
+      > On networks with [EIP-7708](https://eips.ethereum.org/EIPS/eip-7708) active, native ETH
+      > transfers emit logs with this event signature. Without an address (the `:address` option
+      > or a default address), `Ethers.get_logs/2` can return them as well. See
+      > `Ethers.Event.eth_transfer_log?/1`.
+      """
+    else
+      ""
+    end
   end
 
   defp document_state_mutabilities(state_mutabilities) do

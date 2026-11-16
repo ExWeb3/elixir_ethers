@@ -332,6 +332,10 @@ defmodule Ethers do
   @doc """
   Returns the native transaction (ETH) by transaction hash.
 
+  The transaction is decoded with `Ethers.Transaction.from_rpc_map/1`: a transaction of a type
+  that is not registered (for example an OP-stack deposit transaction, type `0x7e`) is returned as
+  an `Ethers.Transaction.Unknown` holding the RPC map in `rpc_map`.
+
   ## Parameters
   - tx_hash: Transaction hash which the transaction is queried for.
   - overrides:
@@ -1307,6 +1311,19 @@ defmodule Ethers do
     `Ethers.EventFilter.combine/1`.
   - An EventFilters module of a contract (e.g. `MyContract.EventFilters`) to match all
     events of that contract.
+
+  > #### ETH transfers match `Transfer` filters (EIP-7708) {: .warning}
+  >
+  > On networks with [EIP-7708](https://eips.ethereum.org/EIPS/eip-7708) active (the
+  > Glamsterdam upgrade), every ETH transfer with a non-zero value emits a log from
+  > `0xfffffffffffffffffffffffffffffffffffffffe` with the same topics and data as the
+  > `Transfer(address,address,uint256)` event of ERC-20 and ERC-777 tokens. A `Transfer` filter
+  > without an address (neither `:address` nor a default address, e.g.
+  > `Ethers.Contracts.ERC20.EventFilters.transfer(nil, nil)` or a combined filter including it)
+  > therefore also returns native ETH transfers, decoded as token transfers.
+  >
+  > Pass the token contract as `:address` to only get its transfers, or use
+  > `Ethers.Event.eth_transfer_log?/1` to tell the ETH transfer logs apart.
 
   ## Overrides and Options
 

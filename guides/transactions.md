@@ -225,3 +225,7 @@ Ethers.Transaction.Signed.from_address(signed)
 ```
 
 `Ethers.get_transaction/2` fetches a transaction by hash and returns the same struct.
+
+A transaction of a type Ethers has no module for, such as an OP-stack deposit transaction, comes
+back from both functions as an `Ethers.Transaction.Unknown` struct, which keeps the transaction
+undecoded.

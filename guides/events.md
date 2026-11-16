@@ -156,3 +156,17 @@ weth = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
 Ethers.Contracts.ERC20.EventFilters.transfer(nil, holder)
 |> Ethers.get_logs(address: weth, from_block: 26_425_000)
 ```
+
+## Native ETH transfer logs (EIP-7708)
+
+On networks with [EIP-7708](https://eips.ethereum.org/EIPS/eip-7708) active (the Glamsterdam
+upgrade), every ETH transfer with a non-zero value emits a log from
+`0xfffffffffffffffffffffffffffffffffffffffe` that has the same topics and data as an ERC-20
+`Transfer` event. A `Transfer` filter without an address returns these logs too, decoded as token
+transfers. Filter by the token address, or tell them apart with `Ethers.Event.eth_transfer_log?/1`:
+
+```elixir
+{:ok, events} = Ethers.get_logs(Ethers.Contracts.ERC20.EventFilters.transfer(nil, nil))
+
+token_transfers = Enum.reject(events, &Ethers.Event.eth_transfer_log?/1)
+```

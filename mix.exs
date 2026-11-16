@@ -1,3 +1,28 @@
+defmodule Ethers.DocsMarkdown do
+  @moduledoc false
+  # ExDoc markdown processor which renders GitHub alerts (`> [!NOTE]`) as ExDoc admonitions,
+  # so the same README callouts are styled on GitHub, Hex.pm and HexDocs.
+
+  @alerts %{
+    "NOTE" => {"Note", "info"},
+    "TIP" => {"Tip", "tip"},
+    "IMPORTANT" => {"Important", "info"},
+    "WARNING" => {"Warning", "warning"},
+    "CAUTION" => {"Caution", "error"}
+  }
+
+  def available?, do: ExDoc.Markdown.Earmark.available?()
+
+  def to_ast(text, opts) do
+    ~r/^([ \t]*)> \[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\][ \t]*$/m
+    |> Regex.replace(text, fn _, indent, kind ->
+      {title, class} = Map.fetch!(@alerts, kind)
+      "#{indent}> #### #{title} {: .#{class}}\n#{indent}>"
+    end)
+    |> ExDoc.Markdown.Earmark.to_ast(opts)
+  end
+end
+
 defmodule Ethers.MixProject do
   use Mix.Project
 
@@ -110,7 +135,7 @@ defmodule Ethers.MixProject do
       ],
       logo: "assets/exdoc_logo.png",
       before_closing_head_tag: &before_closing_head_tag/1,
-      markdown_processor: {ExDoc.Markdown.Earmark, footnotes: true}
+      markdown_processor: {Ethers.DocsMarkdown, footnotes: true}
     ]
   end
 

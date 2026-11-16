@@ -1,6 +1,14 @@
 defmodule Ethers.Event do
   @moduledoc """
   EVM Event struct and helpers
+
+  ## ETH transfer logs (EIP-7708)
+
+  On networks with [EIP-7708](https://eips.ethereum.org/EIPS/eip-7708) active (the Glamsterdam
+  upgrade), every ETH transfer with a non-zero value emits a log from `system_address/0`. The log
+  has the same topics and data layout as the ERC-20 `Transfer(address,address,uint256)` event, so
+  `Transfer` event filters decode it as a token transfer. Use `eth_transfer_log?/1` to tell these
+  logs apart.
   """
 
   alias ABI.FunctionSelector
@@ -9,6 +17,10 @@ defmodule Ethers.Event do
   alias Ethers.ContractHelpers
   alias Ethers.Types
   alias Ethers.Utils
+
+  @system_address "0xffffFFFfFFffffffffffffffFfFFFfffFFFfFFfE"
+  @system_address_downcased String.downcase(@system_address)
+  @transfer_topic "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
 
   defstruct [
     :address,
@@ -121,6 +133,42 @@ defmodule Ethers.Event do
       %ABI.FunctionSelector{} ->
         {:ok, decode(log, selector)}
     end
+  end
+
+  @doc """
+  Returns `SYSTEM_ADDRESS`, the address emitting [EIP-7708](https://eips.ethereum.org/EIPS/eip-7708)
+  ETH transfer logs, EIP-55 checksummed like the `address` of decoded events.
+
+  Pass it as `:address` to `Ethers.get_logs/2` with an ERC-20 `Transfer` event filter to fetch
+  only native ETH transfers.
+
+  ## Examples
+
+      iex> Ethers.Event.system_address()
+      "0xffffFFFfFFffffffffffffffFfFFFfffFFFfFFfE"
+  """
+  @spec system_address() :: Types.t_address()
+  def system_address, do: @system_address
+
+  @doc """
+  Returns `true` if the event is an [EIP-7708](https://eips.ethereum.org/EIPS/eip-7708) ETH
+  transfer log: a `Transfer(address,address,uint256)` log emitted by `system_address/0`.
+
+  Such logs are decoded like ERC-20 `Transfer` events (`topics` holds `from` and `to`, `data`
+  holds the amount in wei), so use this to keep or drop native ETH transfers in the results of
+  `Ethers.get_logs/2`.
+
+  ## Examples
+
+      # Token transfers only, without the native ETH transfers
+      Ethers.Contracts.ERC20.EventFilters.transfer(nil, nil)
+      |> Ethers.get_logs!(from_block: from_block, to_block: to_block)
+      |> Enum.reject(&Ethers.Event.eth_transfer_log?/1)
+  """
+  @spec eth_transfer_log?(t()) :: boolean()
+  def eth_transfer_log?(%__MODULE__{address: address, topics_raw: [topic_0 | _]}) do
+    String.downcase(address) == @system_address_downcased and
+      String.downcase(topic_0) == @transfer_topic
   end
 
   defp decode_sub_topic(raw, type) when type in [:string, :bytes], do: Utils.hex_encode(raw)

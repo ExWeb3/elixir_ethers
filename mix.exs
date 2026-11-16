@@ -51,7 +51,7 @@ defmodule Ethers.MixProject do
         "Changelog" => Path.join(@source_url, "/blob/main/CHANGELOG.md")
       },
       maintainers: ["Alisina Bahadori"],
-      files: ~w(lib priv guides mix.exs README* LICENSE* CHANGELOG* usage-rules.md usage-rules)
+      files: ~w(lib priv guides mix.exs README* LICENSE* CHANGELOG* usage-rules.md)
     ]
   end
 
@@ -65,22 +65,21 @@ defmodule Ethers.MixProject do
 
     [
       main: "getting-started",
-      extras:
-        [
-          "guides/getting-started.md": [title: "Getting Started"],
-          "guides/tour.livemd": [title: "Interactive Tour"],
-          "guides/cheatsheet.cheatmd": [title: "Cheatsheet"],
-          "guides/contracts.md": [title: "Contracts"],
-          "guides/transactions.md": [title: "Transactions"],
-          "guides/events.md": [title: "Events"],
-          "guides/signing.md": [title: "Signing and Verification"],
-          "guides/eip-712.md": [title: "EIP-712 Typed Data"],
-          "guides/siwe.md": [title: "Sign-In with Ethereum"],
-          "guides/typed-arguments.md": [title: "Typed Arguments"],
-          "guides/configuration.md": [title: "Configuration"],
-          "guides/upgrading.md": [title: "Upgrading"],
-          "CHANGELOG.md": [title: "Changelog"]
-        ] ++ extra_docs(),
+      extras: [
+        "guides/getting-started.md": [title: "Getting Started"],
+        "guides/tour.livemd": [title: "Interactive Tour"],
+        "guides/cheatsheet.cheatmd": [title: "Cheatsheet"],
+        "guides/contracts.md": [title: "Contracts"],
+        "guides/transactions.md": [title: "Transactions"],
+        "guides/events.md": [title: "Events"],
+        "guides/signing.md": [title: "Signing and Verification"],
+        "guides/eip-712.md": [title: "EIP-712 Typed Data"],
+        "guides/siwe.md": [title: "Sign-In with Ethereum"],
+        "guides/typed-arguments.md": [title: "Typed Arguments"],
+        "guides/configuration.md": [title: "Configuration"],
+        "guides/upgrading.md": [title: "Upgrading"],
+        "CHANGELOG.md": [title: "Changelog"]
+      ],
       groups_for_extras: [
         Introduction: ~w(guides/getting-started.md guides/tour.livemd guides/cheatsheet.cheatmd),
         Guides: ~w(guides/contracts.md guides/transactions.md guides/events.md guides/signing.md
@@ -125,17 +124,6 @@ defmodule Ethers.MixProject do
       before_closing_head_tag: &before_closing_head_tag/1,
       markdown_processor: {ExDoc.Markdown.Earmark, footnotes: true}
     ]
-  end
-
-  # Extra pages to run through the docs build, as a comma separated list of globs. Used to
-  # check that the functions mentioned in the usage rules exist:
-  #
-  #     EXTRA_DOCS="usage-rules.md,usage-rules/*.md" mix docs
-  defp extra_docs do
-    "EXTRA_DOCS"
-    |> System.get_env("")
-    |> String.split(",", trim: true)
-    |> Enum.flat_map(&Path.wildcard/1)
   end
 
   # Points agents at the generated llms.txt index (see https://llmstxt.org).

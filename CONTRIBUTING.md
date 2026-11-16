@@ -28,9 +28,8 @@ Thank you for your interest in contributing to Elixir Ethers! We welcome contrib
 
 - The README is the landing page on GitHub and Hex.pm. The guides in `guides/` are published on
   HexDocs, with `guides/getting-started.md` as the first page. Build them with `mix docs`.
-- `usage-rules.md` and `usage-rules/` are rules for coding agents which use the library. To check
-  that the functions they mention exist, build the docs with them included and look for warnings:
-  `EXTRA_DOCS="usage-rules.md,usage-rules/*.md" mix docs`
+- `usage-rules.md` is a short pointer for coding agents which use the library. It only explains
+  how the library is used and links to the guides, so documentation belongs in the guides.
 - The "Try it" script of the README and the Livebook tour are executable. Run them with
   `mix run test/doc_examples.exs README.md guides/tour.livemd` (needs network access). A weekly
   workflow does the same.

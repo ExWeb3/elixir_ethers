@@ -1,0 +1,203 @@
+# A Tour of Ethers
+
+```elixir
+Mix.install(
+  [
+    {:ethers, "~> 1.0"},
+    {:ex_secp256k1, "~> 0.7"}
+  ],
+  config: [ethereumex: [url: "https://ethereum-rpc.publicnode.com"]]
+)
+```
+
+## Before you start
+
+This notebook reads from Ethereum mainnet through a public RPC endpoint. Nothing in it sends a
+transaction or needs funds. To use another endpoint or another chain, change the URL in the setup
+cell above.
+
+## Read from a token
+
+Ethers ships with the interfaces of the common token standards. `Ethers.Contracts.ERC20` works
+with any ERC-20 token, so all it needs is the address of one. This is WETH:
+
+```elixir
+alias Ethers.Contracts.ERC20
+
+weth = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
+
+ERC20.symbol() |> Ethers.call!(to: weth)
+```
+
+Contract functions do not touch the network. They return a value that describes the call:
+
+```elixir
+ERC20.total_supply()
+```
+
+`Ethers.call!/2` executes it and decodes the result. Token amounts are integers in the smallest
+unit, and `Ethers.Utils.from_wei/1` converts an 18-decimal amount for display.
+
+```elixir
+ERC20.total_supply() |> Ethers.call!(to: weth) |> Ethers.Utils.from_wei()
+```
+
+## Resolve a name
+
+`Ethers.NameService` resolves ENS names to addresses.
+
+```elixir
+vitalik = Ethers.NameService.resolve!("vitalik.eth")
+```
+
+```elixir
+ERC20.balance_of(vitalik) |> Ethers.call!(to: weth) |> Ethers.Utils.from_wei()
+```
+
+## Many calls at once
+
+`Ethers.Multicall` bundles calls into a single request. Every result comes from the same block and
+is returned as a `{success?, value}` tuple.
+
+```elixir
+calls = [
+  {ERC20.name(), to: weth},
+  {ERC20.symbol(), to: weth},
+  {ERC20.decimals(), to: weth},
+  {ERC20.balance_of(vitalik), to: weth}
+]
+
+calls
+|> Ethers.Multicall.aggregate3()
+|> Ethers.call!()
+|> Ethers.Multicall.decode(calls)
+```
+
+## Generate a module from an ABI
+
+WETH has functions that are not part of ERC-20: `deposit` wraps ether and `withdraw` unwraps it.
+For your own contracts you give `Ethers.Contract` the ABI, usually with `abi_file: "path/to.json"`.
+Here a small part of the WETH ABI is passed inline.
+
+```elixir
+defmodule WETH do
+  use Ethers.Contract,
+    default_address: "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+    abi: ~S([
+      {"type": "function", "name": "deposit", "stateMutability": "payable",
+       "inputs": [], "outputs": []},
+      {"type": "function", "name": "withdraw", "stateMutability": "nonpayable",
+       "inputs": [{"name": "wad", "type": "uint256"}], "outputs": []},
+      {"type": "function", "name": "balanceOf", "stateMutability": "view",
+       "inputs": [{"name": "owner", "type": "address"}],
+       "outputs": [{"name": "", "type": "uint256"}]},
+      {"type": "event", "name": "Deposit", "anonymous": false,
+       "inputs": [{"indexed": true, "name": "dst", "type": "address"},
+                  {"indexed": false, "name": "wad", "type": "uint256"}]}
+    ])
+end
+```
+
+The module now has one function per ABI entry. Because it has a default address, calls need no
+`to:` option.
+
+```elixir
+WETH.balance_of(vitalik) |> Ethers.call!()
+```
+
+## Simulate a transaction
+
+`Ethers.call/2` also runs state-changing functions without sending anything, which shows what a
+transaction would do. This address cannot deposit a million ether, because it does not have it:
+
+```elixir
+me = "0x000000000000000000000000000000000000bEEF"
+a_million_ether = Ethers.Utils.to_wei(1_000_000)
+
+WETH.deposit() |> Ethers.call(from: me, value: a_million_ether)
+```
+
+State overrides run the same call against a modified view of the chain. Here the address has two
+million ether for the duration of the call, so the deposit goes through. `deposit` returns nothing,
+hence the `nil`.
+
+```elixir
+WETH.deposit()
+|> Ethers.call(
+  from: me,
+  value: a_million_ether,
+  state_overrides: %{me => %{balance: 2 * a_million_ether}}
+)
+```
+
+## Events
+
+Each contract module has an `EventFilters` module. A filter function takes the indexed arguments
+of the event, and `nil` matches anything.
+
+```elixir
+WETH.EventFilters.deposit(nil)
+```
+
+`Ethers.get_logs!/2` fetches the matching events. These are the WETH deposits of the last 50
+blocks:
+
+```elixir
+{:ok, block} = Ethers.current_block_number()
+
+deposits = WETH.EventFilters.deposit(nil) |> Ethers.get_logs!(from_block: block - 50)
+
+for %Ethers.Event{topics: [_signature, account], data: [amount]} = event <- deposits do
+  %{block: event.block_number, account: account, ether: Ethers.Utils.from_wei(amount)}
+end
+```
+
+## Fees
+
+`Ethers.estimate_fees/1` estimates EIP-1559 fees from recent blocks, in wei. It is what
+`Ethers.send_transaction/2` uses when you do not set the fees yourself.
+
+```elixir
+{:ok, fees} = Ethers.estimate_fees()
+
+Map.new(fees, fn {key, wei} -> {key, "#{Float.round(wei / 1.0e9, 3)} gwei"} end)
+```
+
+## Sign and verify a message
+
+Signing needs a signer. `Ethers.Signer.Local` signs with a private key, here a fresh random one
+that only exists in this notebook.
+
+```elixir
+private_key = :crypto.strong_rand_bytes(32)
+signer = [signer: Ethers.Signer.Local, signer_opts: [private_key: private_key]]
+
+{:ok, [account]} = Ethers.Signer.Local.accounts(private_key: private_key)
+account
+```
+
+```elixir
+{:ok, signature} = Ethers.personal_sign("Hello from Livebook", signer)
+```
+
+`Ethers.Signature` verifies a signature from any account, including smart-contract wallets.
+
+```elixir
+Ethers.Signature.verify_message("Hello from Livebook", signature, account)
+```
+
+```elixir
+Ethers.Signature.verify_message("Something else", signature, account)
+```
+
+## Where to go next
+
+Sending a transaction works the same way as signing a message: pipe a contract function into
+`Ethers.send_transaction/2` with `:from` and a signer. It needs an account with funds, so it is
+not part of this notebook.
+
+* [Getting started](https://ethers.hexdocs.pm/getting-started.html)
+* [Contracts](https://ethers.hexdocs.pm/contracts.html)
+* [Transactions](https://ethers.hexdocs.pm/transactions.html)
+* [Events](https://ethers.hexdocs.pm/events.html)
+* [Signing and verification](https://ethers.hexdocs.pm/signing.html)

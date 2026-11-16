@@ -51,7 +51,7 @@ defmodule Ethers.MixProject do
         "Changelog" => Path.join(@source_url, "/blob/main/CHANGELOG.md")
       },
       maintainers: ["Alisina Bahadori"],
-      files: ["lib", "priv", "mix.exs", "README*", "LICENSE*", "CHANGELOG*"]
+      files: ~w(lib priv guides mix.exs README* LICENSE* CHANGELOG* usage-rules.md)
     ]
   end
 
@@ -64,15 +64,27 @@ defmodule Ethers.MixProject do
       end
 
     [
-      main: "readme",
+      main: "getting-started",
       extras: [
-        "README.md": [title: "Introduction"],
-        "CHANGELOG.md": [title: "Changelog"],
-        "guides/typed-arguments.md": [title: "Typed Arguments"],
+        "guides/getting-started.md": [title: "Getting Started"],
+        "guides/tour.livemd": [title: "Interactive Tour"],
+        "guides/cheatsheet.cheatmd": [title: "Cheatsheet"],
+        "guides/contracts.md": [title: "Contracts"],
+        "guides/transactions.md": [title: "Transactions"],
+        "guides/events.md": [title: "Events"],
+        "guides/signing.md": [title: "Signing and Verification"],
         "guides/eip-712.md": [title: "EIP-712 Typed Data"],
         "guides/siwe.md": [title: "Sign-In with Ethereum"],
+        "guides/typed-arguments.md": [title: "Typed Arguments"],
         "guides/configuration.md": [title: "Configuration"],
-        "guides/upgrading.md": [title: "Upgrading"]
+        "guides/upgrading.md": [title: "Upgrading"],
+        "CHANGELOG.md": [title: "Changelog"]
+      ],
+      groups_for_extras: [
+        Introduction: ~w(guides/getting-started.md guides/tour.livemd guides/cheatsheet.cheatmd),
+        Guides: ~w(guides/contracts.md guides/transactions.md guides/events.md guides/signing.md
+             guides/eip-712.md guides/siwe.md guides/typed-arguments.md guides/configuration.md),
+        About: ~w(guides/upgrading.md CHANGELOG.md)
       ],
       source_url: @source_url,
       source_ref: source_ref,
@@ -109,9 +121,16 @@ defmodule Ethers.MixProject do
         ]
       ],
       logo: "assets/exdoc_logo.png",
+      before_closing_head_tag: &before_closing_head_tag/1,
       markdown_processor: {ExDoc.Markdown.Earmark, footnotes: true}
     ]
   end
+
+  # Points agents at the generated llms.txt index (see https://llmstxt.org).
+  defp before_closing_head_tag(:html),
+    do: ~s(<link rel="describedby" type="text/plain" href="llms.txt">)
+
+  defp before_closing_head_tag(_), do: ""
 
   def dialyzer do
     [flags: [:error_handling, :extra_return, :underspecs, :unknown, :unmatched_returns]]

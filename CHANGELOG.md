@@ -31,6 +31,8 @@
 - Add `Ethers.Event.eth_transfer_log?/1` and `Ethers.Event.system_address/0` to identify [EIP-7708](https://eips.ethereum.org/EIPS/eip-7708) ETH transfer logs
 - Document that `Transfer` event filters also match EIP-7708 ETH transfer logs
 - Add `Ethers.Transaction.Unknown` for unregistered transaction types like OP-stack deposit transactions
+- Restructure the documentation into a shorter README, topic guides, a cheatsheet and a Livebook tour
+- Add `usage-rules.md` for coding agents and ship the guides in the package
 
 ### Bug Fixes
 

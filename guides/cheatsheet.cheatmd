@@ -1,0 +1,361 @@
+# Cheatsheet
+
+The common operations on one page. `MyToken` stands for a contract module generated from an ERC-20
+ABI, and `holder`, `sender` and `recipient` are addresses.
+
+## Setup
+{: .col-2}
+
+### Dependencies
+
+```elixir
+def deps do
+  [
+    {:ethers, "~> 1.0"},
+    # Optional: local private key signing
+    {:ex_secp256k1, "~> 0.7"}
+  ]
+end
+```
+
+### Configuration
+
+```elixir
+# config/config.exs
+config :ethereumex, url: "https://your-node.example"
+
+# config/runtime.exs
+config :ethers,
+  default_signer: Ethers.Signer.Local,
+  default_signer_opts: [
+    private_key: System.fetch_env!("ETH_PRIVATE_KEY")
+  ]
+```
+
+## Contracts
+{: .col-2}
+
+### Define a contract module
+
+```elixir
+defmodule MyToken do
+  use Ethers.Contract,
+    abi_file: "priv/abi/my_token.json",
+    default_address: "0xC02a...6Cc2"
+end
+```
+
+### Use a built-in interface
+
+```elixir
+alias Ethers.Contracts.ERC20
+
+ERC20.symbol() |> Ethers.call(to: token_address)
+#=> {:ok, "WETH"}
+```
+
+### Read
+
+```elixir
+MyToken.balance_of(holder) |> Ethers.call()
+#=> {:ok, 1468927766030343079}
+
+MyToken.balance_of(holder) |> Ethers.call!()
+#=> 1468927766030343079
+```
+
+### Read at a block, as an account
+
+```elixir
+MyToken.balance_of(holder)
+|> Ethers.call(block: 26_425_607)
+
+MyToken.transfer(recipient, 1000)
+|> Ethers.call(from: holder)
+#=> {:ok, true}
+```
+
+### Many reads in one call
+
+```elixir
+calls = [MyToken.symbol(), MyToken.decimals()]
+
+calls
+|> Ethers.Multicall.aggregate3()
+|> Ethers.call!()
+|> Ethers.Multicall.decode(calls)
+#=> [true: "WETH", true: 18]
+```
+
+### Many requests in one round trip
+
+```elixir
+Ethers.batch([
+  {:call, MyToken.symbol()},
+  {:get_balance, holder},
+  :current_block_number
+])
+#=> {:ok, [ok: "WETH", ok: 5798..., ok: 26425798]}
+```
+
+### Handle a custom error
+
+```elixir
+case Ethers.call(MyContract.withdraw(1000)) do
+  {:ok, result} ->
+    result
+
+  {:error, %MyContract.Errors.InsufficientBalance{}} ->
+    :insufficient_balance
+end
+```
+
+### Simulate against changed state
+
+```elixir
+Ethers.Contracts.Multicall3.get_eth_balance(holder)
+|> Ethers.call(
+  state_overrides: %{
+    holder => %{balance: Ethers.Utils.to_wei(100)}
+  }
+)
+#=> {:ok, 100000000000000000000}
+```
+
+## Transactions
+{: .col-2}
+
+### Send
+
+```elixir
+{:ok, tx_hash} =
+  MyToken.transfer(recipient, 1000)
+  |> Ethers.send_transaction(from: sender)
+```
+
+### Send ether
+
+```elixir
+Ethers.send_transaction(
+  %{value: Ethers.Utils.to_wei(1)},
+  from: sender,
+  to: recipient
+)
+```
+
+### Sign with a specific signer
+
+```elixir
+MyToken.transfer(recipient, 1000)
+|> Ethers.send_transaction(
+  from: sender,
+  signer: Ethers.Signer.Local,
+  signer_opts: [private_key: private_key]
+)
+```
+
+### Read the receipt
+
+```elixir
+case Ethers.get_transaction_receipt(tx_hash) do
+  {:ok, %Ethers.Receipt{status: :success}} -> :ok
+  {:ok, %Ethers.Receipt{status: :failure}} -> :reverted
+  {:error, :transaction_receipt_not_found} -> :pending
+end
+```
+
+### Estimate gas and fees
+
+```elixir
+MyToken.transfer(recipient, 1000)
+|> Ethers.estimate_gas(from: sender)
+#=> {:ok, 51939}
+
+Ethers.estimate_fees(speed: :fast)
+#=> {:ok, %{max_fee_per_gas: ..., max_priority_fee_per_gas: ...}}
+```
+
+### Deploy
+
+```elixir
+{:ok, tx_hash} =
+  Ethers.deploy(Counter,
+    encoded_constructor: Counter.constructor(100),
+    from: sender
+  )
+
+{:ok, address} = Ethers.deployed_address(tx_hash)
+```
+
+## Events
+{: .col-2}
+
+### Fetch logs
+
+```elixir
+MyToken.EventFilters.transfer(nil, holder)
+|> Ethers.get_logs(from_block: 26_425_000)
+#=> {:ok, [%Ethers.Event{...}]}
+```
+
+### Read an event
+
+```elixir
+%Ethers.Event{
+  topics: ["Transfer(address,address,uint256)", from, to],
+  data: [amount]
+} = event
+```
+
+### Several events in one request
+
+```elixir
+Ethers.EventFilter.combine([
+  MyToken.EventFilters.transfer(nil, nil),
+  MyToken.EventFilters.approval(nil, nil)
+])
+|> Ethers.get_logs(from_block: 26_425_607)
+```
+
+### Every event of a contract
+
+```elixir
+Ethers.get_logs(MyToken.EventFilters,
+  from_block: 26_425_607
+)
+```
+
+### Events of a transaction
+
+```elixir
+{:ok, receipt} =
+  Ethers.get_transaction_receipt(tx_hash)
+
+Ethers.Receipt.decode_logs(
+  receipt,
+  MyToken.EventFilters
+)
+```
+
+### Built-in interfaces need an address
+
+```elixir
+Ethers.Contracts.ERC20.EventFilters.transfer(nil, nil)
+|> Ethers.get_logs(
+  address: token_address,
+  from_block: 26_425_607
+)
+```
+
+## Signing
+{: .col-2}
+
+### Sign a message
+
+```elixir
+{:ok, signature} = Ethers.personal_sign("Hello world")
+```
+
+### Sign typed data
+
+```elixir
+typed_data = Ethers.TypedData.new!(...)
+
+{:ok, signature} = Ethers.sign_typed_data(typed_data)
+```
+
+### Verify any signature
+
+```elixir
+Ethers.Signature.verify_message(
+  "Hello world",
+  signature,
+  account
+)
+#=> {:ok, true}
+```
+
+### Recover a key-pair signer
+
+```elixir
+Ethers.PersonalMessage.recover(
+  "Hello world",
+  signature
+)
+#=> {:ok, "0xf39F...2266"}
+```
+
+## Utilities
+{: .col-2}
+
+### Units
+
+```elixir
+Ethers.Utils.to_wei(1.5)
+#=> 1500000000000000000
+
+Ethers.Utils.from_wei(1_500_000_000_000_000_000)
+#=> 1.5
+```
+
+### Hex and addresses
+
+```elixir
+Ethers.Utils.hex_decode!("0x0102")
+#=> <<1, 2>>
+
+Ethers.Utils.hex_encode(<<1, 2>>)
+#=> "0x0102"
+
+Ethers.Utils.to_checksum_address("0xd8da...6045")
+#=> "0xd8dA...6045"
+```
+
+### Chain state
+
+```elixir
+Ethers.current_block_number()
+#=> {:ok, 26425798}
+
+Ethers.get_balance(holder)
+#=> {:ok, 5798969845714110716}
+
+Ethers.chain_id()
+#=> {:ok, 1}
+```
+
+### ENS
+
+```elixir
+Ethers.NameService.resolve("vitalik.eth")
+#=> {:ok, "0xd8dA...6045"}
+
+Ethers.NameService.reverse_resolve(holder)
+#=> {:ok, "vitalik.eth"}
+```
+
+## Values
+{: .col-2}
+
+### Arguments and results
+
+| Solidity | Elixir |
+| --- | --- |
+| `address` | `"0x..."` string |
+| `uint*`, `int*` | integer |
+| `bool` | boolean |
+| `string` | string |
+| `bytes`, `bytesN` | raw binary |
+| arrays | list |
+| tuples, structs | tuple |
+
+### Return shapes
+
+| Function | Returns |
+| --- | --- |
+| `Ethers.call/2` | `{:ok, value}`, `{:ok, [values]}` or `{:ok, nil}` |
+| `Ethers.send_transaction/2` | `{:ok, tx_hash}` |
+| `Ethers.get_logs/2` | `{:ok, [%Ethers.Event{}]}` |
+| `Ethers.get_transaction_receipt/2` | `{:ok, %Ethers.Receipt{}}` |
+| `Ethers.Signature.verify_message/4` | `{:ok, boolean}` |
+| `!` variants, such as `Ethers.call!/2` | the bare value, or raise `Ethers.ExecutionError` |

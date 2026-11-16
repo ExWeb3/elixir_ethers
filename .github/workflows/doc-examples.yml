@@ -1,0 +1,44 @@
+# Runs the runnable examples of the documentation (the "Try it" script of the README and the
+# Livebook tour) against the public mainnet endpoint they use, so a dead endpoint or a renamed
+# function is noticed instead of going stale in the docs.
+#
+# It depends on a public RPC endpoint, so it runs only on a schedule or by hand and a failure
+# here does not block PRs.
+
+name: Documentation examples
+
+on:
+  schedule:
+    - cron: "43 6 * * 1" # Mondays 06:43 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  doc-examples:
+    name: Run documentation examples
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Elixir
+        uses: erlef/setup-beam@v1
+        with:
+          otp-version: "29.x"
+          elixir-version: "1.20"
+
+      - name: Restore dependencies cache
+        uses: actions/cache@v6
+        with:
+          path: deps
+          key: ${{ runner.os }}-mix-${{ hashFiles('**/mix.lock') }}
+          restore-keys: ${{ runner.os }}-mix-
+
+      - name: Install dependencies
+        run: mix deps.get
+
+      - name: Run documentation examples
+        run: mix run test/doc_examples.exs README.md guides/tour.livemd

@@ -1,8 +1,9 @@
 <!-- Machine-readable documentation index for LLMs and coding agents: https://ethers.hexdocs.pm/llms.txt (every docs page is also available as Markdown by replacing .html with .md) -->
 
-# Elixir Ethers
+<img height="120" align="left" src="https://github.com/ExWeb3/elixir_ethers/raw/main/assets/ethers_logo.png" alt="Elixir Ethers logo">
 
-<img height="96" align="left" src="https://github.com/ExWeb3/elixir_ethers/raw/main/assets/ethers_logo.png" alt="Elixir Ethers logo">
+<!-- GitHub draws no underline for a heading inside <summary>, and type="none" hides the list marker -->
+<ul type="none"><summary><h1>Elixir Ethers</h1></summary></ul>
 
 [![CI](https://github.com/ExWeb3/elixir_ethers/actions/workflows/elixir.yml/badge.svg)](https://github.com/ExWeb3/elixir_ethers/actions/workflows/elixir.yml)
 [![Coverage Status](https://coveralls.io/repos/github/ExWeb3/elixir_ethers/badge.svg?branch=main)](https://coveralls.io/github/ExWeb3/elixir_ethers?branch=main)

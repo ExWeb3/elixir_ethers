@@ -56,20 +56,32 @@ binaries.
 
 #### Unregistered transaction types return `Ethers.Transaction.Unknown`
 
-`Ethers.get_transaction/2` (also in `Ethers.batch/2`) and `Ethers.Transaction.from_rpc_map/1`
-return an `Ethers.Transaction.Unknown` for a transaction type that is not registered, like OP-stack
-deposit transactions (type `0x7e`), instead of `{:error, :unsupported_type}`. It is read-only:
-`Ethers.Transaction.encode/1`, `transaction_hash/2` and `to_rpc_map/1` raise `ArgumentError` for
-it. `{:error, :unsupported_type}` is no longer returned: a `type` that is not a hex quantity now
-returns `{:error, :invalid_type}`.
+`Ethers.get_transaction/2` (also in `Ethers.batch/2`), `Ethers.Transaction.from_rpc_map/1` and
+`Ethers.Transaction.decode/1` return an `Ethers.Transaction.Unknown` for a transaction type that is
+not registered, like OP-stack deposit transactions (type `0x7e`). It keeps the transaction
+undecoded: the JSON-RPC object in `rpc_map` (and its block metadata in `metadata`), or the bytes
+after the type byte in `raw_payload`. `Ethers.Transaction.encode/1` and `transaction_hash/2` work
+on one with `raw_payload` and raise `ArgumentError` on one with only `rpc_map`;
+`to_rpc_map/1` raises for both.
+
+`{:error, :unsupported_type}` is no longer returned: a `type` that is not a hex quantity now
+returns `{:error, :invalid_type}`. `decode/1` no longer returns
+`{:error, :unsupported_transaction_type}` for an unregistered type byte, only for a `0x00` type
+byte (legacy transactions have no type byte).
 
 ```elixir
 # Before (0.8.x)
 {:error, :unsupported_type} = Ethers.get_transaction(deposit_tx_hash)
 
 # After (1.0.0)
-{:ok, %Ethers.Transaction.Unknown{type_id: 0x7E, from: from, raw: raw}} =
+{:ok, %Ethers.Transaction.Unknown{type_id: 0x7E, rpc_map: rpc_map}} =
   Ethers.get_transaction(deposit_tx_hash)
+
+rpc_map["from"]
+#=> "0xdeaddeaddeaddeaddeaddeaddeaddeaddead0001"
+
+{:ok, %Ethers.Transaction.Unknown{type_id: 0x7E, raw_payload: raw_payload}} =
+  Ethers.Transaction.decode(raw_deposit_tx)
 ```
 
 ### Transaction Validation
@@ -161,7 +173,8 @@ with one of `:invalid_rlp`, `:unsupported_transaction_type`, `:transaction_decod
 rescued exceptions must match on the tuple instead.
 
 Decoding is also stricter: a first byte in `0x00..0x7f` that is not a registered transaction type
-is rejected instead of being decoded as a legacy transaction, and access list addresses (20 bytes),
+is no longer decoded as a legacy transaction (it returns an `Ethers.Transaction.Unknown`, see
+above, or `:unsupported_transaction_type` for `0x00`), and access list addresses (20 bytes),
 storage keys (32 bytes) and blob versioned hashes (32 bytes) of the wrong size are rejected.
 
 ```elixir

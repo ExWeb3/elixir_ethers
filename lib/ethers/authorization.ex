@@ -29,7 +29,9 @@ defmodule Ethers.Authorization do
     `Ethers.sign_authorization/2`.
 
   A mismatched nonce (or a signature with a high `s` value) does not fail the transaction;
-  the authorization is silently skipped on chain, so getting these right matters.
+  the authorization is silently skipped on chain, so getting these right matters. To
+  confirm that an authorization took effect, check the authority's account afterwards with
+  `Ethers.get_delegation/2` (or `Ethers.get_code/2` and `parse_delegation/1`).
   """
 
   import Ethers.Transaction.Helpers,
@@ -156,6 +158,33 @@ defmodule Ethers.Authorization do
 
     Ethers.keccak_module().hash_256(@magic <> encoded)
   end
+
+  @doc """
+  Parses the delegate address from an EIP-7702 delegation designator.
+
+  Takes account code as a binary (as returned by `Ethers.get_code/2`) and returns
+  `{:ok, delegate_address}` (checksummed) if it is exactly a delegation designator:
+  `0xef0100 ++ address`, 23 bytes in total. Returns `:error` for anything else: empty code,
+  regular contract code or code of any other length. `Ethers.get_delegation/2` fetches and
+  parses the code of an account in one step.
+
+  Applying an authorization for the zero address (see `clear/1`) does not write a designator:
+  it resets the account code to empty, for which this function returns `:error`.
+
+  ## Examples
+
+      iex> code = Ethers.Utils.hex_decode!("0xef010090f8bf6a479f320ead074411a4b0e7944ea8c9c1")
+      iex> Ethers.Authorization.parse_delegation(code)
+      {:ok, "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1"}
+
+      iex> Ethers.Authorization.parse_delegation("")
+      :error
+  """
+  @spec parse_delegation(binary()) :: {:ok, Types.t_address()} | :error
+  def parse_delegation(<<0xEF, 0x01, 0x00, address::binary-20>>),
+    do: {:ok, Utils.to_checksum_address(address)}
+
+  def parse_delegation(code) when is_binary(code), do: :error
 
   @doc false
   @spec to_rlp_list(t()) :: [binary() | non_neg_integer()]

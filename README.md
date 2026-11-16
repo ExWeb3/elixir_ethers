@@ -1,6 +1,6 @@
 <!-- Machine-readable documentation index for LLMs and coding agents: https://ethers.hexdocs.pm/llms.txt (every docs page is also available as Markdown by replacing .html with .md) -->
 
-<img height="120" src="https://github.com/ExWeb3/elixir_ethers/raw/main/assets/ethers_logo.png" alt="Elixir Ethers logo">
+<img height="120" align="left" src="https://github.com/ExWeb3/elixir_ethers/raw/main/assets/ethers_logo.png" alt="Ethers Elixir">
 
 # Elixir Ethers
 

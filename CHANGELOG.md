@@ -14,6 +14,7 @@
 - `Ethers.Transaction.decode/1` returns `{:error, reason}` instead of raising on malformed input
 - Unsigned EIP-155 legacy transactions decode as `%Legacy{}` instead of `%Signed{}`
 - All returned addresses are EIP-55 checksummed, including `Ethers.Event` `address` and `Ethers.deployed_address/2`
+- `Ethers.get_transaction_receipt/2` returns an `Ethers.Receipt` struct instead of the raw RPC map
 - `Ethers.Transaction.from_rpc_map/1` and `Ethers.get_transaction/2` return `Ethers.Transaction.Unknown` for unregistered transaction types instead of `{:error, :unsupported_type}`
 - `Ethers.Transaction.decode/1` returns `Ethers.Transaction.Unknown` for unregistered transaction types instead of `{:error, :unsupported_transaction_type}`
 
@@ -25,6 +26,8 @@
 - Add `Ethers.get_code/2` (`eth_getCode`)
 - Add `Ethers.get_delegation/2` and `Ethers.Authorization.parse_delegation/1` to inspect EIP-7702 delegations
 - Warn about gas limits above the [EIP-7825](https://eips.ethereum.org/EIPS/eip-7825) cap, enforce a cap with `:max_transaction_gas`
+- Add `Ethers.Receipt` struct with decoded transaction receipt fields
+- Add `Ethers.Receipt.decode_logs/2` to decode receipt logs with event filters
 - Add `Ethers.Transaction.Unknown` for unregistered transaction types like OP-stack deposit transactions
 
 ### Bug Fixes
@@ -41,6 +44,7 @@
 - Compare the `:signer_opts` `from` address with the transaction `from` case-insensitively
 - Fix the `http_options` timeout example in the configuration guide
 - Fix `:get_balance` requests in `Ethers.batch/2`
+- Fix the `:get_transaction_receipt` action of `Ethers.batch/2`
 
 ## 0.8.0 (2026-07-29)
 

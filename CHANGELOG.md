@@ -20,6 +20,8 @@
 - Add `Ethers.config/1` (`eth_config`, [EIP-7910](https://eips.ethereum.org/EIPS/eip-7910)) returning `Ethers.ForkConfig` structs
 - Update dependencies
 - Allow `idna` 8.x
+- Add `Ethers.get_code/2` (`eth_getCode`)
+- Add `Ethers.get_delegation/2` and `Ethers.Authorization.parse_delegation/1` to inspect EIP-7702 delegations
 
 ### Bug Fixes
 
@@ -34,6 +36,7 @@
 - Fix `:deployed_address` in `Ethers.batch/2`
 - Compare the `:signer_opts` `from` address with the transaction `from` case-insensitively
 - Fix the `http_options` timeout example in the configuration guide
+- Fix `:get_balance` requests in `Ethers.batch/2`
 
 ## 0.8.0 (2026-07-29)
 

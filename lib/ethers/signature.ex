@@ -66,7 +66,8 @@ defmodule Ethers.Signature do
     Defaults to `"latest"`.
   - `:rpc_client`: The RPC Client to use. It should implement ethereum jsonRPC API.
     default: Ethereumex.HttpClient
-  - `:rpc_opts`: Extra options to pass to rpc_client. (Like timeout, Server URL, etc.)
+  - `:rpc_opts`: Extra options to pass to rpc_client. (Like the server URL, see
+    [per-request options](configuration.md#per-request-options).)
 
   ## Returns
 

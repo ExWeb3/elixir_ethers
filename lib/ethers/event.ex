@@ -24,6 +24,13 @@ defmodule Ethers.Event do
     removed: false
   ]
 
+  @typedoc """
+  A decoded event log.
+
+  `address` is the EIP-55 checksummed address of the contract which emitted the log, and the
+  addresses decoded into `topics` and `data` are checksummed as well. `topics_raw` and
+  `data_raw` hold the log values as the node returned them.
+  """
   @type t :: %__MODULE__{
           address: Types.t_address(),
           block_hash: Types.t_hash(),
@@ -40,6 +47,9 @@ defmodule Ethers.Event do
 
   @doc """
   Decodes a log entry with the given Event function selector and returns an Event struct
+
+  The emitter `address` is returned EIP-55 checksummed. A value which is not a well-formed
+  address is kept as the node returned it.
   """
   @spec decode(map(), ABI.FunctionSelector.t()) :: t()
   def decode(log, %ABI.FunctionSelector{} = selector) when is_map(log) do
@@ -74,7 +84,7 @@ defmodule Ethers.Event do
     {:ok, transaction_index} = Utils.hex_to_integer(Map.fetch!(log, "transactionIndex"))
 
     %__MODULE__{
-      address: Map.fetch!(log, "address"),
+      address: log |> Map.fetch!("address") |> Utils.maybe_checksum_address(),
       block_hash: Map.fetch!(log, "blockHash"),
       block_number: block_number,
       data: data,

@@ -302,6 +302,21 @@ defmodule Ethers.Utils do
     "0x#{checksum_address}"
   end
 
+  # Normalises an address decoded from an RPC response. Values that are not a well-formed
+  # `0x`-prefixed 20-byte hex address (nil, wrong length, non-hex) are returned unchanged,
+  # so a malformed node value surfaces as-is instead of crashing the decoder.
+  @doc false
+  @spec maybe_checksum_address(term()) :: term()
+  def maybe_checksum_address(<<prefix::binary-2, hex::binary-40>> = address)
+      when prefix in ["0x", "0X"] do
+    case hex_decode(hex) do
+      {:ok, _address_bin} -> to_checksum_address(address)
+      :error -> address
+    end
+  end
+
+  def maybe_checksum_address(value), do: value
+
   @doc """
   Checks the checksum of a given address. Will also return false on non-checksum addresses.
 

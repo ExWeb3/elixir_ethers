@@ -229,12 +229,12 @@ iex> Ethers.get_logs(filter)
 {:ok,
  [
    %Ethers.Event{
-     address: "0x5883c66ca442461d406f330775d42954bfcf7d92",
+     address: "0x5883c66cA442461D406f330775d42954bfcf7d92",
      block_hash: "0x83de67fd285067b838790406ea68f21a3afbc0ade534047725b5ccfb904c9ed3",
      block_number: 17077047,
      topics: ["Transfer(address,address,uint256)",
-      "0x6b75d8af000000e20b7a7ddf000ba900b4009a80",
-      "0x230507f6a391ae5ac0ec124f1c5b8ce454fe3f3d"],
+      "0x6b75d8AF000000e20B7a7DDf000Ba900b4009A80",
+      "0x230507f6A391ae5ac0eC124f1C5b8cE454fe3F3d"],
      topics_raw: ["0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
       "0x0000000000000000000000006b75d8af000000e20b7a7ddf000ba900b4009a80",
       "0x000000000000000000000000230507f6a391ae5ac0ec124f1c5b8ce454fe3f3d"],
@@ -256,7 +256,7 @@ you can simply use [`Ethers.NameService`](https://hexdocs.pm/ethers/Ethers.NameS
 
 ```elixir
 iex> Ethers.NameService.resolve("vitalik.eth")
-{:ok, "0xd8da6bf26964af9d7eed9e03e53415d37aa96045"}
+{:ok, "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045"}
 ```
 
 ### Built-in contract ABIs in Ethers

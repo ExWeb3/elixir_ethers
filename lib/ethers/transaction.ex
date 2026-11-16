@@ -652,7 +652,7 @@ defmodule Ethers.Transaction do
       %Authorization.Signed{
         authorization: %Authorization{
           chain_id: from_map_value_int(authorization, :chainId),
-          address: authorization |> from_map_value(:address) |> Utils.to_checksum_address(),
+          address: authorization |> from_map_value(:address) |> Utils.maybe_checksum_address(),
           nonce: from_map_value_int(authorization, :nonce)
         },
         signature_y_parity: from_map_value_int(authorization, :yParity),

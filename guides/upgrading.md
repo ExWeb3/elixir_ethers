@@ -194,6 +194,46 @@ Ethers.Transaction.Signed.from_address(legacy_tx_with_v_1)
 #=> {:error, :invalid_recovery_id}
 ```
 
+### Checksummed Addresses
+
+#### Returned addresses are EIP-55 checksummed
+
+Every address the library returns is now [EIP-55](https://eips.ethereum.org/EIPS/eip-55)
+checksummed. These return values used to keep the casing of the node (usually lowercase) or the
+casing they were configured with:
+
+- `address` of `Ethers.Event`, as returned by `Ethers.get_logs/2` (also `:get_logs` in
+  `Ethers.batch/2`), `Ethers.Event.decode/2`, `Ethers.Event.find_and_decode/2` and
+  `Ethers.CombinedEventFilter.decode_logs/2`
+- `Ethers.deployed_address/2` (also `:deployed_address` in `Ethers.batch/2`)
+- `accounts/1` of `Ethers.Signer.JsonRPC`
+- The `default_address` of contract modules: `__default_address__/0` and the `default_address`
+  of the `Ethers.TxData`, `Ethers.EventFilter` and `Ethers.CombinedEventFilter` structs they
+  build
+
+Other returned addresses (ABI-decoded values, transaction `to`, recovered signers, ...) were
+already checksummed. Raw RPC values (`topics_raw`, `data_raw`, `Ethers.get_transaction_receipt/2`
+maps) are unchanged, and addresses are still accepted in any casing.
+
+```elixir
+{:ok, address} = Ethers.deployed_address(tx_hash)
+
+# Before (0.8.x)
+address
+#=> "0x1000bf6a479f320ead074411a4b0e7944ea8c9c1"
+
+# After (1.0.0)
+address
+#=> "0x1000BF6a479F320EAD074411A4B0e7944Ea8C9C1"
+```
+
+Compare addresses of unknown casing on their checksummed or decoded form, not as strings:
+
+```elixir
+address == Ethers.Utils.to_checksum_address(other_address)
+Ethers.Utils.decode_address!(address) == Ethers.Utils.decode_address!(other_address)
+```
+
 ## Upgrading to 0.6.x
 
 Version 0.6.x and onwards introduce several breaking changes to improve type safety and explicitness.

@@ -104,6 +104,64 @@ defmodule Ethers.AuthorizationTest do
     end
   end
 
+  describe "parse_delegation/1" do
+    @designator_prefix <<0xEF, 0x01, 0x00>>
+
+    test "returns the checksummed delegate of a delegation designator" do
+      code = @designator_prefix <> Utils.decode_address!(@delegate)
+
+      assert byte_size(code) == 23
+      assert {:ok, address} = Authorization.parse_delegation(code)
+      assert address == Utils.to_checksum_address(@delegate)
+
+      assert {:ok, @authority} =
+               Authorization.parse_delegation(
+                 @designator_prefix <> Utils.decode_address!(@authority)
+               )
+    end
+
+    test "returns an error for empty code" do
+      assert :error = Authorization.parse_delegation("")
+    end
+
+    test "returns an error for regular contract code" do
+      code = Utils.hex_decode!("0x6080604052348015600e575f5ffd5b50600436106030575f3560e01c")
+
+      assert :error = Authorization.parse_delegation(code)
+    end
+
+    test "returns an error for a designator prefix with the wrong length" do
+      delegate = Utils.decode_address!(@delegate)
+
+      assert :error =
+               Authorization.parse_delegation(@designator_prefix <> binary_part(delegate, 0, 19))
+
+      assert :error = Authorization.parse_delegation(@designator_prefix <> delegate <> <<0>>)
+      assert :error = Authorization.parse_delegation(@designator_prefix)
+    end
+
+    test "returns an error for 23 bytes without the designator prefix" do
+      delegate = Utils.decode_address!(@delegate)
+
+      assert :error = Authorization.parse_delegation(<<0xEF, 0x01, 0x01>> <> delegate)
+      assert :error = Authorization.parse_delegation(<<0xEF, 0x00, 0x00>> <> delegate)
+      assert :error = Authorization.parse_delegation(<<0x60, 0x01, 0x00>> <> delegate)
+    end
+
+    test "parses a designator for the zero address by its format" do
+      # Not produced on chain: an authorization for the zero address resets the account
+      # code to empty instead of writing this designator
+      assert {:ok, "0x0000000000000000000000000000000000000000"} =
+               Authorization.parse_delegation(@designator_prefix <> <<0::160>>)
+    end
+
+    test "only accepts raw code, not hex strings" do
+      hex_code = Utils.hex_encode(@designator_prefix <> Utils.decode_address!(@delegate))
+
+      assert :error = Authorization.parse_delegation(hex_code)
+    end
+  end
+
   describe "Signed.from_rlp_list/1" do
     test "decodes a signed authorization produced by cast" do
       rlp_list = @signed_auth_rlp |> Utils.hex_decode!() |> ExRLP.decode()

@@ -24,6 +24,8 @@ defmodule Ethers.NameService do
   @doc """
   Resolves a name on blockchain.
 
+  The resolved address is returned EIP-55 checksummed.
+
   ## Parameters
   - name: Domain name to resolve. (Example: `foo.eth`)
   - opts: Resolve options.
@@ -36,7 +38,7 @@ defmodule Ethers.NameService do
 
   ```elixir
   Ethers.NameService.resolve("vitalik.eth")
-  {:ok, "0xd8da6bf26964af9d7eed9e03e53415d37aa96045"}
+  {:ok, "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045"}
   ```
   """
   @spec resolve(String.t(), Keyword.t()) ::
@@ -110,7 +112,7 @@ defmodule Ethers.NameService do
 
   ```elixir
   Ethers.NameService.resolve!("vitalik.eth")
-  "0xd8da6bf26964af9d7eed9e03e53415d37aa96045"
+  "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045"
   ```
   """
   @spec resolve!(String.t(), Keyword.t()) :: Ethers.Types.t_address() | no_return()

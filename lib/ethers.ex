@@ -96,9 +96,12 @@ defmodule Ethers do
     create_access_list: :eth_create_access_list,
     current_block_number: :eth_block_number,
     current_gas_price: :eth_gas_price,
+    deployed_address: :eth_get_transaction_receipt,
     estimate_gas: :eth_estimate_gas,
     fee_history: :eth_fee_history,
     gas_price: :eth_gas_price,
+    get_balance: :eth_get_balance,
+    get_code: :eth_get_code,
     get_logs: :eth_get_logs,
     get_transaction_count: :eth_get_transaction_count,
     get_transaction: :eth_get_transaction_by_hash,
@@ -190,6 +193,113 @@ defmodule Ethers do
   def get_balance!(account, overrides \\ []) do
     case get_balance(account, overrides) do
       {:ok, balance} -> balance
+      {:error, reason} -> raise ExecutionError, reason
+    end
+  end
+
+  @doc """
+  Returns the code stored at an address (`eth_getCode`) as a binary.
+
+  The code is returned as raw bytes:
+
+  - the runtime bytecode for a contract,
+  - `""` for an account without code (e.g. a plain EOA),
+  - the 23-byte delegation designator `0xef0100 ++ delegate_address` for an EOA with an
+    active [EIP-7702](https://eips.ethereum.org/EIPS/eip-7702) delegation. See
+    `Ethers.get_delegation/2` and `Ethers.Authorization.parse_delegation/1`.
+
+  Also works with `Ethers.batch/2` as `{:get_code, address}` or
+  `{:get_code, address, block: block}`.
+
+  ## Parameters
+  - address: Account which the code is queried for.
+  - overrides:
+    - block: The block you want to query the code of address in (defaults to `latest`).
+    - rpc_client: The RPC module to use for this request (overrides default).
+    - rpc_opts: Specific RPC options to specify for this request.
+
+  Returns `{:error, :not_supported}` if the configured RPC client does not implement the
+  optional `eth_get_code/3` callback.
+
+  ## Examples
+
+  ```elixir
+  Ethers.get_code("0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045", block: 21_000_000)
+  {:ok, ""}
+  ```
+  """
+  @spec get_code(Types.t_address(), Keyword.t()) :: {:ok, binary()} | {:error, term()}
+  def get_code(address, overrides \\ []) do
+    {opts, overrides} = Keyword.split(overrides, @option_keys)
+
+    {rpc_client, rpc_opts} = get_rpc_client(opts)
+
+    with {:ok, address, block} <- pre_process(address, overrides, :get_code, opts) do
+      if rpc_callback_supported?(rpc_client, :eth_get_code, 3) do
+        rpc_client.eth_get_code(address, block, rpc_opts)
+      else
+        {:error, :not_supported}
+      end
+      |> post_process(nil, :get_code)
+    end
+  end
+
+  @doc """
+  Same as `Ethers.get_code/2` but raises on error.
+  """
+  @spec get_code!(Types.t_address(), Keyword.t()) :: binary() | no_return()
+  def get_code!(address, overrides \\ []) do
+    case get_code(address, overrides) do
+      {:ok, code} -> code
+      {:error, reason} -> raise ExecutionError, reason
+    end
+  end
+
+  @doc """
+  Returns the address an account delegates to through
+  [EIP-7702](https://eips.ethereum.org/EIPS/eip-7702), or `nil` if it has no delegation.
+
+  Fetches the account code with `Ethers.get_code/2` and parses it with
+  `Ethers.Authorization.parse_delegation/1`. Use it to confirm that an authorization took
+  effect: an authorization with a mismatched nonce does not fail its type-4 transaction,
+  it is skipped silently on chain.
+
+  ## Parameters
+  - address: Account which the delegation is queried for.
+  - overrides: Same as `Ethers.get_code/2`.
+
+  ## Returns
+  - `{:ok, delegate_address}` (checksummed) if the account code is a delegation designator.
+  - `{:ok, nil}` if the account has no delegation. This is the case both for an account
+    without code (an EOA that never delegated or whose delegation was cleared) and for a
+    regular contract.
+  - `{:error, reason}` on RPC failures.
+
+  ## Examples
+
+  ```elixir
+  Ethers.get_delegation("0x14dC79964da2C08b23698B3D3cc7Ca32193d9955")
+  {:ok, "0x5FbDB2315678afecb367f032d93F642f64180aa3"}
+  ```
+  """
+  @spec get_delegation(Types.t_address(), Keyword.t()) ::
+          {:ok, Types.t_address() | nil} | {:error, term()}
+  def get_delegation(address, overrides \\ []) do
+    with {:ok, code} <- get_code(address, overrides) do
+      case Authorization.parse_delegation(code) do
+        {:ok, delegate_address} -> {:ok, delegate_address}
+        :error -> {:ok, nil}
+      end
+    end
+  end
+
+  @doc """
+  Same as `Ethers.get_delegation/2` but raises on error.
+  """
+  @spec get_delegation!(Types.t_address(), Keyword.t()) :: Types.t_address() | nil | no_return()
+  def get_delegation!(address, overrides \\ []) do
+    case get_delegation(address, overrides) do
+      {:ok, delegate_address} -> delegate_address
       {:error, reason} -> raise ExecutionError, reason
     end
   end
@@ -324,6 +434,10 @@ defmodule Ethers do
   @doc """
   Returns the address of the deployed contract if the deployment is finished and successful
 
+  The address is returned EIP-55 checksummed.
+
+  Also works with `Ethers.batch/2` as `{:deployed_address, tx_hash}`.
+
   ## Parameters
   - tx_hash: Hash of the Transaction which created a contract.
   - opts: RPC and account options.
@@ -350,7 +464,8 @@ defmodule Ethers do
   - `:to`: Indicates recipient address. (Contract address in this case)
   - `:block`: The block number or block alias. Defaults to `latest`
   - `:rpc_client`: The RPC Client to use. It should implement ethereum jsonRPC API. default: Ethereumex.HttpClient
-  - `:rpc_opts`: Extra options to pass to rpc_client. (Like timeout, Server URL, etc.)
+  - `:rpc_opts`: Extra options to pass to rpc_client. (Like the server URL, see
+    [per-request options](configuration.md#per-request-options).)
   - `:state_overrides`: Execute the call against a modified chain state (spoofed balances,
     injected contract code, rewritten storage slots, ...). See `Ethers.StateOverride` for the
     accepted structure. Not supported in `Ethers.batch/2`.
@@ -436,7 +551,8 @@ defmodule Ethers do
     the [configuration guide](configuration.html).
   - `:nonce`: Nonce of the transaction. (defaults to number of transactions of from address)
   - `:rpc_client`: The RPC Client to use. It should implement ethereum jsonRPC API. default: Ethereumex.HttpClient
-  - `:rpc_opts`: Extra options to pass to rpc_client. (Like timeout, Server URL, etc.)
+  - `:rpc_opts`: Extra options to pass to rpc_client. (Like the server URL, see
+    [per-request options](configuration.md#per-request-options).)
   - `:signer`: The signer module to use for signing transaction. Default is nil and will rely on the RPC server for signing.
   - `:signer_opts`: Options for signer module. See your signer docs for more details.
   - `:type`: Transaction type. One of `Ethers.Transaction.Eip1559` (default),
@@ -810,7 +926,8 @@ defmodule Ethers do
   - `:block`: The block number or block alias. Only sent to the RPC server when
     `:state_overrides` are given. Defaults to `latest`
   - `:rpc_client`: The RPC Client to use. It should implement ethereum jsonRPC API. default: Ethereumex.HttpClient
-  - `:rpc_opts`: Extra options to pass to rpc_client. (Like timeout, Server URL, etc.)
+  - `:rpc_opts`: Extra options to pass to rpc_client. (Like the server URL, see
+    [per-request options](configuration.md#per-request-options).)
   - `:state_overrides`: Estimate against a modified chain state (spoofed balances, injected
     contract code, rewritten storage slots, ...). See `Ethers.StateOverride` for the accepted
     structure. Not supported in `Ethers.batch/2`.
@@ -867,7 +984,8 @@ defmodule Ethers do
   - `:to`: Indicates recipient address. (Contract address in this case)
   - `:block`: The block number or block alias. Defaults to `latest`
   - `:rpc_client`: The RPC Client to use. It should implement ethereum jsonRPC API. default: Ethereumex.HttpClient
-  - `:rpc_opts`: Extra options to pass to rpc_client. (Like timeout, Server URL, etc.)
+  - `:rpc_opts`: Extra options to pass to rpc_client. (Like the server URL, see
+    [per-request options](configuration.md#per-request-options).)
 
   ## Returns
 
@@ -1083,7 +1201,8 @@ defmodule Ethers do
 
   ## Options
   - `:rpc_client`: The RPC Client to use. It should implement ethereum jsonRPC API. default: Ethereumex.HttpClient
-  - `:rpc_opts`: Extra options to pass to rpc_client. (Like timeout, Server URL, etc.)
+  - `:rpc_opts`: Extra options to pass to rpc_client. (Like the server URL, see
+    [per-request options](configuration.md#per-request-options).)
 
   ## Returns
 
@@ -1169,7 +1288,8 @@ defmodule Ethers do
 
   - `:address`: Indicates event emitter contract address. (nil means all contracts)
   - `:rpc_client`: The RPC Client to use. It should implement ethereum jsonRPC API. default: Ethereumex.HttpClient
-  - `:rpc_opts`: Extra options to pass to rpc_client. (Like timeout, Server URL, etc.)
+  - `:rpc_opts`: Extra options to pass to rpc_client. (Like the server URL, see
+    [per-request options](configuration.md#per-request-options).)
   - `:fromBlock` | `:from_block`: Minimum block number of logs to filter.
   - `:toBlock` | `:to_block`: Maximum block number of logs to filter.
   """
@@ -1306,7 +1426,7 @@ defmodule Ethers do
   end
 
   defp pre_process(account, overrides, action, _opts)
-       when action in [:get_balance, :get_transaction_count] do
+       when action in [:get_balance, :get_code, :get_transaction_count] do
     block =
       case Keyword.get(overrides, :block, "latest") do
         number when is_integer(number) -> Utils.integer_to_hex(number)
@@ -1440,6 +1560,13 @@ defmodule Ethers do
     Utils.hex_to_integer(gas_hex)
   end
 
+  defp post_process({:ok, code}, _address, :get_code) when is_binary(code) do
+    case Utils.hex_decode(code) do
+      {:ok, code} -> {:ok, code}
+      :error -> {:error, :invalid_result}
+    end
+  end
+
   defp post_process({:ok, resp}, %CombinedEventFilter{} = combined_filter, :get_logs)
        when is_list(resp) do
     {:ok, CombinedEventFilter.decode_logs(resp, combined_filter)}
@@ -1457,7 +1584,7 @@ defmodule Ethers do
 
   defp post_process({:ok, %{"contractAddress" => contract_address}}, _tx_hash, :deployed_address)
        when not is_nil(contract_address),
-       do: {:ok, contract_address}
+       do: {:ok, Utils.maybe_checksum_address(contract_address)}
 
   defp post_process({:ok, nil}, _tx_hash, :deployed_address),
     do: {:error, :transaction_not_found}
@@ -1742,13 +1869,22 @@ defmodule Ethers do
     signer_from = Keyword.get(signer_opts, :from) || tx_from
 
     if tx_from do
-      if tx_from != signer_from do
+      unless same_address?(tx_from, signer_from) do
         raise ArgumentError, ":signer_opts has a different from address than transaction"
       end
 
       Keyword.put(signer_opts, :from, tx_from)
     else
       signer_opts
+    end
+  end
+
+  defp same_address?(address, address), do: true
+
+  defp same_address?(address_a, address_b) do
+    case {Utils.decode_address(address_a), Utils.decode_address(address_b)} do
+      {{:ok, address_bin}, {:ok, address_bin}} -> true
+      _not_same -> false
     end
   end
 

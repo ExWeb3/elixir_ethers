@@ -39,6 +39,10 @@ jobs:
           - otp: "28.x"
             elixir: "1.19"
             report_coverage: false
+          # Oldest supported Elixir (see `elixir:` in mix.exs)
+          - otp: "27.x"
+            elixir: "1.18"
+            report_coverage: false
 
     steps:
       - uses: actions/checkout@v7

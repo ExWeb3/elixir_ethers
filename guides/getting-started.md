@@ -23,7 +23,7 @@ end
 > It is needed for `Ethers.Signer.Local` and for recovering the signer of a message or a
 > transaction locally. Leave it out if a node or a remote signer does all your signing.
 
-Ethers needs Elixir 1.15 or later. If you are coming from 0.8 or earlier, read the
+Ethers needs Elixir 1.18 or later. If you are coming from 0.8 or earlier, read the
 [upgrade guide](upgrading.md) first.
 
 ## Connect to a node

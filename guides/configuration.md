@@ -51,8 +51,8 @@ ones.
 
 ### RPC Client `:rpc_client`
 
-Specifies the module responsible for making JSON-RPC calls to the Ethereum node. This module must implement
-`Ethers.RpcClient.Adapter` behaviour.
+Specifies the module responsible for making JSON-RPC calls to the Ethereum node. This module must
+implement the `Ethers.RpcClient.Adapter` behaviour, which also documents how to write your own.
 
 #### Example
 
@@ -70,9 +70,7 @@ Module for Keccak-256 hashing operations. Uses `ExKeccak` by default.
 config :ethers, keccak_module: ExKeccak
 ```
 
-`ExKeccak` is a Rustler NIF. If your target cannot build or load it, set `:keccak_module` to a
-module of your own that exports `hash_256/1`, and set the environment variable
-`SKIP_EX_KECCAK=true` when fetching and compiling dependencies.
+To use another implementation, set `:keccak_module` to a module that exports `hash_256/1`.
 
 ### JSON Module `json_module`
 

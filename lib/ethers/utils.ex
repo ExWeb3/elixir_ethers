@@ -3,7 +3,6 @@ defmodule Ethers.Utils do
   Utilities for interacting with ethereum blockchain
   """
 
-  alias Ethers.Transaction
   alias Ethers.Types
 
   @wei_multiplier trunc(:math.pow(10, 18))
@@ -11,10 +10,6 @@ defmodule Ethers.Utils do
   @default_sample_size 5_000
   # Default acceptable drift for datetime to blocknumber is 10 ethereum mainnet blocks (12s)
   @default_acceptable_drift 12 * 10
-  # Safety margin is the percentage to add to gas when no gas
-  # limit is provided by the user to prevent out-of-gas errors.
-  # Default is 10% (=110)
-  @gas_safety_margin 110
 
   @doc """
   Encode to hex with 0x prefix.
@@ -160,28 +155,6 @@ defmodule Ethers.Utils do
   @spec from_wei(integer()) :: float()
   def from_wei(number) when is_integer(number) do
     number / @wei_multiplier
-  end
-
-  @doc """
-  Adds gas limit estimation to the parameters if not already exists
-
-  The `eth_estimateGas` result is increased by a 10% safety margin, then checked against the
-  `:max_transaction_gas` cap like gas auto-filled by
-  `Ethers.Transaction.add_auto_fetchable_fields/2`.
-  """
-  @deprecated "Use Ethers.estimate_gas/2 instead"
-  def maybe_add_gas_limit(params, opts \\ [])
-
-  def maybe_add_gas_limit(%{gas: _} = params, _opts) do
-    {:ok, params}
-  end
-
-  def maybe_add_gas_limit(params, opts) do
-    with {:ok, estimate} <- Ethers.estimate_gas(params, opts),
-         gas_with_margin = div(@gas_safety_margin * estimate, 100),
-         {:ok, gas} <- Transaction.cap_gas_limit(gas_with_margin, estimate, opts) do
-      {:ok, Map.put(params, :gas, integer_to_hex(gas))}
-    end
   end
 
   @doc """

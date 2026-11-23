@@ -96,15 +96,6 @@ defmodule Ethers.TransactionGasCapTest do
     )
   end
 
-  defp maybe_add_gas_limit(estimate, opts \\ []) do
-    Ethers.Utils.maybe_add_gas_limit(
-      %{from: @from, to: @to, value: 1},
-      [rpc_client: StubRPC, rpc_opts: [estimate: estimate]] ++ opts
-    )
-  end
-
-  defp hex(gas), do: Ethers.Utils.integer_to_hex(gas)
-
   defp warnings(log), do: log |> String.split(@warning) |> length() |> Kernel.-(1)
 
   describe "auto-filled gas without a configured cap" do
@@ -402,37 +393,6 @@ defmodule Ethers.TransactionGasCapTest do
       assert_received {:eth_call, params}
       assert params.gas == Ethers.Utils.integer_to_hex(30_000_000)
       refute Map.has_key?(params, :max_transaction_gas)
-    end
-  end
-
-  describe "Ethers.Utils.maybe_add_gas_limit/2" do
-    test "warns about gas above the EIP-7825 cap without a configured cap" do
-      {result, log} = with_log(fn -> maybe_add_gas_limit(16_000_000) end)
-
-      assert {:ok, %{gas: gas}} = result
-      assert gas == hex(17_600_000)
-      assert warnings(log) == 1
-    end
-
-    test "clamps the margin to a configured cap" do
-      put_max_transaction_gas(@eip7825_cap)
-
-      assert {{:ok, %{gas: gas}}, ""} = with_log(fn -> maybe_add_gas_limit(16_000_000) end)
-      assert gas == hex(@eip7825_cap)
-
-      assert {:error, :gas_limit_exceeds_cap} = maybe_add_gas_limit(@eip7825_cap + 1)
-    end
-
-    test "supports the max_transaction_gas option and disabling the cap" do
-      assert {:ok, %{gas: gas}} =
-               maybe_add_gas_limit(16_000_000, max_transaction_gas: @eip7825_cap)
-
-      assert gas == hex(@eip7825_cap)
-
-      put_max_transaction_gas(false)
-
-      assert {{:ok, %{gas: gas}}, ""} = with_log(fn -> maybe_add_gas_limit(16_000_000) end)
-      assert gas == hex(17_600_000)
     end
   end
 end

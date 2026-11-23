@@ -704,7 +704,8 @@ defmodule EthersTest do
       assert {:ok, results} =
                Ethers.batch([
                  {:call, HelloWorldContract.say_hello(), to: address},
-                 {:send, HelloWorldContract.set_hello("hi"), from: @from, to: address},
+                 {:send_transaction, HelloWorldContract.set_hello("hi"),
+                  from: @from, to: address},
                  :net_version,
                  {:estimate_gas, HelloWorldContract.say_hello(), to: address},
                  {:get_logs, HelloWorldContract.EventFilters.hello_set(), address: address},
@@ -1215,32 +1216,6 @@ defmodule EthersTest do
       assert_raise ExecutionError, fn ->
         HelloWorldContract.set_hello("access list") |> Ethers.create_access_list!(from: @from)
       end
-    end
-  end
-
-  describe "deprecated send/2 and send!/2 still work" do
-    test "send/2 still works" do
-      address = deploy(HelloWorldContract, from: @from)
-
-      {:ok, tx_hash} =
-        HelloWorldContract.set_hello("hi send")
-        |> Ethers.send(to: address, from: @from)
-
-      wait_for_transaction!(tx_hash)
-
-      assert {:ok, "hi send"} = Ethers.call(HelloWorldContract.say_hello(), to: address)
-    end
-
-    test "send!/2 still works" do
-      address = deploy(HelloWorldContract, from: @from)
-
-      tx_hash =
-        HelloWorldContract.set_hello("hi send!")
-        |> Ethers.send!(to: address, from: @from)
-
-      wait_for_transaction!(tx_hash)
-
-      assert {:ok, "hi send!"} = Ethers.call(HelloWorldContract.say_hello(), to: address)
     end
   end
 

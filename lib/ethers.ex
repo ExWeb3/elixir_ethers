@@ -109,11 +109,8 @@ defmodule Ethers do
     get_transaction_receipt: :eth_get_transaction_receipt,
     max_priority_fee_per_gas: :eth_max_priority_fee_per_gas,
     send_transaction: :eth_send_transaction,
-    blob_base_fee: :eth_blob_base_fee,
-    # Deprecated, kept for backward compatibility
-    send: :eth_send_transaction
+    blob_base_fee: :eth_blob_base_fee
   }
-  @send_transaction_actions [:send_transaction, :send]
 
   # Percentiles the priority fees of recent blocks are sampled at per fee estimation speed
   @fee_estimation_percentiles %{slow: 25, standard: 50, fast: 75}
@@ -609,9 +606,6 @@ defmodule Ethers do
     end
   end
 
-  @deprecated "Use `Ethers.send_transaction/2` instead"
-  def send(tx_data, overrides \\ []), do: send_transaction(tx_data, overrides)
-
   @doc """
   Same as `Ethers.send_transaction/2` but raises on error.
   """
@@ -622,9 +616,6 @@ defmodule Ethers do
       {:error, reason} -> raise ExecutionError, reason
     end
   end
-
-  @deprecated "Use `Ethers.send_transaction!/2` instead"
-  def send!(tx_data, overrides \\ []), do: send_transaction!(tx_data, overrides)
 
   @doc """
   Signs a transaction and returns the encoded signed transaction hex.
@@ -1495,12 +1486,11 @@ defmodule Ethers do
     maybe_use_signer(tx_params, opts)
   end
 
-  defp pre_process("0x" <> _ = signed_tx, _overrides, action, _opts)
-       when action in @send_transaction_actions do
+  defp pre_process("0x" <> _ = signed_tx, _overrides, :send_transaction, _opts) do
     {:ok, signed_tx, :eth_send_raw_transaction}
   end
 
-  defp pre_process(tx_data, overrides, action, opts) when action in @send_transaction_actions do
+  defp pre_process(tx_data, overrides, :send_transaction = action, opts) do
     tx_params = TxData.to_map(tx_data, overrides)
 
     with :ok <- check_params(tx_params, action) do
@@ -1589,9 +1579,8 @@ defmodule Ethers do
     {:ok, resp}
   end
 
-  defp post_process({:ok, tx_hash}, _tx_data, action)
-       when valid_result(tx_hash) and action in @send_transaction_actions,
-       do: {:ok, tx_hash}
+  defp post_process({:ok, tx_hash}, _tx_data, :send_transaction) when valid_result(tx_hash),
+    do: {:ok, tx_hash}
 
   defp post_process({:ok, tx_hash}, _tx_params, _action = :deploy) when valid_result(tx_hash),
     do: {:ok, tx_hash}
@@ -1935,7 +1924,7 @@ defmodule Ethers do
   defp check_to_address(%{to: to_address}, _action) when is_binary(to_address), do: :ok
 
   defp check_to_address(%{to: nil}, action)
-       when action in [:send, :send_transaction, :sign_transaction, :estimate_gas],
+       when action in [:send_transaction, :sign_transaction, :estimate_gas],
        do: :ok
 
   defp check_to_address(_params, _action), do: {:error, :no_to_address}
@@ -1943,7 +1932,7 @@ defmodule Ethers do
   defp check_from_address(%{from: from}, _action) when not is_nil(from), do: :ok
 
   defp check_from_address(_tx_params, action)
-       when action in [:send, :send_transaction, :sign_transaction],
+       when action in [:send_transaction, :sign_transaction],
        do: {:error, :no_from_address}
 
   defp check_from_address(_tx_params, _action), do: :ok

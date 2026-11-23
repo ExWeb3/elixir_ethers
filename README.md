@@ -58,7 +58,7 @@ Then point it at a JSON-RPC endpoint: your own node, a provider, or a public end
 config :ethereumex, url: "https://your-ethereum-node.example"
 ```
 
-Ethers needs Elixir 1.15 or later. Coming from 0.8 or earlier? Read the
+Ethers needs Elixir 1.18 or later. Coming from 0.8 or earlier? Read the
 [upgrade guide](https://ethers.hexdocs.pm/upgrading.html).
 
 ## Try it

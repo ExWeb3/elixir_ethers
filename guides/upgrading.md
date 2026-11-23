@@ -4,6 +4,45 @@ This guide provides information about upgrading between different versions of Et
 
 ## Upgrading to 1.0.0
 
+### Requirements
+
+#### Elixir 1.18 or later
+
+Ethers 1.0.0 requires Elixir 1.18 or later. Versions up to 0.8.x accepted Elixir 1.15.
+
+#### `SKIP_EX_KECCAK` is removed
+
+The `SKIP_EX_KECCAK` environment variable no longer has any effect, `ex_keccak` and `ex_abi` are
+always required. Use the `:keccak_module` [configuration](configuration.md) to hash with another
+module.
+
+### Removed Functions
+
+The functions deprecated in 0.6.0 are removed.
+
+| Removed | Use instead |
+| --- | --- |
+| `Ethers.send/2`, `Ethers.send!/2` | `Ethers.send_transaction/2`, `Ethers.send_transaction!/2` |
+| `:send` action of `Ethers.batch/2` | `:send_transaction` |
+| `Ethers.Utils.maybe_add_gas_limit/2` | `Ethers.estimate_gas/2` |
+| `Ethers.Transaction.calculate_y_parity_or_v/2` | The same function of `Ethers.Transaction.Signed` |
+
+```elixir
+# Before (0.8.x)
+Ethers.send(tx_data, from: sender)
+Ethers.batch([{:send, tx_data, from: sender}])
+{:ok, %{gas: gas_hex}} = Ethers.Utils.maybe_add_gas_limit(%{from: sender, to: recipient})
+
+# After (1.0.0)
+Ethers.send_transaction(tx_data, from: sender)
+Ethers.batch([{:send_transaction, tx_data, from: sender}])
+{:ok, gas} = Ethers.estimate_gas(%{from: sender, to: recipient})
+```
+
+`Ethers.estimate_gas/2` returns the estimate as an integer and adds no margin.
+`Ethers.send_transaction/2` adds the [`:default_gas_margin`](configuration.md#gas-margins) itself
+when it fills in the gas limit for a signer.
+
 ### Transaction RPC Maps
 
 #### Decoded access lists and blob hashes in fetched transactions

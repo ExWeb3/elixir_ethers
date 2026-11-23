@@ -84,24 +84,6 @@ defmodule Ethers.UtilsTest do
     end
   end
 
-  describe "maybe_add_gas_limit" do
-    test "adds gas limit to the transaction params" do
-      assert {:ok, %{gas: gas}} =
-               Ethers.Utils.maybe_add_gas_limit(%{
-                 from: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
-                 to: "0xFFcf8FDEE72ac11b5c542428B35EEF5769C409f0",
-                 value: 100_000_000_000_000_000
-               })
-
-      assert is_binary(gas)
-      assert Ethers.Utils.hex_to_integer!(gas) > 0
-    end
-
-    test "does not add anything if the params already includes gas" do
-      assert {:ok, %{gas: 100}} = Ethers.Utils.maybe_add_gas_limit(%{gas: 100})
-    end
-  end
-
   describe "hex_to_integer!" do
     test "raises when the hex input is invalid" do
       assert_raise ArgumentError,

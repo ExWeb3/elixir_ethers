@@ -620,10 +620,6 @@ defmodule Ethers.Transaction do
           "Unsupported value #{inspect(value)} for transaction field #{inspect(field)}"
   end
 
-  @doc false
-  @deprecated "Use Transaction.Signed.calculate_y_parity_or_v/2 instead"
-  defdelegate calculate_y_parity_or_v(tx, recovery_id), to: Signed
-
   defp prepend_type_envelope(encoded_tx, transaction) do
     TxProtocol.type_envelope(transaction) <> encoded_tx
   end
@@ -767,12 +763,11 @@ defmodule Ethers.Transaction do
   # Missing (filled by the node) or invalid (rejected later on) gas limits
   def check_gas_limit(_gas, _opts), do: :ok
 
-  @doc false
   # Returns the gas limit to auto-fill for an `eth_estimateGas` result with the margin applied.
   # A configured cap clamps the margin, so only an estimate above the cap fails.
   @spec cap_gas_limit(non_neg_integer(), non_neg_integer(), Keyword.t()) ::
           {:ok, non_neg_integer()} | {:error, :gas_limit_exceeds_cap}
-  def cap_gas_limit(gas_with_margin, estimate, opts) do
+  defp cap_gas_limit(gas_with_margin, estimate, opts) do
     case max_transaction_gas(opts) do
       nil ->
         maybe_warn_gas_limit(gas_with_margin)

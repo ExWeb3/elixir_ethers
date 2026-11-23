@@ -4,6 +4,10 @@
 
 ### Breaking Changes
 
+- Require Elixir 1.18 or later
+- Remove deprecated `Ethers.send/2`, `Ethers.send!/2` and the `:send` action of `Ethers.batch/2`
+- Remove deprecated `Ethers.Utils.maybe_add_gas_limit/2` and `Ethers.Transaction.calculate_y_parity_or_v/2`
+- Remove the `SKIP_EX_KECCAK` environment variable
 - Fetched transactions hold `access_list` and `blob_versioned_hashes` as binaries instead of raw RPC values
 - `Ethers.Transaction.to_rpc_map/1` emits access lists as `{address, storageKeys}` objects
 - `Ethers.Transaction.to_rpc_map/1` emits EIP-7702 authorization `r` and `s` as quantities
@@ -33,6 +37,7 @@
 - Add `Ethers.Transaction.Unknown` for unregistered transaction types like OP-stack deposit transactions
 - Restructure the documentation into a shorter README, topic guides, a cheatsheet and a Livebook tour
 - Add `usage-rules.md` for coding agents and ship the guides in the package
+- Document the `Ethers.RpcClient.Adapter` behaviour for custom RPC clients
 
 ### Bug Fixes
 

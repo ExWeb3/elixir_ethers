@@ -8,7 +8,7 @@ defmodule Ethers.MixProject do
     [
       app: :ethers,
       version: @version,
-      elixir: "~> 1.15",
+      elixir: "~> 1.18",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       name: "Ethers",
@@ -106,6 +106,9 @@ defmodule Ethers.MixProject do
           ~r/^Ethers\.Signer\.[A-Za-z0-9.]+$/,
           ~r/^Ethers\.Signer$/
         ],
+        "RPC Client": [
+          "Ethers.RpcClient.Adapter"
+        ],
         "Sign-In with Ethereum": [
           "Ethers.Siwe",
           "Ethers.Siwe.Message"
@@ -120,6 +123,10 @@ defmodule Ethers.MixProject do
           ~r/^Ethers\.Contracts\..*$/
         ]
       ],
+      # The changelog and the upgrade guide name functions which no longer exist
+      skip_undefined_reference_warnings_on: ["CHANGELOG.md", "guides/upgrading.md"],
+      # Ethereumex does not document its client module
+      skip_code_autolink_to: ["Ethereumex.HttpClient"],
       logo: "assets/exdoc_logo.png",
       before_closing_head_tag: &before_closing_head_tag/1,
       markdown_processor: {ExDoc.Markdown.Earmark, footnotes: true}
@@ -146,7 +153,7 @@ defmodule Ethers.MixProject do
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.3", only: [:dev, :test], runtime: false},
       {:ethereumex, "~> 0.10 and >= 0.10.7"},
-      {:ex_abi, "~> 0.8.0", optional: System.get_env("SKIP_EX_KECCAK") == "true"},
+      {:ex_abi, "~> 0.8.0"},
       {:ex_doc, "~> 0.32", only: :dev, runtime: false},
       {:ex_keccak, "~> 0.7.5"},
       {:ex_rlp, "~> 0.6.0"},
